@@ -1,10 +1,25 @@
 <?php
 
+use App\Http\Controllers\AuthController;
 use App\Http\Controllers\ProfileController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
     return view('welcome');
+});
+
+// Authentication Routes
+Route::middleware('guest')->group(function () {
+    Route::get('/login', [AuthController::class, 'showLogin'])->name('login');
+    Route::post('/login', [AuthController::class, 'login']);
+    Route::get('/register', [AuthController::class, 'showRegisterRole'])->name('register.role');
+    Route::post('/register/role', [AuthController::class, 'storeRole'])->name('register.role.store');
+    Route::get('/register/details', [AuthController::class, 'showRegisterDetails'])->name('register.details');
+    Route::post('/register', [AuthController::class, 'register'])->name('register');
+});
+
+Route::middleware('auth')->group(function () {
+    Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
 });
 
 Route::get('/dashboard', function () {
