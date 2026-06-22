@@ -1,255 +1,305 @@
-<!DOCTYPE html>
-<html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Discussion Hub | Register</title>
-    <style>
-        * { box-sizing: border-box; }
-        body {
-            margin: 0;
-            font-family: "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
-            background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
-            color: #1f2937;
-        }
-        .page-wrap {
-            min-height: 100vh;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 24px;
-        }
-        .auth-card {
-            width: 100%;
-            max-width: 980px;
-            background: #fff;
-            border-radius: 18px;
-            box-shadow: 0 18px 45px rgba(37, 99, 235, 0.08);
-            padding: 36px 28px;
-        }
-        .brand { text-align: center; margin-bottom: 24px; }
-        .brand h1 { margin: 0; font-size: 2rem; font-weight: 700; color: #2563eb; }
-        .alert {
-            border-radius: 10px;
-            padding: 12px 14px;
-            margin-bottom: 16px;
-            font-size: 0.9rem;
-        }
-        .alert-error {
-            background: #fef2f2;
-            color: #b91c1c;
-            border: 1px solid #fecaca;
-        }
-        .form-grid {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 16px;
-        }
-        .form-group { margin-bottom: 16px; }
-        .form-group label {
-            display: block;
-            margin-bottom: 8px;
-            font-size: 0.95rem;
-            font-weight: 600;
-            color: #334155;
-        }
-        .form-control, .form-select {
-            width: 100%;
-            padding: 12px 14px;
-            border-radius: 10px;
-            border: 1px solid #dbe4f0;
-            outline: none;
-            transition: border-color 0.2s ease, box-shadow 0.2s ease;
-            font-size: 0.95rem;
-        }
-        .form-control:focus, .form-select:focus {
-            border-color: #2563eb;
-            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
-        }
-        .password-wrap { position: relative; }
-        .password-wrap button {
-            position: absolute;
-            right: 12px;
-            top: 50%;
-            transform: translateY(-50%);
-            background: transparent;
-            border: none;
-            cursor: pointer;
-            color: #64748b;
-        }
-        .guidelines {
-            background: #f8fafc;
-            border: 1px solid #dbe4f0;
-            border-radius: 12px;
-            padding: 16px;
-            margin: 10px 0 18px;
-        }
-        .guidelines h3 { margin: 0 0 10px; font-size: 1rem; }
-        .guidelines ul { margin: 0; padding-left: 18px; }
-        .guidelines li { margin-bottom: 8px; color: #475569; }
-        .checkbox-row {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            margin: 8px 0 18px;
-            font-size: 0.95rem;
-            color: #334155;
-        }
-        .btn {
-            width: 100%;
-            border: none;
-            padding: 13px 16px;
-            border-radius: 10px;
-            font-size: 1rem;
-            font-weight: 600;
-            cursor: pointer;
-            transition: transform 0.15s ease, box-shadow 0.2s ease, background 0.2s ease;
-        }
-        .btn:hover { transform: translateY(-1px); }
-        .btn-primary {
-            background: linear-gradient(90deg, #2563eb 0%, #1e40af 100%);
-            color: #fff;
-            box-shadow: 0 10px 20px rgba(37, 99, 235, 0.18);
-        }
-        .footer-link {
-            text-align: center;
-            margin-top: 14px;
-            color: #64748b;
-        }
-        .footer-link a { color: #2563eb; text-decoration: none; font-weight: 600; }
-        .error-text { color: #dc2626; font-size: 0.85rem; margin-top: 6px; }
-        @media (max-width: 640px) {
-            .form-grid { grid-template-columns: 1fr; }
-            .auth-card { padding: 28px 20px; }
-            .brand h1 { font-size: 1.8rem; }
-        }
-    </style>
-</head>
-<body>
-<div class="page-wrap">
-    <div class="auth-card">
-        <div class="brand">
-            <h1>Discussion Hub</h1>
-        </div>
+<x-auth-layout>
+    <div class="two-column-layout" style="max-width: 1000px; margin: 0 auto; width: 100%;">
+        <!-- LEFT COLUMN: CREATE AN ACCOUNT -->
+        <div class="column">
+            <!-- Header -->
+            <div class="column-title" style="color: var(--primary-blue); font-size: 18px; margin-bottom: 8px;">CREATE AN ACCOUNT</div>
+            <p class="subtitle" style="margin-bottom: 20px;">Join the Discussion Hub community today.</p>
 
-        @if ($errors->any())
-            <div class="alert alert-error">
-                @foreach ($errors->all() as $error)
-                    <div>{{ $error }}</div>
-                @endforeach
-            </div>
-        @endif
+            <!-- Display Errors -->
+            @if ($errors->any())
+                <div class="alert-error" style="margin-bottom: 20px;">
+                    <strong>Registration Failed:</strong>
+                    @foreach ($errors->all() as $error)
+                        <div style="font-size: 13px; margin-top: 4px;">{{ $error }}</div>
+                    @endforeach
+                </div>
+            @endif
 
-        <form method="POST" action="{{ route('register') }}" onsubmit="syncFullName()">
-            @csrf
-            <input type="hidden" name="name" id="full_name" value="{{ old('name') }}">
+            <!-- Registration Form -->
+            <form action="{{ route('register') }}" method="POST" id="registerForm">
+                @csrf
 
-            <div class="form-grid">
+                <!-- Full Name -->
                 <div class="form-group">
-                    <label for="first_name">First Name</label>
-                    <input id="first_name" class="form-control" type="text" name="first_name" value="{{ old('first_name') }}" required autofocus>
-                    @error('first_name')
-                        <div class="error-text">{{ $message }}</div>
+                    <label for="full_name">Full Name:</label>
+                    <input 
+                        type="text" 
+                        id="full_name" 
+                        name="full_name" 
+                        placeholder="Nakato Vannesah"
+                        value="{{ old('full_name') }}"
+                        required
+                    >
+                    @error('full_name')
+                        <div class="field-error">{{ $message }}</div>
                     @enderror
                 </div>
+
+                <!-- Email Address -->
                 <div class="form-group">
-                    <label for="last_name">Last Name</label>
-                    <input id="last_name" class="form-control" type="text" name="last_name" value="{{ old('last_name') }}" required>
-                    @error('last_name')
-                        <div class="error-text">{{ $message }}</div>
+                    <label for="email">Email Address:</label>
+                    <input 
+                        type="email" 
+                        id="email" 
+                        name="email" 
+                        placeholder="nakatov@gmail.com"
+                        value="{{ old('email') }}"
+                        required
+                    >
+                    @error('email')
+                        <div class="field-error">{{ $message }}</div>
                     @enderror
                 </div>
-            </div>
 
-            <div class="form-group">
-                <label for="email">Email</label>
-                <input id="email" class="form-control" type="email" name="email" value="{{ old('email') }}" required autocomplete="username">
-                @error('email')
-                    <div class="error-text">{{ $message }}</div>
-                @enderror
-            </div>
-
-            <div class="form-group">
-                <label for="role">Role</label>
-                <select id="role" class="form-select" name="role">
-                    <option value="Student" {{ old('role') == 'Student' ? 'selected' : '' }}>Student</option>
-                    <option value="Lecturer" {{ old('role') == 'Lecturer' ? 'selected' : '' }}>Lecturer</option>
-                    <option value="Administrator" {{ old('role') == 'Administrator' ? 'selected' : '' }}>Administrator</option>
-                </select>
-            </div>
-
-            <div class="form-grid">
+                <!-- Username -->
                 <div class="form-group">
-                    <label for="password">Password</label>
-                    <div class="password-wrap">
-                        <input id="password" class="form-control" type="password" name="password" required autocomplete="new-password">
-                        <button type="button" aria-label="Toggle password visibility" onclick="togglePassword('password', this)">
-                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12z"></path>
-                                <circle cx="12" cy="12" r="3"></circle>
-                            </svg>
+                    <label for="username">Username:</label>
+                    <input 
+                        type="text" 
+                        id="username" 
+                        name="username" 
+                        placeholder="Nakato V"
+                        value="{{ old('username') }}"
+                        required
+                    >
+                    @error('username')
+                        <div class="field-error">{{ $message }}</div>
+                    @enderror
+                </div>
+
+                <!-- Password -->
+                <div class="form-group">
+                    <label for="password">Password:</label>
+                    <div class="password-field-wrapper">
+                        <input 
+                            type="password" 
+                            id="password" 
+                            name="password" 
+                            placeholder="••••••••"
+                            required
+                            onkeyup="checkPasswordRequirements()"
+                        >
+                        <button 
+                            type="button" 
+                            class="password-toggle" 
+                            id="passwordToggle"
+                            onclick="togglePassword('password', 'passwordToggle')"
+                        >
+                            👁️
                         </button>
                     </div>
                     @error('password')
-                        <div class="error-text">{{ $message }}</div>
+                        <div class="field-error">{{ $message }}</div>
                     @enderror
+                    
+                    <!-- Password Requirements -->
+                    <div class="password-requirements">
+                        <div class="requirement unmet" id="req-length">
+                            <div class="requirement-icon">✓</div>
+                            <span>At least 8 characters</span>
+                        </div>
+                        <div class="requirement unmet" id="req-uppercase">
+                            <div class="requirement-icon">✓</div>
+                            <span>Contains uppercase letter</span>
+                        </div>
+                        <div class="requirement unmet" id="req-lowercase">
+                            <div class="requirement-icon">✓</div>
+                            <span>Contains lowercase letter</span>
+                        </div>
+                        <div class="requirement unmet" id="req-number">
+                            <div class="requirement-icon">✓</div>
+                            <span>Contains number</span>
+                        </div>
+                        <div class="requirement unmet" id="req-special">
+                            <div class="requirement-icon">✓</div>
+                            <span>Contains special character (!@#$%^&*)</span>
+                        </div>
+                    </div>
                 </div>
+
+                <!-- Confirm Password -->
                 <div class="form-group">
-                    <label for="password_confirmation">Confirm Password</label>
-                    <div class="password-wrap">
-                        <input id="password_confirmation" class="form-control" type="password" name="password_confirmation" required autocomplete="new-password">
-                        <button type="button" aria-label="Toggle password visibility" onclick="togglePassword('password_confirmation', this)">
-                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12z"></path>
-                                <circle cx="12" cy="12" r="3"></circle>
-                            </svg>
+                    <label for="password_confirmation">Confirm Password:</label>
+                    <div class="password-field-wrapper">
+                        <input 
+                            type="password" 
+                            id="password_confirmation" 
+                            name="password_confirmation" 
+                            placeholder="••••••••"
+                            required
+                        >
+                        <button 
+                            type="button" 
+                            class="password-toggle" 
+                            id="passwordConfirmToggle"
+                            onclick="togglePassword('password_confirmation', 'passwordConfirmToggle')"
+                        >
+                            👁️
                         </button>
                     </div>
                     @error('password_confirmation')
-                        <div class="error-text">{{ $message }}</div>
+                        <div class="field-error">{{ $message }}</div>
                     @enderror
                 </div>
+
+                <!-- Status Badge -->
+                <div class="status-badge">
+                    <span>✓</span>
+                    <span>STATUS: PENDING RULE ACCEPTANCE</span>
+                </div>
+
+                <!-- Hidden rules checkbox for validation -->
+                <input type="hidden" id="rulesHidden" name="rules_accepted" value="0">
+
+                <!-- Accept Rules Button -->
+                <button 
+                    type="submit" 
+                    class="btn btn-primary" 
+                    id="submitBtn"
+                    disabled
+                    style="background: var(--light-gray); color: var(--text-gray); cursor: not-allowed; margin-top: 15px;"
+                >
+                    COMPLETE REGISTRATION
+                </button>
+            </form>
+        </div>
+
+        <!-- RIGHT COLUMN: PLATFORM RULES & GUIDELINES -->
+        <div class="column rules-column">
+            <div class="column-title" style="color: var(--dark-gray); font-size: 16px; margin-bottom: 15px;">PLATFORM RULES & GUIDELINES</div>
+
+            <!-- Rules List -->
+            <ol class="rules-list">
+                <li>
+                    <strong>Be Respectful:</strong> Harassment, hate speech, and personal attacks are strictly prohibited. Treat all members with courtesy and maintain a professional tone in all discussions.
+                </li>
+                <li>
+                    <strong>No Spam:</strong> Do not post promotional content, redundant topics, or malicious links. Keep discussions relevant to the category and contribute meaningful value to the community.
+                </li>
+                <li>
+                    <strong>Privacy:</strong> Do not share personal information or breach confidentiality.
+                </li>
+            </ol>
+
+            <!-- Rules Checkbox -->
+            <div class="checkbox-wrapper" style="margin-top: 20px;">
+                <input 
+                    type="checkbox" 
+                    id="rules_accepted" 
+                    name="rules_agreement"
+                    onchange="toggleSubmitButton()"
+                >
+                <label class="checkbox-label" for="rules_accepted">
+                    I have read and agree to abide by the Platform Rules. Violations may result in account termination.
+                </label>
             </div>
 
-            <div class="guidelines">
-                <h3>Discussion Hub Guidelines</h3>
-                <ul>
-                    <li>Be respectful and professional in all discussions.</li>
-                    <li>Share accurate information and cite your sources when needed.</li>
-                    <li>Avoid posting personal data or confidential class material.</li>
-                    <li>Use relevant categories and keep conversations constructive.</li>
-                </ul>
+            <!-- Action Buttons -->
+            <div class="button-group" style="margin-top: 30px;">
+                <button 
+                    type="submit" 
+                    class="btn btn-primary" 
+                    id="acceptRulesBtn"
+                    onclick="document.getElementById('rulesHidden').value = '1'; document.getElementById('registerForm').submit();"
+                    disabled
+                    style="background: var(--light-gray); color: var(--text-gray); cursor: not-allowed;"
+                >
+                    ACCEPT RULES >
+                </button>
+                <a href="{{ route('login') }}" class="btn btn-secondary">
+                    DECLINE
+                </a>
             </div>
-
-            <div class="checkbox-row">
-                <input type="checkbox" name="terms" id="terms" required style="accent-color:#2563eb;">
-                <label for="terms">I agree to Discussion Hub guidelines</label>
-            </div>
-
-            <button type="submit" class="btn btn-primary">Create Account</button>
-        </form>
-
-        <div class="footer-link">
-            Already have an account? <a href="{{ route('login') }}">Log in here</a>
         </div>
     </div>
-</div>
 
-<script>
-    function togglePassword(inputId, button) {
-        const input = document.getElementById(inputId);
-        const isHidden = input.type === 'password';
-        input.type = isHidden ? 'text' : 'password';
-        button.innerHTML = isHidden
-            ? '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 8 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path><line x1="1" y1="1" x2="23" y2="23"></line></svg>'
-            : '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12z"></path><circle cx="12" cy="12" r="3"></circle></svg>';
-    }
+    <script>
+        // Password visibility toggle
+        function togglePassword(fieldId, toggleBtnId) {
+            const field = document.getElementById(fieldId);
+            const btn = document.getElementById(toggleBtnId);
+            
+            if (field.type === 'password') {
+                field.type = 'text';
+                btn.textContent = '👁️‍🗨️';
+            } else {
+                field.type = 'password';
+                btn.textContent = '👁️';
+            }
+        }
 
-    function syncFullName() {
-        const first = document.getElementById('first_name').value.trim();
-        const last = document.getElementById('last_name').value.trim();
-        document.getElementById('full_name').value = [first, last].filter(Boolean).join(' ');
-    }
-</script>
-</body>
-</html>
+        // Check password requirements
+        function checkPasswordRequirements() {
+            const password = document.getElementById('password').value;
+            
+            // Check length
+            const hasLength = password.length >= 8;
+            updateRequirement('req-length', hasLength);
+            
+            // Check uppercase
+            const hasUppercase = /[A-Z]/.test(password);
+            updateRequirement('req-uppercase', hasUppercase);
+            
+            // Check lowercase
+            const hasLowercase = /[a-z]/.test(password);
+            updateRequirement('req-lowercase', hasLowercase);
+            
+            // Check number
+            const hasNumber = /[0-9]/.test(password);
+            updateRequirement('req-number', hasNumber);
+            
+            // Check special character
+            const hasSpecial = /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password);
+            updateRequirement('req-special', hasSpecial);
+        }
+
+        function updateRequirement(elementId, isMet) {
+            const element = document.getElementById(elementId);
+            if (isMet) {
+                element.classList.remove('unmet');
+                element.classList.add('met');
+            } else {
+                element.classList.remove('met');
+                element.classList.add('unmet');
+            }
+        }
+
+        // Toggle submit button based on rules checkbox
+        function toggleSubmitButton() {
+            const rulesCheckbox = document.getElementById('rules_accepted');
+            const submitBtn = document.getElementById('submitBtn');
+            const acceptRulesBtn = document.getElementById('acceptRulesBtn');
+            
+            if (rulesCheckbox.checked) {
+                submitBtn.disabled = false;
+                submitBtn.style.background = 'linear-gradient(135deg, var(--primary-blue) 0%, var(--primary-blue-dark) 100%)';
+                submitBtn.style.color = 'white';
+                submitBtn.style.cursor = 'pointer';
+                
+                acceptRulesBtn.disabled = false;
+                acceptRulesBtn.style.background = 'linear-gradient(135deg, var(--primary-blue) 0%, var(--primary-blue-dark) 100%)';
+                acceptRulesBtn.style.color = 'white';
+                acceptRulesBtn.style.cursor = 'pointer';
+            } else {
+                submitBtn.disabled = true;
+                submitBtn.style.background = 'var(--light-gray)';
+                submitBtn.style.color = 'var(--text-gray)';
+                submitBtn.style.cursor = 'not-allowed';
+                
+                acceptRulesBtn.disabled = true;
+                acceptRulesBtn.style.background = 'var(--light-gray)';
+                acceptRulesBtn.style.color = 'var(--text-gray)';
+                acceptRulesBtn.style.cursor = 'not-allowed';
+            }
+        }
+
+        // Initialize on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            const rulesCheckbox = document.getElementById('rules_accepted');
+            if (rulesCheckbox && rulesCheckbox.checked) {
+                toggleSubmitButton();
+            }
+        });
+    </script>
+</x-auth-layout>
