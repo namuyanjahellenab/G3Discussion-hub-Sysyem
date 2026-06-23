@@ -11,13 +11,22 @@ return new class extends Migration
      */
     public function up(): void
 {
-    Schema::create('topics', function (Blueprint $table) {
-        $table->id();
-        $table->foreignId('user_id')->constrained()->onDelete('cascade'); // The person who asked
-        $table->string('title');
-        $table->boolean('is_resolved')->default(false); // To easily track if it's answered
-        $table->timestamps();
-    });
+   Schema::create('topics', function (Blueprint $table) {
+    
+    $table->id('TopicID');
+    
+    
+    $table->string('Title', 255);
+    $table->string('Category', 100);
+    
+    // 3. FOREIGN KEY pointing to 'UserID' on the 'users' table
+    $table->foreignId('CreatedBy')->constrained('users', 'UserID')->onDelete('cascade');
+    
+    // 4. Extra functional field (Optional but smart for handling Requirement 2!)
+    $table->boolean('is_resolved')->default(false)->comment('Tracks if the question has been answered');
+    
+    $table->timestamps();
+});
 }
     /**
      * Reverse the migrations.

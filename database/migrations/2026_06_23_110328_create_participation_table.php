@@ -11,11 +11,12 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('posts', function (Blueprint $table) {
-            $table->id('PostID');
-    $table->foreignId('TopicID')->constrained('topics', 'TopicID')->onDelete('cascade');
+        Schema::create('participation', function (Blueprint $table) {
+            $table->id('ParticipationID');
     $table->foreignId('UserID')->constrained('users', 'UserID')->onDelete('cascade');
-    $table->text('Content');
+    $table->integer('PostCount')->default(0);
+    $table->integer('ReplyCount')->default(0);
+    $table->decimal('ParticipationScore', 5, 2)->default(0.00);
             $table->timestamps();
         });
     }
@@ -25,6 +26,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('posts');
+        Schema::dropIfExists('participation');
     }
 };

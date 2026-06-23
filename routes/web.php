@@ -3,7 +3,7 @@
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\ProfileController;
 use Illuminate\Support\Facades\Route;
-
+use App\Http\Controllers\Auth\RegisteredUserController;
 Route::get('/', function () {
     return view('welcome');
 });
@@ -41,5 +41,8 @@ Route::middleware('auth')->group(function () {
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 });
-
+// Define the missing 'register.role' route
+Route::get('/register/role', [App\Http\Controllers\Auth\RegisteredUserController::class, 'showRoleSelection'])
+    ->name('register.role');
+ Route::get('/register/role', [RegisteredUserController::class, 'showRoleSelection'])->name('register.role');   
 require __DIR__.'/auth.php';

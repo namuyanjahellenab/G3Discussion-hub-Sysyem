@@ -11,11 +11,12 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('posts', function (Blueprint $table) {
-            $table->id('PostID');
+        Schema::create('topic_classifications', function (Blueprint $table) {
+            $table->id('ClassificationID');
+    // Your dictionary says TopicID here maps to a topic
     $table->foreignId('TopicID')->constrained('topics', 'TopicID')->onDelete('cascade');
-    $table->foreignId('UserID')->constrained('users', 'UserID')->onDelete('cascade');
-    $table->text('Content');
+    $table->string('PredictedCategory', 100);
+    $table->decimal('ConfidenceScore', 5, 2);
             $table->timestamps();
         });
     }
@@ -25,6 +26,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('posts');
+        Schema::dropIfExists('topic_classifications');
     }
 };

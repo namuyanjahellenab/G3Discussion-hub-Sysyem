@@ -5,6 +5,18 @@
             <!-- Header -->
             <div class="column-title" style="color: var(--primary-blue); font-size: 18px; margin-bottom: 8px;">CREATE AN ACCOUNT</div>
             <p class="subtitle" style="margin-bottom: 20px;">Join the Discussion Hub community today.</p>
+            <!-- Selected Role Badge / Change Role -->
+            @if (isset($role) && $role)
+                <div style="margin-bottom:12px;">
+                    <strong>Selected role:</strong>
+                    <span style="display:inline-block; padding:4px 8px; margin-left:8px; background:#eef6ff; border-radius:6px;">{{ ucfirst($role) }}</span>
+                    <a href="{{ route('register.role') }}" style="margin-left:12px; font-size:13px;">Change</a>
+                </div>
+            @else
+                <div style="margin-bottom:12px;">
+                    <a href="{{ route('register.role') }}">Choose a role</a> before continuing.
+                </div>
+            @endif
 
             <!-- Display Errors -->
             @if ($errors->any())
@@ -151,6 +163,8 @@
 
                 <!-- Hidden rules checkbox for validation -->
                 <input type="hidden" id="rulesHidden" name="rules_accepted" value="0">
+                <!-- Include selected role so it's visible on form submit (controller also reads session) -->
+                <input type="hidden" name="role" value="{{ $role ?? '' }}">
 
                 <!-- Accept Rules Button -->
                 <button 

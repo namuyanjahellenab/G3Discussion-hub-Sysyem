@@ -11,11 +11,12 @@ return new class extends Migration
      */
     public function up(): void
     {
-        
-            Schema::table('users', function (Blueprint $table) {
-        $table->timestamp('last_activity_at')->nullable();
-        $table->integer('warnings_count')->default(0);
-        $table->timestamp('blacklisted_until')->nullable();
+        Schema::create('warnings', function (Blueprint $table) {
+            $table->id('WarningID');
+    $table->foreignId('UserID')->constrained('users', 'UserID')->onDelete('cascade');
+    $table->integer('WarningNo'); // 1 or 2
+    $table->dateTime('ExpiryDate');
+            $table->timestamps();
         });
     }
 
@@ -24,8 +25,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::table('users', function (Blueprint $table) {
-            //
-        });
+        Schema::dropIfExists('warnings');
     }
 };
