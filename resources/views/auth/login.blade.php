@@ -82,7 +82,8 @@
 
         <!-- Register Link -->
         <div class="text-center">
-            Don't have an account? <a href="{{ route('register.role') }}">Register here</a>
+            
+            Don't have an account? <a href="{{ route('register') }}">Register here</a>
         </div>
     </div>
 

@@ -19,10 +19,15 @@ class RegisteredUserController extends Controller
      * Display the registration view.
      */
     public function create(): View
-    {
-        return view('auth.register');
+    {return view('auth.register');
     }
-
+    /**
+     * Display the role selection view.
+     */
+    public function showRoleSelection(): View
+    {
+        return view('auth.register-role');
+    }
     /**
      * Handle an incoming registration request.
      *

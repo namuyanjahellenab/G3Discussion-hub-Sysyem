@@ -11,11 +11,12 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('posts', function (Blueprint $table) {
-            $table->id('PostID');
-    $table->foreignId('TopicID')->constrained('topics', 'TopicID')->onDelete('cascade');
+        Schema::create('blacklist', function (Blueprint $table) {
+            $table->id('BlacklistID');
     $table->foreignId('UserID')->constrained('users', 'UserID')->onDelete('cascade');
-    $table->text('Content');
+    $table->dateTime('StartDate');
+    $table->dateTime('EndDate');
+    $table->string('Reason', 250);
             $table->timestamps();
         });
     }
@@ -25,6 +26,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('posts');
+        Schema::dropIfExists('blacklist');
     }
 };

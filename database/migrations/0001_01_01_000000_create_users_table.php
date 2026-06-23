@@ -12,14 +12,22 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('users', function (Blueprint $table) {
-            $table->id();
-            $table->string('name');
-            $table->string('email')->unique();
-            $table->timestamp('email_verified_at')->nullable();
-            $table->string('password');
-            $table->rememberToken();
-            $table->timestamps();
-        });
+    // 1. Primary Key mapped to your data dictionary
+    $table->id('UserID'); 
+    
+    // 2. Custom attributes from your data dictionary
+    $table->string('UserName', 100);
+    $table->string('Email', 150)->unique();
+    $table->string('PasswordHash', 255);
+    $table->string('Role', 20)->comment('Student, Lecturer, Admin');    
+    $table->string('Status', 20)->default('Active')->comment('Active, Inactive, Blacklisted');  
+    
+    // 3. Required Laravel Breeze security items
+    $table->timestamp('email_verified_at')->nullable();
+    $table->rememberToken();
+    $table->timestamps(); 
+});
+
 
         Schema::create('password_reset_tokens', function (Blueprint $table) {
             $table->string('email')->primary();

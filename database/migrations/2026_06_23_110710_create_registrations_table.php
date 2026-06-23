@@ -11,12 +11,10 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('messages', function (Blueprint $table) {
-            $table->id();
-            $table->foreignId('topic_id');
-            $table->foreignId('user_id')->constrained()->onDelete('cascade');
-            $table->text('body');
-            $table->boolean('is_spam')->default(false);
+        Schema::create('registrations', function (Blueprint $table) {
+            $table->id('RegistrationID');
+    $table->foreignId('UserID')->constrained('users', 'UserID')->onDelete('cascade');
+    $table->boolean('AcceptedRules')->default(false);
             $table->timestamps();
         });
     }
@@ -26,6 +24,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('messages');
+        Schema::dropIfExists('registrations');
     }
 };

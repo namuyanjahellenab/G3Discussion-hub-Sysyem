@@ -11,11 +11,13 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('posts', function (Blueprint $table) {
-            $table->id('PostID');
-    $table->foreignId('TopicID')->constrained('topics', 'TopicID')->onDelete('cascade');
+        Schema::create('notifications', function (Blueprint $table) {
+            $table->id('NotificationID');
     $table->foreignId('UserID')->constrained('users', 'UserID')->onDelete('cascade');
-    $table->text('Content');
+    $table->text('Message');
+    $table->boolean('Status')->default(false); // false = unread, true = read
+    $table->string('Type', 50); // Warning, Quiz, System alert
+    
             $table->timestamps();
         });
     }
@@ -25,6 +27,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('posts');
+        Schema::dropIfExists('notifications');
     }
 };
