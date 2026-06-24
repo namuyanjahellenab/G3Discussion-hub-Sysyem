@@ -11,7 +11,7 @@ return new class extends Migration
      */
     public function up(): void
 {
-   Schema::create('topics', function (Blueprint $table) {
+   Schema::create('Topic', function (Blueprint $table) {
     
     $table->id('TopicID');
     
@@ -20,12 +20,13 @@ return new class extends Migration
     $table->string('Category', 100);
     
     // 3. FOREIGN KEY pointing to 'UserID' on the 'users' table
-    $table->foreignId('CreatedBy')->constrained('users', 'UserID')->onDelete('cascade');
+    $table->foreignId('CreatedBy')->constrained('User', 'UserID')->onDelete('cascade');
     
-    // 4. Extra functional field (Optional but smart for handling Requirement 2!)
+    
     $table->boolean('is_resolved')->default(false)->comment('Tracks if the question has been answered');
     
-    $table->timestamps();
+    $table->timestamp('CreatedAt')->useCurrent();
+    $table->timestamp('UpdatedAt')->useCurrent()->useCurrentOnUpdate();
 });
 }
     /**

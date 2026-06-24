@@ -11,13 +11,14 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('quiz_results', function (Blueprint $table) {
+        Schema::create('QuizResult', function (Blueprint $table) {
             $table->id('ResultID');
-    $table->foreignId('QuizID')->constrained('quizzes', 'QuizID')->onDelete('cascade');
-    $table->foreignId('UserID')->constrained('users', 'UserID')->onDelete('cascade');
+    $table->foreignId('QuizID')->constrained('Quiz', 'QuizID')->onDelete('cascade');
+    $table->foreignId('UserID')->constrained('User', 'UserID')->onDelete('cascade');
     $table->decimal('Score', 5, 2);
     $table->dateTime('SubmissionTime');
-            $table->timestamps();
+            $table->timestamp('CreatedAt')->useCurrent();
+    $table->timestamp('UpdatedAt')->useCurrent()->useCurrentOnUpdate();
         });
     }
 

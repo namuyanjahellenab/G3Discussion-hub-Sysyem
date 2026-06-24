@@ -11,13 +11,14 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('participation', function (Blueprint $table) {
+        Schema::create('Participation', function (Blueprint $table) {
             $table->id('ParticipationID');
-    $table->foreignId('UserID')->constrained('users', 'UserID')->onDelete('cascade');
+    $table->foreignId('UserID')->constrained('User', 'UserID')->onDelete('cascade');
     $table->integer('PostCount')->default(0);
     $table->integer('ReplyCount')->default(0);
     $table->decimal('ParticipationScore', 5, 2)->default(0.00);
-            $table->timestamps();
+            $table->timestamp('CreatedAt')->useCurrent();
+    $table->timestamp('UpdatedAt')->useCurrent()->useCurrentOnUpdate();
         });
     }
 

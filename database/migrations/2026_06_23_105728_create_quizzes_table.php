@@ -11,15 +11,16 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('quizzes', function (Blueprint $table) {
+        Schema::create('Quiz', function (Blueprint $table) {
             $table->id('QuizID');
     // Maps LecturerID to UserID in users table
-    $table->foreignId('LecturerID')->constrained('users', 'UserID')->onDelete('cascade');
+    $table->foreignId('LecturerID')->constrained('User', 'UserID')->onDelete('cascade');
     $table->string('Title', 255);
     $table->dateTime('StartTime');
     $table->integer('Duration'); // minutes
     $table->string('TargetCategory', 100);
-            $table->timestamps();
+            $table->timestamp('CreatedAt')->useCurrent();
+    $table->timestamp('UpdatedAt')->useCurrent()->useCurrentOnUpdate();
         });
     }
 

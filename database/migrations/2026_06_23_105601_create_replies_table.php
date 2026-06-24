@@ -11,12 +11,13 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('replies', function (Blueprint $table) {
+        Schema::create('Reply', function (Blueprint $table) {
     $table->id('ReplyID');
-    $table->foreignId('PostID')->constrained('posts', 'PostID')->onDelete('cascade');
-    $table->foreignId('UserID')->constrained('users', 'UserID')->onDelete('cascade');
+    $table->foreignId('PostID')->constrained('Post', 'PostID')->onDelete('cascade');
+    $table->foreignId('UserID')->constrained('User', 'UserID')->onDelete('cascade');
     $table->text('ReplyContent');
-    $table->timestamps();
+    $table->timestamp('CreatedAt')->useCurrent();
+    $table->timestamp('UpdatedAt')->useCurrent()->useCurrentOnUpdate();
 });
     }
 

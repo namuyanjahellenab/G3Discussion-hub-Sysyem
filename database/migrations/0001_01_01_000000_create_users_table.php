@@ -11,7 +11,7 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('users', function (Blueprint $table) {
+        Schema::create('User', function (Blueprint $table) {
     // 1. Primary Key mapped to your data dictionary
     $table->id('UserID'); 
     
@@ -25,14 +25,15 @@ return new class extends Migration
     // 3. Required Laravel Breeze security items
     $table->timestamp('email_verified_at')->nullable();
     $table->rememberToken();
-    $table->timestamps(); 
+    $table->timestamp('CreatedAt')->useCurrent();
+    $table->timestamp('UpdatedAt')->useCurrent()->useCurrentOnUpdate();
 });
 
 
         Schema::create('password_reset_tokens', function (Blueprint $table) {
             $table->string('email')->primary();
             $table->string('token');
-            $table->timestamp('created_at')->nullable();
+            $table->timestamp('CreatedAt')->nullable();
         });
 
         Schema::create('sessions', function (Blueprint $table) {

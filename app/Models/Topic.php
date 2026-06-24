@@ -6,7 +6,10 @@ use Illuminate\Database\Eloquent\Model;
 
 class Topic extends Model
 {
-    //
+    protected $table = 'Topic'; 
+    protected $primaryKey = 'TopicID';
+    const CREATED_AT = 'CreatedAt';
+    const UPDATED_AT = 'UpdatedAt';
 
 public function messages()
 {
