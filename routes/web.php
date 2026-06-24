@@ -4,10 +4,10 @@ use App\Http\Controllers\AuthController;
 use App\Http\Controllers\ProfileController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Auth\RegisteredUserController;
-Route::get('/', function () {
-    return view('welcome');
-});
 
+Route::get('/', function () {
+    return redirect('/login');
+});
 // Authentication Routes
 Route::middleware('guest')->group(function () {
     Route::get('/login', [AuthController::class, 'showLogin'])->name('login');
