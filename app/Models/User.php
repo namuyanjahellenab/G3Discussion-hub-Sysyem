@@ -10,7 +10,12 @@ use Illuminate\Notifications\Notifiable;
 
 class User extends Authenticatable
 {
-    /** @use HasFactory<UserFactory> */
+  protected $table = 'User';
+    protected $primaryKey = 'UserID'; 
+    const CREATED_AT = 'CreatedAt';
+    const UPDATED_AT = 'UpdatedAt';
+
+/** @use HasFactory<UserFactory> */
     use HasFactory, Notifiable;
 
     /**

@@ -11,13 +11,14 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('blacklist', function (Blueprint $table) {
+        Schema::create('Blacklist', function (Blueprint $table) {
             $table->id('BlacklistID');
-    $table->foreignId('UserID')->constrained('users', 'UserID')->onDelete('cascade');
+    $table->foreignId('UserID')->constrained('User', 'UserID')->onDelete('cascade');
     $table->dateTime('StartDate');
     $table->dateTime('EndDate');
     $table->string('Reason', 250);
-            $table->timestamps();
+            $table->timestamp('CreatedAt')->useCurrent();
+    $table->timestamp('UpdatedAt')->useCurrent()->useCurrentOnUpdate();
         });
     }
 

@@ -11,14 +11,15 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('notifications', function (Blueprint $table) {
+        Schema::create('Notification', function (Blueprint $table) {
             $table->id('NotificationID');
-    $table->foreignId('UserID')->constrained('users', 'UserID')->onDelete('cascade');
+    $table->foreignId('UserID')->constrained('User', 'UserID')->onDelete('cascade');
     $table->text('Message');
     $table->boolean('Status')->default(false); // false = unread, true = read
     $table->string('Type', 50); // Warning, Quiz, System alert
     
-            $table->timestamps();
+        $table->timestamp('CreatedAt')->useCurrent();
+    $table->timestamp('UpdatedAt')->useCurrent()->useCurrentOnUpdate();
         });
     }
 

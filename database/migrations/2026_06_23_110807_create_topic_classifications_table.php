@@ -11,13 +11,14 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('topic_classifications', function (Blueprint $table) {
+        Schema::create('TopicClassification', function (Blueprint $table) {
             $table->id('ClassificationID');
     // Your dictionary says TopicID here maps to a topic
-    $table->foreignId('TopicID')->constrained('topics', 'TopicID')->onDelete('cascade');
+    $table->foreignId('TopicID')->constrained('Topic', 'TopicID')->onDelete('cascade');
     $table->string('PredictedCategory', 100);
     $table->decimal('ConfidenceScore', 5, 2);
-            $table->timestamps();
+            $table->timestamp('CreatedAt')->useCurrent();
+    $table->timestamp('UpdatedAt')->useCurrent()->useCurrentOnUpdate();
         });
     }
 

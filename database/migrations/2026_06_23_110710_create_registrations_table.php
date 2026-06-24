@@ -11,11 +11,12 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('registrations', function (Blueprint $table) {
+        Schema::create('Registration', function (Blueprint $table) {
             $table->id('RegistrationID');
-    $table->foreignId('UserID')->constrained('users', 'UserID')->onDelete('cascade');
+    $table->foreignId('UserID')->constrained('User', 'UserID')->onDelete('cascade');
     $table->boolean('AcceptedRules')->default(false);
-            $table->timestamps();
+            $table->timestamp('CreatedAt')->useCurrent();
+    $table->timestamp('UpdatedAt')->useCurrent()->useCurrentOnUpdate();
         });
     }
 

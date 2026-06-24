@@ -11,12 +11,13 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('groups', function (Blueprint $table) {
+        Schema::create('Group', function (Blueprint $table) {
             $table->id('GroupID');
     $table->string('GroupName', 20);
     $table->string('Description', 20);
     $table->string('CreatedBy', 20);
-            $table->timestamps();
+            $table->timestamp('CreatedAt')->useCurrent();
+    $table->timestamp('UpdatedAt')->useCurrent()->useCurrentOnUpdate();
         });
     }
 

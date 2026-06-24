@@ -11,12 +11,13 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('recommendations', function (Blueprint $table) {
+        Schema::create('Recommendation', function (Blueprint $table) {
           $table->id('RecommendationID');
-    $table->foreignId('UserID')->constrained('users', 'UserID')->onDelete('cascade');
-    $table->foreignId('TopicID')->constrained('topics', 'TopicID')->onDelete('cascade');
+    $table->foreignId('UserID')->constrained('User', 'UserID')->onDelete('cascade');
+    $table->foreignId('TopicID')->constrained('Topic', 'TopicID')->onDelete('cascade');
     $table->decimal('RelevanceScore', 5, 2);  
-            $table->timestamps();
+            $table->timestamp('CreatedAt')->useCurrent();
+    $table->timestamp('UpdatedAt')->useCurrent()->useCurrentOnUpdate();
         });
     }
 
