@@ -241,7 +241,8 @@ unset($__errorArgs, $__bag); ?>
             </ol>
 
             <!-- Rules Checkbox -->
-            <div class="checkbox-wrapper" style="margin-top: 20px;">
+            <div class="checkbox-wrapper" style="margin-top: 20px;background-color: light blue ; padding: 15px; border-radius: 6px;">
+    >
                 <input 
                     type="checkbox" 
                     id="rules_accepted" 
@@ -249,7 +250,7 @@ unset($__errorArgs, $__bag); ?>
                     onchange="toggleSubmitButton()"
                 >
                 <label class="checkbox-label" for="rules_accepted">
-                    I have read and agree to abide by the Platform Rules. Violations may result in account termination.
+                    I have read and agree to abide by the <span style="color:blue ;">Platform Rules and guidelines</span>.. I understand that Violations may result in account termination.
                 </label>
             </div>
 
@@ -261,7 +262,7 @@ unset($__errorArgs, $__bag); ?>
                     id="acceptRulesBtn"
                     onclick="document.getElementById('rulesHidden').value = '1'; document.getElementById('registerForm').submit();"
                     disabled
-                    style="background: var(--light-gray); color: var(--text-gray); cursor: not-allowed;"
+                    style="background: var(--blue); color: var(--white); cursor: not-allowed;"
                 >
                     ACCEPT RULES >
                 </button>

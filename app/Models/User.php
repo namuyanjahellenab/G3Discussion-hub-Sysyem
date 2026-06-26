@@ -27,8 +27,8 @@ class User extends Authenticatable
         'name',
         'full_name',
         'email',
-        'username',
-        'password',
+        'UserName',
+        'PasswordHash',
         'role',
         'status',
         'warnings',
@@ -60,4 +60,8 @@ class User extends Authenticatable
             'rules_accepted' => 'boolean',
         ];
     }
+    public function getAuthPassword()
+{
+    return $this->PasswordHash;
+}
 }
