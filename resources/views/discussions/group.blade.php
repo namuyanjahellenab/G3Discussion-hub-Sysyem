@@ -188,5 +188,6 @@
         <button class="page-btn">»</button>
     </div>
 </main>
+<script src="/js/quiz-alert.js"></script>
 </body>
 </html>
