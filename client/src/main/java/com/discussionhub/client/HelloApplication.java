@@ -44,6 +44,7 @@ public class HelloApplication extends Application {
         stage.setTitle("DiscussionHub - Sync Client Engine");
         stage.setScene(scene);
         stage.show();
+        com.discussionhub.client.quiz.QuizPopupService.start(stage);
     }
 
     public static void main(String[] args) {
