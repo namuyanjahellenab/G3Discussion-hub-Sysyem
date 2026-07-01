@@ -308,7 +308,7 @@
             display: none;
             flex-shrink: 0;
         }
-        .option-item.selected .option-check { display: block; }
+        .option-item.selected .option-check { display: none; }
 
         /* Open text */
         .open-textarea {

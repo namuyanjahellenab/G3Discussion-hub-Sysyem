@@ -32,7 +32,7 @@ class AuthController extends Controller
         Log::info('Login attempt', ['email' => $request->email]);
 
         // Check if user exists
-        $user = User::where('email', $credentials['email'])->first();
+        $user = User::where('Email', $credentials['email'])->first();
 
         if (!$user) {
             Log::warning('Login failed: User not found', ['email' => $request->email]);
@@ -86,6 +86,37 @@ class AuthController extends Controller
 
         return redirect()->route('dashboard');
     }
+    /**
+ * API login for non-browser clients (e.g. JavaFX desktop app).
+ * Returns a Sanctum token instead of a session cookie.
+ */
+public function apiLogin(Request $request)
+{
+    $credentials = $request->validate([
+        'email'    => 'required|email',
+        'password' => 'required|string',
+    ]);
+
+    $user = User::where('Email', $credentials['email'])->first();
+
+    if (!$user || !Hash::check($credentials['password'], $user->PasswordHash)) {
+        return response()->json(['message' => 'Invalid credentials'], 401);
+    }
+
+    if ($user->Status === 'blacklisted' || $user->Status === 'suspended') {
+        return response()->json(['message' => 'Account is ' . $user->Status], 403);
+    }
+
+    $token = $user->createToken('javafx-desktop')->plainTextToken;
+
+    return response()->json([
+        'token' => $token,
+        'user'  => [
+            'id'    => $user->UserID,
+            'email' => $user->Email,
+        ],
+    ]);
+}
 
     /**
      * Display role selection page.
