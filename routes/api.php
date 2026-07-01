@@ -11,6 +11,10 @@ use App\Http\Controllers\QuizController;
 
 Route::post('/login', [AuthController::class, 'apiLogin']);
 Route::middleware('auth:sanctum')->get('/quiz/active-now', [QuizEngineController::class, 'activeNow']);
+Route::middleware('auth:sanctum')->post('/quiz/join', [QuizEngineController::class, 'join']);
+Route::middleware('auth:sanctum')->post('/quiz/submit', [QuizEngineController::class, 'submit']);
+Route::middleware('auth:sanctum')->post('/quiz/auto-submit', [QuizEngineController::class, 'autoSubmit']);
+Route::middleware('auth:sanctum')->get('/quiz/{id}/results', [QuizEngineController::class, 'results']);
 //Route::get('/user', function (Request $request) {
   //  return $request->user();
 //})->middleware('auth:sanctum');

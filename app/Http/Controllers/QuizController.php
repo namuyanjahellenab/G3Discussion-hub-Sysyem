@@ -47,9 +47,7 @@ public function create()
                 'QuizID'        => $quiz->QuizID,
                 'QuestionText'  => $q['QuestionText'],
                 'QuestionType'  => $q['QuestionType'],
-                'Options'       => isset($q['Options'])
-                                   ? json_encode($q['Options'])
-                                   : null,
+               'Options'       => $q['Options'] ?? null,
                 'CorrectAnswer' => $q['CorrectAnswer'] ?? null,
                 'Marks'         => $q['Marks'],
             ]);
