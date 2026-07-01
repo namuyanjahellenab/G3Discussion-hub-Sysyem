@@ -87,3 +87,14 @@ Route::middleware('auth:sanctum')->get('/topics', function (Request $request) {
 
     return response()->json($visibleTopics);
 });
+
+ use App\Http\Controllers\QuizController;
+use App\Http\Controllers\QuizEngineController;
+
+// Route::middleware('auth')->group(function () {
+//     Route::post('/quiz/schedule',    [QuizController::class,       'scheduleAssessment']);
+//     // Route::post('/quiz/join',        [QuizEngineController::class, 'join']);
+//     // Route::post('/quiz/submit',      [QuizEngineController::class, 'submit']);
+//     // Route::post('/quiz/auto-submit', [QuizEngineController::class, 'autoSubmit']);
+//     // Route::get('/quiz/{id}/results', [QuizEngineController::class, 'results']);
+// });
