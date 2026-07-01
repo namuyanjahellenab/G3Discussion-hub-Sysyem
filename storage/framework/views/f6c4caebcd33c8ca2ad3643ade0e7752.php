@@ -242,7 +242,7 @@ unset($__errorArgs, $__bag); ?>
 
             <!-- Rules Checkbox -->
             <div class="checkbox-wrapper" style="margin-top: 20px;background-color: light blue ; padding: 15px; border-radius: 6px;">
-    >
+    
                 <input 
                     type="checkbox" 
                     id="rules_accepted" 
@@ -264,7 +264,7 @@ unset($__errorArgs, $__bag); ?>
                     disabled
                     style="background: var(--blue); color: var(--white); cursor: not-allowed;"
                 >
-                    ACCEPT RULES >
+                    ACCEPT RULES 
                 </button>
                 <a href="<?php echo e(route('login')); ?>" class="btn btn-secondary">
                     DECLINE
@@ -333,22 +333,22 @@ unset($__errorArgs, $__bag); ?>
             if (rulesCheckbox.checked) {
                 submitBtn.disabled = false;
                 submitBtn.style.background = 'linear-gradient(135deg, var(--primary-blue) 0%, var(--primary-blue-dark) 100%)';
-                submitBtn.style.color = 'white';
+                submitBtn.style.color = 'var(--white)';
                 submitBtn.style.cursor = 'pointer';
                 
                 acceptRulesBtn.disabled = false;
                 acceptRulesBtn.style.background = 'linear-gradient(135deg, var(--primary-blue) 0%, var(--primary-blue-dark) 100%)';
-                acceptRulesBtn.style.color = 'white';
+                acceptRulesBtn.style.color = 'var(--white)';
                 acceptRulesBtn.style.cursor = 'pointer';
             } else {
                 submitBtn.disabled = true;
-                submitBtn.style.background = 'var(--light-gray)';
-                submitBtn.style.color = 'var(--text-gray)';
+                submitBtn.style.background = 'var(--primary-blue)';
+                submitBtn.style.color = 'var(--white)';
                 submitBtn.style.cursor = 'not-allowed';
                 
                 acceptRulesBtn.disabled = true;
-                acceptRulesBtn.style.background = 'var(--light-gray)';
-                acceptRulesBtn.style.color = 'var(--text-gray)';
+                acceptRulesBtn.style.background = 'var(--primary-blue)';
+                acceptRulesBtn.style.color = 'var(--white)';
                 acceptRulesBtn.style.cursor = 'not-allowed';
             }
         }
