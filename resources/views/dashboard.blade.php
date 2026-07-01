@@ -328,5 +328,6 @@
         }
     });
 </script>
+<script src="/js/quiz-alert.js"></script>
 </body>
 </html>
