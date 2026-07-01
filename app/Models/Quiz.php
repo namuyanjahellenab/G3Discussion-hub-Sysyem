@@ -6,6 +6,9 @@ class Quiz extends Model {
     protected $table      = 'Quiz';
     protected $primaryKey = 'QuizID';
     public $timestamps    = false;
+    protected $casts = [
+    'StartTime' => 'datetime',
+];
 
     protected $fillable = [
         'LecturerID', 'Title', 'StartTime', 'Duration', 'TargetCategory'
