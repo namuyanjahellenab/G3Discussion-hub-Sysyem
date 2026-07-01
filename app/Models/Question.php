@@ -1,13 +1,18 @@
 <?php
-
 namespace App\Models;
-
 use Illuminate\Database\Eloquent\Model;
 
-class Question extends Model
-{
-    protected $table = 'Question';
+class Question extends Model {
+    protected $table      = 'Question';
     protected $primaryKey = 'QuestionID';
-    const CREATED_AT = 'CreatedAt';
-    const UPDATED_AT = 'UpdatedAt';
+    public $timestamps    = false;
+
+    protected $fillable = [
+        'QuizID', 'QuestionText', 'QuestionType', 'Options', 'CorrectAnswer', 'Marks'
+    ];
+
+    protected $casts = [
+        'Options' => 'array',
+        'Marks'   => 'float',
+    ];
 }

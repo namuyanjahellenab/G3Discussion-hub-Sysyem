@@ -171,5 +171,6 @@
         </form>
     </section>
 </main>
+<script src="/js/quiz-alert.js"></script>
 </body>
 </html>
