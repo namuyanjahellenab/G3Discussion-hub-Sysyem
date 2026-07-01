@@ -1,0 +1,12 @@
+com\discussionhub\client\quiz\QuizPopupService$UnauthorizedException.class
+com\discussionhub\client\Launcher.class
+com\discussionhub\client\HelloController.class
+com\discussionhub\client\quiz\QuizPopupService$1.class
+com\discussionhub\client\quiz\QuizPopupService$QuizInfo.class
+com\discussionhub\client\quiz\QuizPopupService.class
+module-info.class
+com\discussionhub\client\database\DatabaseManager.class
+com\discussionhub\client\model\SyncQueueItem.class
+com\discussionhub\client\utils\NetworkUtil.class
+com\discussionhub\client\HelloApplication.class
+com\discussionhub\client\utils\DeltaSyncService.class

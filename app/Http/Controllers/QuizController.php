@@ -6,6 +6,7 @@ use App\Models\Quiz;
 use App\Models\Question;
 use App\Models\Notification;
 use App\Models\User;
+use Carbon\Carbon;
 
 class QuizController extends Controller
 {
@@ -35,7 +36,7 @@ public function create()
         $quiz = Quiz::create([
             'LecturerID'     => auth()->user()->UserID,
             'Title'          => $request->Title,
-            'StartTime'      => $request->StartTime,
+            'StartTime'       => Carbon::parse($request->StartTime, 'Africa/Kampala')->setTimezone('UTC'),
             'Duration'       => $request->Duration,
             'TargetCategory' => $request->TargetCategory,
         ]);

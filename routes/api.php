@@ -5,6 +5,12 @@ use App\Models\Topic;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\AuthController;
+use App\Http\Controllers\QuizEngineController;
+use App\Http\Controllers\QuizController;
+
+Route::post('/login', [AuthController::class, 'apiLogin']);
+Route::middleware('auth:sanctum')->get('/quiz/active-now', [QuizEngineController::class, 'activeNow']);
 //Route::get('/user', function (Request $request) {
   //  return $request->user();
 //})->middleware('auth:sanctum');
@@ -88,8 +94,8 @@ Route::middleware('auth:sanctum')->get('/topics', function (Request $request) {
     return response()->json($visibleTopics);
 });
 
- use App\Http\Controllers\QuizController;
-use App\Http\Controllers\QuizEngineController;
+ 
+
 
 // Route::middleware('auth')->group(function () {
 //     Route::post('/quiz/schedule',    [QuizController::class,       'scheduleAssessment']);
