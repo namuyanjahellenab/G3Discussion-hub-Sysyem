@@ -182,6 +182,7 @@
 
         /* ── GRID LAYOUT ── */
         .layout { display: grid; grid-template-columns: 1fr 280px; gap: 20px; align-items: start; }
+        .layout { display: grid; grid-template-columns: 1fr; gap: 20px; align-items: start; }
         @media (max-width: 900px) { .layout { grid-template-columns: 1fr; } }
 
         /* ── CARDS ── */
@@ -243,6 +244,13 @@
         }
         .btn-add:hover { background: var(--blue-dark); }
         .btn-add svg { width: 13px; height: 13px; }
+        .btn-add.floating {
+            position: fixed;
+            bottom: 24px;
+            right: 24px;
+            z-index: 999;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+        }
 
         /* Question card */
         .q-card {
@@ -478,7 +486,7 @@
     <div class="breadcrumb"><a href="#">Quizzes</a> › Configure Quiz</div>
 
     <div class="page-header">
-        <h1 class="page-title">CONFIGURE QUIZ</h1>
+        <h1 class="page-title">SCHEDULE QUIZ</h1>
         <div class="header-actions">
             <button class="btn btn-outline" onclick="saveDraft()">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
@@ -521,7 +529,7 @@
                         </select>
                     </div>
                     <div>
-                        <label class="field-label">Student Category Selector</label>
+                        <label class="field-label">Subject Category Selector</label>
                         <select id="TargetCategory" class="field-input">
                             <option value="">-- Select Category --</option>
                             <option value="Science">Science</option>
@@ -570,7 +578,7 @@
                         <div class="q-count-badge" id="qCountBadge">0</div>
                         <span class="questions-title">Questions</span>
                     </div>
-                    <button class="btn-add" onclick="addQuestion()">
+                    <button class="btn-add floating" onclick="addQuestion()">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
                         ADD QUESTION
                     </button>
@@ -596,27 +604,8 @@
         </div>
 
         <!-- RIGHT COLUMN -->
-        <div>
-            <div class="card">
-                <div class="panel-title">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-                    Auto-Publish Note
-                </div>
-                <p class="panel-desc">
-                    Quiz will auto-publish as an announcement to selected students at the scheduled time. No manual intervention required.
-                </p>
-
-                <div class="toggle-row">
-                    <span class="toggle-label">Email Notification</span>
-                    <button class="toggle-switch on" id="emailToggle" onclick="this.classList.toggle('on')" title="Toggle email notifications"></button>
-                </div>
-                <div class="toggle-row">
-                    <span class="toggle-label">Lock Browser</span>
-                    <button class="toggle-switch" id="lockToggle" onclick="this.classList.toggle('on')" title="Toggle browser lock"></button>
-                </div>
-            </div>
-        </div>
-    </div>
+       
+    
 </main>
 
 <script>
