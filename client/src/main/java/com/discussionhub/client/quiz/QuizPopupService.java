@@ -18,6 +18,7 @@ import javafx.stage.StageStyle;
 import java.awt.Desktop;
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
+import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.URI;
 import java.net.URL;
@@ -42,8 +43,16 @@ import java.util.regex.Pattern;
 public class QuizPopupService {
 
     // TODO: change to your real server address once deployed
-    private static final String ACTIVE_QUIZ_URL = "http://127.0.0.1:8000/quiz/active-now";
-    private static final String QUIZ_TAKE_BASE_URL = "http://127.0.0.1:8000/quiz/";
+    private static final String BASE_URL = "http://127.0.0.1:8000";
+    private static final String LOGIN_URL = BASE_URL + "/api/login";
+    private static final String ACTIVE_QUIZ_URL = BASE_URL + "/api/quiz/active-now";
+    private static final String QUIZ_TAKE_BASE_URL = BASE_URL + "/quiz/";
+
+    // TODO: replace with real stored student credentials (e.g. read from a login screen/config)
+    private static final String STUDENT_EMAIL = "lecturer@test.com";
+    private static final String STUDENT_PASSWORD ="password123";
+
+    private static String authToken = null;
 
     private static final int POLL_INTERVAL_MS = 15000; // 15 seconds
     private static final int CONNECT_TIMEOUT_MS = 4000;
@@ -52,6 +61,7 @@ public class QuizPopupService {
     private static Timer pollTimer;
     private static boolean popupShown = false;
     private static Stage mainStage;
+    private static Integer lastShownQuizId = null;
 
     private QuizPopupService() {
         // static utility class
@@ -78,25 +88,80 @@ public class QuizPopupService {
             pollTimer = null;
         }
         popupShown = false;
+        authToken = null;
     }
 
     // ---- Polling -----------------------------------------------------
-
-    private static void checkForActiveQuiz() {
+private static void checkForActiveQuiz() {
         if (popupShown) return; // already showing, skip this poll
 
         try {
+            if (authToken == null) {
+                authToken = login();
+                if (authToken == null) {
+                    System.out.println("QuizPopupService: login failed, skipping this poll");
+                    return;
+                }
+            }
+
             String json = fetchActiveQuizJson();
             QuizInfo quiz = parseQuiz(json);
 
-            if (quiz != null) {
+            boolean isNewQuiz = quiz != null
+                    && (lastShownQuizId == null || lastShownQuizId != quiz.quizId);
+
+            if (isNewQuiz) {
                 popupShown = true;
+                lastShownQuizId = quiz.quizId;
                 Platform.runLater(() -> showQuizPopup(quiz));
             }
+        } catch (UnauthorizedException e) {
+            // Token expired or invalid - clear it and force a fresh login next poll
+            System.out.println("QuizPopupService: token rejected, re-authenticating next poll");
+            authToken = null;
         } catch (Exception e) {
             // Network errors are expected when offline; fail silently and retry next poll
             System.out.println("QuizPopupService: poll failed - " + e.getMessage());
         }
+    }
+
+    /** Simple marker exception so we can distinguish a 401 from other failures. */
+    private static class UnauthorizedException extends Exception {
+        UnauthorizedException(String msg) { super(msg); }
+    }
+
+    /** Logs in and returns the Sanctum token, or null on failure. */
+    private static String login() throws Exception {
+        URL url = new URL(LOGIN_URL);
+        HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+        conn.setRequestMethod("POST");
+        conn.setConnectTimeout(CONNECT_TIMEOUT_MS);
+        conn.setReadTimeout(READ_TIMEOUT_MS);
+        conn.setRequestProperty("Accept", "application/json");
+        conn.setRequestProperty("Content-Type", "application/json");
+        conn.setDoOutput(true);
+
+        String body = "{\"email\":\"" + STUDENT_EMAIL + "\",\"password\":\"" + STUDENT_PASSWORD + "\"}";
+        try (OutputStream os = conn.getOutputStream()) {
+            os.write(body.getBytes("UTF-8"));
+        }
+
+        int status = conn.getResponseCode();
+        if (status != 200) {
+            System.out.println("QuizPopupService: login failed with status " + status);
+            return null;
+        }
+
+        StringBuilder sb = new StringBuilder();
+        try (BufferedReader reader = new BufferedReader(new InputStreamReader(conn.getInputStream()))) {
+            String line;
+            while ((line = reader.readLine()) != null) {
+                sb.append(line);
+            }
+        }
+
+        Matcher tokenMatch = Pattern.compile("\"token\":\"([^\"]*)\"").matcher(sb.toString());
+        return tokenMatch.find() ? tokenMatch.group(1) : null;
     }
 
     private static String fetchActiveQuizJson() throws Exception {
@@ -107,11 +172,12 @@ public class QuizPopupService {
         conn.setReadTimeout(READ_TIMEOUT_MS);
         conn.setRequestProperty("Accept", "application/json");
         conn.setRequestProperty("X-Requested-With", "XMLHttpRequest");
-
-        // TODO: if the endpoint requires an auth/session cookie, attach it here
-        // e.g. conn.setRequestProperty("Cookie", sessionCookie);
+        conn.setRequestProperty("Authorization", "Bearer " + authToken);
 
         int status = conn.getResponseCode();
+        if (status == 401) {
+            throw new UnauthorizedException("Token rejected");
+        }
         if (status != 200) {
             throw new RuntimeException("Unexpected response code: " + status);
         }
