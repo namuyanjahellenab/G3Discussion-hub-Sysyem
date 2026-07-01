@@ -8,6 +8,7 @@ class Quiz extends Model {
     public $timestamps    = false;
     protected $casts = [
     'StartTime' => 'datetime',
+    'CreatedAt' => 'datetime',
 ];
 
     protected $fillable = [
