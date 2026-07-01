@@ -10,4 +10,9 @@ class Notification extends Model
     protected $primaryKey = 'NotificationID';
     const CREATED_AT = 'CreatedAt';
     const UPDATED_AT = 'UpdatedAt';
+
+    public function user()
+    {
+        return $this->belongsTo(User::class, 'UserID', 'UserID');
+    }
 }

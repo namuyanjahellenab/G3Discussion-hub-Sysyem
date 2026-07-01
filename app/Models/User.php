@@ -5,14 +5,18 @@ namespace App\Models;
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
+use App\Models\Group;
+use App\Models\GroupStudent;
 
 class User extends Authenticatable
 {
-  protected $table = 'User';
-    protected $primaryKey = 'UserID'; 
+    protected $table = 'User';
+    protected $primaryKey = 'UserID';
     const CREATED_AT = 'CreatedAt';
     const UPDATED_AT = 'UpdatedAt';
 
@@ -55,8 +59,20 @@ class User extends Authenticatable
             'rules_accepted' => 'boolean',
         ];
     }
+
+    public function groups(): BelongsToMany
+    {
+        return $this->belongsToMany(Group::class, 'GroupStudent', 'UserID', 'GroupID', 'UserID', 'GroupID')
+            ->withPivot(['StudentID', 'Status', 'CreatedAt', 'UpdatedAt']);
+    }
+
+    public function groupMemberships(): HasMany
+    {
+        return $this->hasMany(GroupStudent::class, 'UserID', 'UserID');
+    }
+
     public function getAuthPassword()
-{
-    return $this->PasswordHash;
-}
+    {
+        return $this->PasswordHash;
+    }
 }

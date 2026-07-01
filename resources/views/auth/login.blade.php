@@ -75,7 +75,7 @@
                 id="loginBtn"
                 style="margin-bottom: 20px;"
             >
-                <span id="btnText">LOGIN ></span>
+                <span id="btnText">LOGIN</span>
                 <span id="btnLoader" class="loader" style="display: none;"></span>
             </button>
         </form>

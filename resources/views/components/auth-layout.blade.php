@@ -11,8 +11,11 @@
     <link rel="preconnect" href="https://fonts.bunny.net">
     <link href="https://fonts.bunny.net/css?family=figtree:400,500,600&display=swap" rel="stylesheet" />
 
-    <!-- Scripts -->
+    <!-- Styles -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-L+3pC0XhEIkQd5xNA6LrK+ZaQO7CK5w5KkxBfDIsE8IhttFTP0RB5BR4g8F8Q9cL" crossorigin="anonymous">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.3/css/all.min.css" integrity="sha512-C8Be6suO0Xo2LcZ46C7YcX6I5r3TUi3t6bsh+Vwo4V9rBQZO3D8kQKPlN5vD4E9CW9fZCrFWMmZDH8vhI2Q==" crossorigin="anonymous" referrerpolicy="no-referrer" />
     @vite(['resources/css/app.css', 'resources/js/app.js'])
+    <link rel="stylesheet" href="{{ asset('css/style.css') }}">
 
     <style>
         :root {
