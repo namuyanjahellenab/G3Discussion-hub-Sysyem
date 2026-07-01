@@ -11,12 +11,13 @@ class Topic extends Model
     const CREATED_AT = 'CreatedAt';
     const UPDATED_AT = 'UpdatedAt';
 
-public function messages()
-{
-    return $this->hasMany(Message::class);
-}
-public function excludedUsers()
-{
-    return $this->belongsToMany(User::class, 'topic_exclusions');
-}
+    public function creator()
+    {
+        return $this->belongsTo(User::class, 'CreatedBy', 'UserID');
+    }
+
+    public function posts()
+    {
+        return $this->hasMany(Post::class, 'TopicID', 'TopicID');
+    }
 }
