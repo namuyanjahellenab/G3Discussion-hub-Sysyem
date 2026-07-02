@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<?import javafx.geometry.Insets?>
+
+<VBox xmlns:fx="http://javafx.com/fxml"
+      fx:controller="com.discussionhub.client.ForumController"
+      spacing="12" style="-fx-background-color: #f4f6f9; -fx-padding: 20;">
+
+    <!-- Header bar -->
+    <HBox alignment="CENTER_LEFT" spacing="12"
+          style="-fx-background-color: #1a73e8; -fx-padding: 14; -fx-background-radius: 8;">
+        <Button text="← Back" onAction="#onBack"
+                style="-fx-background-color: transparent; -fx-text-fill: white;
+                       -fx-font-weight: bold; -fx-padding: 4 10;"/>
+        <Label text="Discussion Forum"
+               style="-fx-text-fill: white; -fx-font-size: 18; -fx-font-weight: bold;"/>
+        <Region HBox.hgrow="ALWAYS"/>
+        <Label fx:id="syncStatusLabel" text="● OFFLINE"
+               style="-fx-text-fill: #ffcc00; -fx-font-size: 12; -fx-font-weight: bold;"/>
+    </HBox>
+
+    <!-- Search and filter bar -->
+    <HBox spacing="10" alignment="CENTER_LEFT">
+        <TextField fx:id="searchField" promptText="Search topics..."
+                   onKeyReleased="#onSearch"
+                   HBox.hgrow="ALWAYS"
+                   style="-fx-padding: 8; -fx-background-radius: 6; -fx-border-color: #ddd;
+                          -fx-border-radius: 6;"/>
+        <!-- Filter by status — per SDD: Answered, Open, Pinned, Discussion, Filtered -->
+        <ComboBox fx:id="statusFilter" promptText="Filter by status"
+                  onAction="#onFilterChange"
+                  style="-fx-padding: 4;"/>
+        <Button text="+ New Topic" onAction="#onNewTopic"
+                style="-fx-background-color: #1a73e8; -fx-text-fill: white;
+                       -fx-font-weight: bold; -fx-padding: 8 18; -fx-background-radius: 6;"/>
+    </HBox>
+
+    <!-- Offline creation reminder banner -->
+    <HBox fx:id="offlineBanner" alignment="CENTER_LEFT" spacing="10"
+          style="-fx-background-color: #fff4ce; -fx-padding: 10; -fx-background-radius: 6;"
+          visible="false" managed="false">
+        <Label text="⚠  Offline — new topics will be queued and uploaded when you reconnect."
+               style="-fx-text-fill: #7a5c00; -fx-font-size: 12;"/>
+    </HBox>
+
+    <!-- Topic list — each row: title, status badge, author, reply count, time -->
+    <ListView fx:id="topicListView" VBox.vgrow="ALWAYS"
+              onMouseClicked="#onTopicSelected"
+              style="-fx-background-color: white; -fx-background-radius: 8;
+                     -fx-border-color: #eee; -fx-border-radius: 8;"/>
+
+    <!-- Pagination row -->
+    <HBox alignment="CENTER" spacing="10">
+        <Button text="← Prev" fx:id="prevButton" onAction="#onPrevPage"
+                style="-fx-padding: 6 16; -fx-background-radius: 6; -fx-border-color: #ccc;"/>
+        <Label fx:id="pageLabel" text="Page 1"
+               style="-fx-font-size: 13; -fx-text-fill: #555;"/>
+        <Button text="Next →" fx:id="nextButton" onAction="#onNextPage"
+                style="-fx-padding: 6 16; -fx-background-radius: 6; -fx-border-color: #ccc;"/>
+    </HBox>
+
+</VBox>

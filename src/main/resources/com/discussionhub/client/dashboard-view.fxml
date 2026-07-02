@@ -1,0 +1,92 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<?import javafx.geometry.Insets?>
+
+<VBox xmlns:fx="http://javafx.com/fxml"
+      fx:controller="com.discussionhub.client.DashboardController"
+      spacing="16" style="-fx-background-color: #f4f6f9; -fx-padding: 20;">
+
+    <!-- Header bar -->
+    <HBox alignment="CENTER_LEFT" spacing="12"
+          style="-fx-background-color: #1a73e8; -fx-padding: 14; -fx-background-radius: 8;">
+        <Label text="DiscussionHub — Desktop Client"
+               style="-fx-text-fill: white; -fx-font-size: 18; -fx-font-weight: bold;"/>
+        <Region HBox.hgrow="ALWAYS"/>
+        <!-- Sync status badge — text set programmatically in DashboardController -->
+        <Label fx:id="syncStatusLabel" text="● OFFLINE"
+               style="-fx-text-fill: #ffcc00; -fx-font-size: 13; -fx-font-weight: bold;"/>
+    </HBox>
+
+    <!-- Sync info cards row -->
+    <HBox spacing="16">
+
+        <!-- Connection card -->
+        <VBox spacing="6" HBox.hgrow="ALWAYS"
+              style="-fx-background-color: white; -fx-padding: 16; -fx-background-radius: 8;
+                     -fx-effect: dropshadow(gaussian, #cccccc, 4, 0, 0, 2);">
+            <Label text="Connection Status" style="-fx-font-weight: bold; -fx-text-fill: #555;"/>
+            <Label fx:id="connectionLabel" text="Checking..."
+                   style="-fx-font-size: 15; -fx-font-weight: bold;"/>
+            <Label fx:id="lastSyncLabel" text="Last sync: never"
+                   style="-fx-text-fill: #888; -fx-font-size: 12;"/>
+        </VBox>
+
+        <!-- Pending uploads card -->
+        <VBox spacing="6" HBox.hgrow="ALWAYS"
+              style="-fx-background-color: white; -fx-padding: 16; -fx-background-radius: 8;
+                     -fx-effect: dropshadow(gaussian, #cccccc, 4, 0, 0, 2);">
+            <Label text="Pending Uploads" style="-fx-font-weight: bold; -fx-text-fill: #555;"/>
+            <Label fx:id="pendingCountLabel" text="0 items"
+                   style="-fx-font-size: 15; -fx-font-weight: bold;"/>
+            <Label text="Queued for next sync"
+                   style="-fx-text-fill: #888; -fx-font-size: 12;"/>
+        </VBox>
+
+        <!-- Recently synced card -->
+        <VBox spacing="6" HBox.hgrow="ALWAYS"
+              style="-fx-background-color: white; -fx-padding: 16; -fx-background-radius: 8;
+                     -fx-effect: dropshadow(gaussian, #cccccc, 4, 0, 0, 2);">
+            <Label text="Recently Updated" style="-fx-font-weight: bold; -fx-text-fill: #555;"/>
+            <Label fx:id="recentSyncLabel" text="—"
+                   style="-fx-font-size: 13;"/>
+        </VBox>
+
+    </HBox>
+
+    <!-- Action buttons -->
+    <HBox spacing="12">
+        <Button fx:id="syncNowButton" text="⟳  Sync Now"
+                onAction="#onSyncNow"
+                style="-fx-background-color: #1a73e8; -fx-text-fill: white;
+                       -fx-font-weight: bold; -fx-padding: 10 24; -fx-background-radius: 6;"/>
+        <Button text="📋  View Forum"
+                onAction="#onOpenForum"
+                style="-fx-background-color: white; -fx-border-color: #1a73e8;
+                       -fx-text-fill: #1a73e8; -fx-font-weight: bold;
+                       -fx-padding: 10 24; -fx-background-radius: 6;"/>
+        <Button text="🔔  Notifications"
+                onAction="#onOpenNotifications"
+                style="-fx-background-color: white; -fx-border-color: #888;
+                       -fx-text-fill: #555; -fx-padding: 10 24; -fx-background-radius: 6;"/>
+    </HBox>
+
+    <!-- Offline notice banner — shown when offline -->
+    <HBox fx:id="offlineBanner" alignment="CENTER_LEFT" spacing="10"
+          style="-fx-background-color: #fff4ce; -fx-padding: 12; -fx-background-radius: 6;"
+          visible="false" managed="false">
+        <Label text="⚠  You are offline. Changes are saved locally and will sync automatically when you reconnect."
+               style="-fx-text-fill: #7a5c00; -fx-font-size: 12;" wrapText="true"/>
+    </HBox>
+
+    <!-- Log area — recently synced items -->
+    <VBox spacing="6" VBox.vgrow="ALWAYS"
+          style="-fx-background-color: white; -fx-padding: 16; -fx-background-radius: 8;
+                 -fx-effect: dropshadow(gaussian, #cccccc, 4, 0, 0, 2);">
+        <Label text="Sync Activity Log" style="-fx-font-weight: bold; -fx-text-fill: #555;"/>
+        <ListView fx:id="syncLogList" VBox.vgrow="ALWAYS"
+                  style="-fx-border-color: transparent;"/>
+    </VBox>
+
+</VBox>

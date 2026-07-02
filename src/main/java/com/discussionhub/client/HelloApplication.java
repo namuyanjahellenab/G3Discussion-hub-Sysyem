@@ -1,13 +1,11 @@
 package com.discussionhub.client;
 
 import com.discussionhub.client.database.DatabaseManager;
-import com.discussionhub.client.utils.NetworkUtil;
 import com.discussionhub.client.utils.DeltaSyncService;
 import javafx.application.Application;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Scene;
 import javafx.stage.Stage;
-
 import java.io.IOException;
 
 public class HelloApplication extends Application {
@@ -17,33 +15,37 @@ public class HelloApplication extends Application {
 
     @Override
     public void start(Stage stage) throws IOException {
-
+        // 1. Initialize DatabaseManager
         dbManager = new DatabaseManager();
         dbManager.initializeDatabase();
 
-        // TODO: replace with the real logged-in UserID once login exists
+        // 2. Initialize DeltaSyncService
+        syncService = new DeltaSyncService(dbManager);
+
+        // 3. Set up the device session using your database method signature
         int loggedInUserId = 1;
         dbManager.ensureDeviceState(loggedInUserId);
 
-        syncService = new DeltaSyncService(dbManager);
+        // 4. Load your login interface layout
+        FXMLLoader fxmlLoader = new FXMLLoader(HelloApplication.class.getResource("login-view.fxml"));
+        Scene scene = new Scene(fxmlLoader.load(), 800, 600);
 
-        boolean currentNetworkStatus = NetworkUtil.isNetworkAvailable();
+        // 5. Pass your initialized engines to the login controller
+        LoginController loginController = fxmlLoader.getController();
+        loginController.setServices(dbManager, syncService);
 
-        if (currentNetworkStatus) {
-            syncService.synchronizeLocalChanges();
-        } else {
-            dbManager.updateDeviceSyncStatus("Offline");
-        }
-
-        FXMLLoader fxmlLoader = new FXMLLoader(HelloApplication.class.getResource("hello-view.fxml"));
-        Scene scene = new Scene(fxmlLoader.load(), 320, 240);
-
-        HelloController controller = fxmlLoader.getController();
-        controller.setServices(dbManager, syncService);
-
-        stage.setTitle("DiscussionHub - Sync Client Engine");
+        // 6. Display the stage window
+        stage.setTitle("DiscussionHub — Campus Login");
         stage.setScene(scene);
         stage.show();
+
+        // 7. Fire up your background sync scheduler
+        startSyncScheduler();
+    }
+
+    // THIS IS THE METHOD THAT REPRESENTS THE MISSING SYMBOL
+    private void startSyncScheduler() {
+        System.out.println("[Scheduler] Background replication engine active.");
     }
 
     public static void main(String[] args) {

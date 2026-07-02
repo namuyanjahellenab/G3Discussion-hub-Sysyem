@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<?import javafx.geometry.Insets?>
+
+<VBox xmlns:fx="http://javafx.com/fxml"
+      fx:controller="com.discussionhub.client.LoginController"
+      alignment="CENTER" spacing="20"
+      style="-fx-background-color: #f4f6f9;">
+
+    <padding>
+        <Insets top="40" right="40" bottom="40" left="40"/>
+    </padding>
+
+    <VBox alignment="CENTER" spacing="5">
+        <Label text="DiscussionHub" style="-fx-font-size: 28; -fx-font-weight: bold; -fx-text-fill: #1a73e8;"/>
+        <Label text="Makerere University Desktop Client" style="-fx-text-fill: #666666; -fx-font-size: 14;"/>
+    </VBox>
+
+    <VBox spacing="15" style="-fx-background-color: white; -fx-padding: 25; -fx-background-radius: 8; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.1), 10, 0, 0, 4);" maxWidth="360" alignment="CENTER_LEFT">
+
+        <VBox spacing="6">
+            <Label text="Username" style="-fx-text-fill: #444444; -fx-font-weight: bold; -fx-font-size: 13;"/>
+            <TextField fx:id="usernameField" promptText="Enter your username"
+                       style="-fx-padding: 10; -fx-background-radius: 4; -fx-border-color: #cccccc; -fx-border-radius: 4;"/>
+        </VBox>
+
+        <VBox spacing="6">
+            <Label text="Password" style="-fx-text-fill: #444444; -fx-font-weight: bold; -fx-font-size: 13;"/>
+            <PasswordField fx:id="passwordField" promptText="Enter your password"
+                           style="-fx-padding: 10; -fx-background-radius: 4; -fx-border-color: #cccccc; -fx-border-radius: 4;"/>
+        </VBox>
+
+        <Label fx:id="errorLabel" style="-fx-text-fill: #d93025; -fx-font-size: 12;" visible="false" wrapText="true"/>
+
+        <Button text="Login to Hub" onAction="#onLoginClick" maxWidth="Infinity"
+                style="-fx-background-color: #1a73e8; -fx-text-fill: white; -fx-font-weight: bold; -fx-padding: 12; -fx-background-radius: 4; -fx-cursor: hand;"/>
+    </VBox>
+
+    <Label text="Offline-First Mode Enabled (SQLite Cache Activated)" style="-fx-text-fill: #888888; -fx-font-size: 11;"/>
+
+</VBox>
