@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.shape.Circle?>
+
+<VBox xmlns:fx="http://javafx.com/fxml"
+      fx:controller="com.discussionhub.client.GroupSelectionController"
+      spacing="0" style="-fx-background-color: #e8eef7;">
+
+    <!-- Header bar -->
+    <HBox alignment="CENTER_LEFT" spacing="12"
+          style="-fx-background-color: #1a73e8; -fx-padding: 14;">
+        <Label text="Discussion Hub"
+               style="-fx-text-fill: white; -fx-font-size: 18; -fx-font-weight: bold;"/>
+        <Region HBox.hgrow="ALWAYS"/>
+        <Label text="Select Your Group"
+               style="-fx-text-fill: white; -fx-font-size: 14;"/>
+        <Region HBox.hgrow="ALWAYS"/>
+        <Label fx:id="userEmailLabel" text="user@example.com"
+               style="-fx-text-fill: white; -fx-font-size: 13;"/>
+    </HBox>
+
+    <VBox spacing="16" style="-fx-padding: 20;">
+        <!-- Search bar -->
+        <TextField fx:id="searchField" promptText="Search groups..."
+                   onKeyReleased="#onSearch"
+                   style="-fx-padding: 10; -fx-border-color: #ddd; -fx-border-radius: 6; -fx-background-radius: 6;"/>
+
+        <!-- Status message label -->
+        <Label fx:id="statusLabel" visible="false" managed="false"
+               style="-fx-text-fill: #1a73e8; -fx-font-weight: bold;"/>
+
+        <!-- Main content -->
+        <ScrollPane fitToWidth="true" VBox.vgrow="ALWAYS"
+                    style="-fx-background-color: transparent; -fx-background: transparent;">
+            <FlowPane fx:id="groupCardsContainer" hgap="16" vgap="16" style="-fx-padding: 16;">
+                <!-- Group cards will be added dynamically here -->
+            </FlowPane>
+        </ScrollPane>
+    </VBox>
+
+    <!-- Bottom bar -->
+    <HBox alignment="CENTER_LEFT" spacing="20"
+          style="-fx-background-color: white; -fx-padding: 16; -fx-effect: dropshadow(gaussian,#cccccc,8,0,0,-3);">
+        <Hyperlink text="Skip for now" onAction="#onSkip"
+                   style="-fx-text-fill: #1a73e8; -fx-font-weight: bold;"/>
+        <Region HBox.hgrow="ALWAYS"/>
+        <Button fx:id="continueButton" text="Continue to Dashboard →" onAction="#onContinue"
+                disabled="true"
+                style="-fx-background-color: #1a73e8; -fx-text-fill: white; -fx-font-weight: bold; -fx-padding: 12; -fx-background-radius: 6;"/>
+    </HBox>
+
+</VBox>
