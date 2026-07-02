@@ -116,10 +116,12 @@ class DashboardController extends Controller
         )->count();
 
         $recentResults = QuizResult::whereIn('QuizID', $quizzes->pluck('QuizID'))
-            ->orderByDesc('SubmissionTime')
-            ->take(10)
-            ->get();
+    ->orderByDesc('SubmissionTime')
+    ->take(10)
+    ->get();
 
-        return view('lecturer.dashboard', compact('quizzes', 'upcoming', 'active', 'closed', 'recentResults'));
+$recentDiscussions = collect(); // TODO: replace with real discussions query once Post/Topic feature is ready
+
+return view('lecturer.dashboard', compact('quizzes', 'upcoming', 'active', 'closed', 'recentResults', 'recentDiscussions'));
     }
 }

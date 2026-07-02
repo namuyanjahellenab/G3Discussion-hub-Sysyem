@@ -35,81 +35,75 @@
 
         /* ---------- Sidebar ---------- */
         .sidebar {
-            width: var(--sidebar-width);
-            background: var(--navy);
-            color: #fff;
-            display: flex;
-            flex-direction: column;
-            position: fixed;
-            top: 0;
-            left: 0;
-            bottom: 0;
-            z-index: 40;
-            transition: transform 0.25s ease;
-        }
-
-        .sidebar.collapsed {
-            transform: translateX(-100%);
-        }
-
-        .sidebar-brand {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            padding: 22px 20px;
-            font-weight: 700;
-            font-size: 17px;
-            letter-spacing: 0.3px;
-            border-bottom: 1px solid rgba(255,255,255,0.08);
-        }
-
-        .sidebar-brand .dot {
-            width: 10px;
-            height: 10px;
-            border-radius: 3px;
-            background: var(--secondary);
-        }
-
-        .sidebar-nav {
-            flex: 1;
-            padding: 16px 12px;
-            display: flex;
-            flex-direction: column;
-            gap: 4px;
-        }
-
-        .sidebar-nav a {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            padding: 11px 14px;
-            border-radius: 8px;
-            color: #CBD5E1;
-            text-decoration: none;
-            font-size: 14px;
-            font-weight: 500;
-            transition: background 0.15s ease, color 0.15s ease;
-        }
-
-        .sidebar-nav a:hover {
-            background: rgba(255,255,255,0.06);
-            color: #fff;
-        }
-
-        .sidebar-nav a.active {
-            background: var(--primary);
-            color: #fff;
-        }
-
-        .sidebar-nav .icon {
-            width: 18px;
-            height: 18px;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 15px;
-        }
-
+    width: var(--sidebar-width);
+    background: #ffffff;
+    color: var(--gray-500);
+    border-right: 1px solid var(--gray-200);
+    display: flex;
+    flex-direction: column;
+    position: fixed;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    z-index: 40;
+    transition: transform 0.25s ease;
+}
+.sidebar.collapsed {
+    transform: translateX(-100%);
+}
+.sidebar-brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 22px 20px;
+    font-weight: 700;
+    font-size: 17px;
+    letter-spacing: 0.3px;
+    color: var(--primary);
+    border-bottom: 1px solid var(--gray-200);
+}
+.sidebar-brand .dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 3px;
+    background: var(--primary);
+}
+.sidebar-nav {
+    flex: 1;
+    padding: 16px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+.sidebar-nav a {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 11px 14px;
+    border-radius: 8px;
+    color: var(--gray-500);
+    text-decoration: none;
+    font-size: 14px;
+    font-weight: 500;
+    transition: background 0.15s ease, color 0.15s ease;
+}
+.sidebar-nav a:hover {
+    background: var(--gray-50);
+    color: var(--navy);
+}
+.sidebar-nav a.active {
+    background: var(--light);
+    color: var(--primary);
+}
+.sidebar-nav .icon {
+    width: 18px;
+    height: 18px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 15px;
+}
+            
         .sidebar-footer {
             padding: 16px 20px;
             border-top: 1px solid rgba(255,255,255,0.08);
@@ -564,7 +558,8 @@
                                     </div>
                                     <div style="display:flex; align-items:center; gap:14px;">
                                         <span class="status-pill status-{{ $status }}">{{ $status }}</span>
-                                        <a href="{{ url('/quizzes/'.$quiz->QuizID.'/edit') }}" class="quiz-edit-link">Edit</a>
+                                    <a href="{{ route('quiz.results', $quiz->QuizID) }}" class="quiz-edit-link">Results</a>
+<a href="{{ url('/quizzes/'.$quiz->QuizID.'/edit') }}" class="quiz-edit-link">Edit</a>
                                     </div>
                                 </div>
                             @empty

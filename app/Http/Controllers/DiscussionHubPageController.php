@@ -35,7 +35,7 @@ class DiscussionHubPageController extends Controller
             ->latest('CreatedAt')
             ->get();
 
-        return view('forum.index', compact('joinedGroups', 'topics'));
+        return view('forum.index', compact('joinedGroups', 'topics'))->with('showSidebar', false);
     }
 
     public function messages(Request $request)
@@ -74,7 +74,7 @@ class DiscussionHubPageController extends Controller
         $topics = Topic::whereIn('CreatedBy', $memberIds)->latest('CreatedAt')->get();
         $replyToPost = $request->filled('reply_to') ? Post::find($request->reply_to) : null;
 
-        return view('messages.index', compact('joinedGroups', 'threadedPosts', 'topics', 'replyToPost'));
+        return view('messages.index', compact('joinedGroups', 'threadedPosts', 'topics', 'replyToPost'))->with('showSidebar', false);
     }
 
     public function storeMessage(Request $request): RedirectResponse
@@ -137,18 +137,21 @@ class DiscussionHubPageController extends Controller
             'Content-Type' => 'application/pdf',
         ]);
     }
-
-    public function marks()
-    {
-        $marks = [
-            'coursework' => 78,
-            'cats' => 84,
-            'exams' => 81,
-            'gpa' => 4.2,
-        ];
-
-        return view('marks.index', compact('marks'));
+public function marks()
+{
+    if (auth()->user()->Role === 'Lecturer') {
+        return redirect()->route('dashboard');
     }
+
+    $marks = [
+        'coursework' => 78,
+        'cats' => 84,
+        'exams' => 81,
+        'gpa' => 4.2,
+    ];
+
+    return view('marks.index', compact('marks'))->with('showSidebar', false);
+}
 
     public function quizzes()
     {
@@ -157,7 +160,7 @@ class DiscussionHubPageController extends Controller
         $upcoming = Quiz::where('CreatedAt', '>=', now()->subDays(7))->get();
         $scores = QuizResult::where('UserID', Auth::id())->get();
 
-        return view('quizzes.index', compact('quizzes', 'completed', 'upcoming', 'scores'));
+        return view('quizzes.index', compact('quizzes', 'completed', 'upcoming', 'scores'))->with('showSidebar', false);
     }
 
     public function recommend()
@@ -180,17 +183,17 @@ class DiscussionHubPageController extends Controller
             ->whereIn('UserID', $memberIds)
             ->take(4)
             ->get();
-
-        return view('recommend.index', compact('joinedGroups', 'recommendedTopics', 'recommendedStudents'));
+return view('recommend.index', compact('joinedGroups', 'recommendedTopics', 'recommendedStudents'))->with('showSidebar', false);
     }
 
     public function settings()
     {
         return view('settings.index', [
-            'user' => Auth::user(),
-            'preferences' => session('notification_preferences', ['email' => true, 'push' => true]),
-            'darkMode' => session('dark_mode', false),
-        ]);
+    'user' => Auth::user(),
+    'preferences' => session('notification_preferences', ['email' => true, 'push' => true]),
+    'darkMode' => session('dark_mode', false),
+])->with('showSidebar', false);
+        
     }
 
     public function updateSettings(Request $request): RedirectResponse
