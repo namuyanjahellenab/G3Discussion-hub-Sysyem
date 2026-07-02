@@ -51,7 +51,7 @@ class RegisteredUserController extends Controller
             'UserName' =>  $request->input('full_name'),
             'Email' => $request->email,
             'PasswordHash' => Hash::make($request->password),
-            'Role' => $request->input('role'), 
+            'Role' => ucfirst($request->input('role')),
         ]);
 
         event(new Registered($user));
