@@ -22,24 +22,20 @@ public class HelloApplication extends Application {
         // 2. Initialize DeltaSyncService
         syncService = new DeltaSyncService(dbManager);
 
-        // 3. Set up the device session using your database method signature
-        int loggedInUserId = 1;
-        dbManager.ensureDeviceState(loggedInUserId);
-
-        // 4. Load your login interface layout
+        // 3. Load your login interface layout
         FXMLLoader fxmlLoader = new FXMLLoader(HelloApplication.class.getResource("login-view.fxml"));
         Scene scene = new Scene(fxmlLoader.load(), 800, 600);
 
-        // 5. Pass your initialized engines to the login controller
+        // 4. Pass your initialized engines to the login controller
         LoginController loginController = fxmlLoader.getController();
         loginController.setServices(dbManager, syncService);
 
-        // 6. Display the stage window
+        // 5. Display the stage window
         stage.setTitle("DiscussionHub — Campus Login");
         stage.setScene(scene);
         stage.show();
 
-        // 7. Fire up your background sync scheduler
+        // 6. Fire up your background sync scheduler
         startSyncScheduler();
     }
 

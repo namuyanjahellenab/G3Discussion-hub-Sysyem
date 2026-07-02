@@ -103,8 +103,19 @@ public class DashboardController {
 
     @FXML
     protected void onOpenNotifications() {
-        // TODO: wire to notification screen once built
-        addLogEntry("Notifications screen coming soon.");
+        try {
+            FXMLLoader loader = new FXMLLoader(getClass().getResource("notifications-view.fxml"));
+            Scene scene = new Scene(loader.load(), 800, 600);
+            NotificationsController controller = loader.getController();
+            controller.setServices(dbManager, syncService);
+
+            Stage stage = (Stage) syncStatusLabel.getScene().getWindow();
+            stage.setScene(scene);
+            stage.setTitle("DiscussionHub — Notifications");
+        } catch (Exception e) {
+            System.err.println("[Dashboard] Error opening notifications: " + e.getMessage());
+            e.printStackTrace();
+        }
     }
 
     private void addLogEntry(String message) {

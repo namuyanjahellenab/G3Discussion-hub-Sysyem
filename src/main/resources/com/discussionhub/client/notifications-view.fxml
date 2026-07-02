@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<?import javafx.geometry.Insets?>
+
+<VBox xmlns:fx="http://javafx.com/fxml" fx:controller="com.discussionhub.client.NotificationsController"
+      spacing="0" style="-fx-background-color: #e8eef7;">
+
+    <!-- Header bar -->
+    <HBox alignment="CENTER_LEFT" spacing="12"
+          style="-fx-background-color: #1a73e8; -fx-padding: 14;">
+        <Button text="← Back" onAction="#onBack"
+                style="-fx-background-color: transparent; -fx-text-fill: white;
+                       -fx-font-weight: bold; -fx-padding: 4 10;"/>
+        <Label text="🔔 Notifications"
+               style="-fx-text-fill: white; -fx-font-size: 18; -fx-font-weight: bold;"/>
+        <Region HBox.hgrow="ALWAYS"/>
+        <Label fx:id="syncStatusLabel" text="● ONLINE"
+               style="-fx-text-fill: white; -fx-font-size: 12; -fx-font-weight: bold;"/>
+    </HBox>
+
+    <VBox spacing="15" VBox.vgrow="ALWAYS" style="-fx-padding: 20;">
+        <!-- Filter tabs row -->
+        <HBox spacing="10" alignment="CENTER_LEFT">
+            <HBox style="-fx-background-color: white; -fx-background-radius: 6; -fx-padding: 2;">
+                <ToggleButton fx:id="filterAll" text="All" selected="true" onAction="#onFilterAll"
+                              style="-fx-background-radius: 4; -fx-padding: 6 15;"/>
+                <ToggleButton fx:id="filterUnread" text="Unread" onAction="#onFilterUnread"
+                              style="-fx-background-radius: 4; -fx-padding: 6 15;"/>
+                <ToggleButton fx:id="filterAnnouncements" text="Announcements" onAction="#onFilterAnnouncements"
+                              style="-fx-background-radius: 4; -fx-padding: 6 15;"/>
+            </HBox>
+            <Region HBox.hgrow="ALWAYS"/>
+            <Button text="Mark All as Read" onAction="#onMarkAllRead"
+                    style="-fx-background-color: white; -fx-text-fill: #1a73e8; -fx-border-color: #1a73e8; -fx-border-radius: 6; -fx-background-radius: 6; -fx-padding: 6 12;"/>
+        </HBox>
+
+        <!-- Main area -->
+        <ScrollPane fitToWidth="true" VBox.vgrow="ALWAYS" style="-fx-background-color: transparent; -fx-background: transparent; -fx-border-color: transparent;">
+            <VBox fx:id="notificationsContainer" spacing="10">
+                <!-- Notifications loaded dynamically -->
+                <Label fx:id="emptyStateLabel" text="No notifications yet." visible="false" style="-fx-text-fill: grey;"/>
+            </VBox>
+        </ScrollPane>
+    </VBox>
+
+</VBox>

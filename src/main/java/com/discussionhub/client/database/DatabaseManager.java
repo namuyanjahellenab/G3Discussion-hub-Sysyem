@@ -655,6 +655,41 @@ public class DatabaseManager {
         }
     }
 
+    public List<NotificationItem> getAllNotifications(int userId) {
+        List<NotificationItem> notifications = new ArrayList<>();
+        String sql = "SELECT * FROM Notification WHERE UserID = ? ORDER BY CreatedAt DESC;";
+        try (Connection conn = this.connect();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            pstmt.setInt(1, userId);
+            try (ResultSet rs = pstmt.executeQuery()) {
+                while (rs.next()) {
+                    notifications.add(new NotificationItem(
+                            rs.getInt("NotificationID"),
+                            rs.getInt("UserID"),
+                            rs.getString("Message"),
+                            rs.getInt("Status"),
+                            rs.getString("CreatedAt"),
+                            rs.getString("Type")
+                    ));
+                }
+            }
+        } catch (SQLException e) {
+            System.err.println("[DB] Error fetching notifications: " + e.getMessage());
+        }
+        return notifications;
+    }
+
+    public void markAllNotificationsAsRead(int userId) {
+        String sql = "UPDATE Notification SET Status = 1 WHERE UserID = ?;";
+        try (Connection conn = this.connect();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            pstmt.setInt(1, userId);
+            pstmt.executeUpdate();
+        } catch (SQLException e) {
+            System.err.println("[DB] Error marking notifications as read: " + e.getMessage());
+        }
+    }
+
     // ------------------------------------------------------------------
     // Submission entry point used by the GUI layer
     // ------------------------------------------------------------------
