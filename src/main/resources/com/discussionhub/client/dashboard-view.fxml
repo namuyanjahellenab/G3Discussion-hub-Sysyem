@@ -70,6 +70,10 @@
                 onAction="#onOpenNotifications"
                 style="-fx-background-color: white; -fx-border-color: #888;
                        -fx-text-fill: #555; -fx-padding: 10 24; -fx-background-radius: 6;"/>
+        <Button text="🧪 Test Quiz"
+                onAction="#onTestQuiz"
+                style="-fx-background-color: #ff9800; -fx-text-fill: white;
+                       -fx-font-weight: bold; -fx-padding: 10 24; -fx-background-radius: 6;"/>
     </HBox>
 
     <!-- Offline notice banner — shown when offline -->

@@ -73,7 +73,7 @@ public class LoginController {
                     SessionManager.userId = userId;
                     SessionManager.userEmail = email;
 
-                    Platform.runLater(this::loadDashboard);
+                    Platform.runLater(this::loadGroupSelection);
                 } else {
                     Platform.runLater(() -> {
                         errorLabel.setText("Invalid credentials.");
@@ -87,6 +87,24 @@ public class LoginController {
                 });
             }
         }).start();
+    }
+
+    private void loadGroupSelection() {
+        try {
+            // Re-initialize services with the logged-in user ID
+            dbManager.ensureDeviceState(SessionManager.userId);
+            
+            FXMLLoader loader = new FXMLLoader(getClass().getResource("group-selection-view.fxml"));
+            Scene scene = new Scene(loader.load(), 800, 650);
+            GroupSelectionController controller = loader.getController();
+            controller.setServices(dbManager, syncService);
+
+            Stage stage = (Stage) emailField.getScene().getWindow();
+            stage.setScene(scene);
+            stage.setTitle("DiscussionHub — Select Group");
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 
     private String extractJsonValue(String json, String key) {
@@ -138,21 +156,4 @@ public class LoginController {
         alert.showAndWait();
     }
 
-    private void loadDashboard() {
-        try {
-            // Re-initialize services with the logged-in user ID
-            dbManager.ensureDeviceState(SessionManager.userId);
-            
-            FXMLLoader loader = new FXMLLoader(getClass().getResource("dashboard-view.fxml"));
-            Scene scene = new Scene(loader.load(), 800, 600);
-            DashboardController controller = loader.getController();
-            controller.setServices(dbManager, syncService);
-
-            Stage stage = (Stage) emailField.getScene().getWindow();
-            stage.setScene(scene);
-            stage.setTitle("DiscussionHub — Dashboard");
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-    }
 }
