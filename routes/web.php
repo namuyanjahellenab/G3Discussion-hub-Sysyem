@@ -25,21 +25,22 @@ Route::middleware('guest')->group(function () {
     ->name('register.role');
     Route::get('/register', [RegisteredUserController::class, 'create'])
     ->name('register');
+    
 });
 
 Route::middleware('auth')->group(function () {
     Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
 
     Route::get('/groups/select', [GroupSelectionController::class, 'index'])
-        ->middleware('verified')
         ->name('groups.select');
 
     Route::post('/groups/join/{group}', [GroupController::class, 'join'])
-        ->middleware('verified')
         ->name('groups.join');
 
+    Route::post('/groups/select/multiple', [GroupSelectionController::class, 'joinMultiple'])
+        ->name('groups.select.multiple');
+
     Route::delete('/groups/leave/{group}', [GroupController::class, 'leave'])
-        ->middleware('verified')
         ->name('groups.leave');
 
     Route::get('/groups', [GroupController::class, 'index'])
@@ -62,9 +63,14 @@ Route::middleware('auth')->group(function () {
         ->middleware('verified')
         ->name('messages.index');
 
-    Route::post('/messages', [DiscussionHubPageController::class, 'storeMessage'])
+Route::post('/messages', [DiscussionHubPageController::class, 'storeMessage'])
         ->middleware('verified')
         ->name('messages.store');
+
+    Route::get('/messages/poll', [DiscussionHubPageController::class, 'pollMessages'])
+        ->middleware('verified')
+        ->name('messages.poll');
+
 
     Route::get('/messages/{post}/attachment', [AttachmentController::class, 'download'])
         ->middleware('verified')

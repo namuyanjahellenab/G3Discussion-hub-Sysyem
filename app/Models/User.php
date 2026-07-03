@@ -60,7 +60,7 @@ class User extends Authenticatable
         ];
     }
 
-    public function groups(): BelongsToMany
+   public function groups()
     {
         return $this->belongsToMany(Group::class, 'GroupStudent', 'UserID', 'GroupID', 'UserID', 'GroupID')
             ->withPivot(['StudentID', 'Status', 'CreatedAt', 'UpdatedAt']);
@@ -75,4 +75,5 @@ class User extends Authenticatable
     {
         return $this->PasswordHash;
     }
+    
 }

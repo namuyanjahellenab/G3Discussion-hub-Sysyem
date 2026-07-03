@@ -83,18 +83,9 @@ class DashboardController extends Controller
             ->sortByDesc('created_at')
             ->take(6);
 
-        return view('dashboard.index', compact('joined_groups', 'notifications', 'recentActivity', 'notificationsCount'))->with('showSidebar', true);
-  
-  $recentActivity = $topics->concat($posts)->concat($replies)
-            ->sortByDesc('created_at')
-            ->take(6);
-
-        // This keeps all original data but tells app.blade.php to hide the navbar here
         return view('dashboard.index', compact('joined_groups', 'notifications', 'recentActivity', 'notificationsCount'))
-            ->with([
-                'showSidebar' => false,
-                'showNavbar'  => false
-            ]);
+            ->with('showSidebar', true)
+            ->with('showNavbar', true);
     }
 }
             

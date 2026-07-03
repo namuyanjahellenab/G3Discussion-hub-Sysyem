@@ -25,4 +25,5 @@ class Group extends Model
         return $this->belongsToMany(User::class, 'GroupStudent', 'GroupID', 'UserID', 'GroupID', 'UserID')
             ->withPivot(['StudentID', 'Status', 'CreatedAt', 'UpdatedAt']);
     }
+    
 }

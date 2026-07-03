@@ -49,15 +49,15 @@ class RegisteredUserController extends Controller
 
         $user = User::create([
             'UserName' =>  $request->input('full_name'),
-            'email' => $request->email,
+            'Email' => $request->email,
             'PasswordHash' => Hash::make($request->password),
-            'role' => $request->input('role'), 
+            'Role' => $request->input('role'), 
         ]);
 
         event(new Registered($user));
 
         Auth::login($user);
 
-        return redirect(route('dashboard', absolute: false));
+        return redirect(route('groups.select'));
     }
 }

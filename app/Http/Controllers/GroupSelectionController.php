@@ -49,4 +49,25 @@ class GroupSelectionController extends Controller
 
         return redirect()->route('dashboard');
     }
+
+    public function joinMultiple(Request $request): RedirectResponse
+    {
+        $request->validate([
+            'groups' => 'required|array|min:1',
+            'groups.*' => 'exists:Group,GroupID',
+        ]);
+
+        $user = Auth::user();
+
+        foreach ($request->groups as $groupId) {
+            GroupStudent::firstOrCreate([
+                'GroupID' => $groupId,
+                'UserID' => $user->UserID,
+            ], [
+                'Status' => 'active',
+            ]);
+        }
+
+        return redirect()->route('dashboard');
+    }
 }

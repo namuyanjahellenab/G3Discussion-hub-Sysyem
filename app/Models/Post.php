@@ -8,6 +8,14 @@ class Post extends Model
 {
     protected $table = 'Post';
     protected $primaryKey = 'PostID';
+    protected $fillable = [
+        'TopicID',
+        'UserID',
+        'Content',
+        'ParentPostID',
+        'Attachment',
+        'AttachmentType',
+    ];
     const CREATED_AT = 'CreatedAt';
     const UPDATED_AT = 'UpdatedAt';
 
