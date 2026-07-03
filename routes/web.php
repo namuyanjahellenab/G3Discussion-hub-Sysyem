@@ -121,8 +121,20 @@ Route::middleware('auth')->group(function () {
         return view('quizzes.results', ['quizID' => $id]);
     })->name('quiz.results');
     Route::post('/quiz/schedule-submit', [QuizController::class, 'scheduleAssessment']);
-    Route::get('/quiz/{id}/take', function ($id) {
-    return view('quizzes.quiz-take');
+   Route::get('/quiz/{id}/take', function ($id) {
+    $quiz = \App\Models\Quiz::findOrFail($id);
+    $now = now();
+    $end = $quiz->StartTime->copy()->addMinutes($quiz->Duration);
+
+    if ($quiz->StartTime > $now) {
+        $status = 'upcoming';
+    } elseif ($now <= $end) {
+        $status = 'active';
+    } else {
+        $status = 'closed';
+    }
+
+    return view('quizzes.quiz-take', compact('quiz', 'status'));
 })->name('quiz.take');
 Route::post('/web/quiz/join',        [QuizEngineController::class, 'join'])->middleware('auth');
 Route::post('/web/quiz/submit',      [QuizEngineController::class, 'submit'])->middleware('auth');

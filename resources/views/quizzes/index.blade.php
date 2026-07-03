@@ -42,14 +42,33 @@
 
         <div style="background: #ffffff; border: 1px solid #e4e7ec; border-radius: 16px; padding: 24px; box-shadow: 0px 2px 12px rgba(16,24,40,0.02);">
             <h3 style="font-weight:700; color:#101828; margin-bottom: 16px;">Quiz list</h3>
-            @forelse($quizzes as $quiz)
-                <div style="display:flex; justify-content:space-between; align-items:center; padding: 12px 0; border-bottom:1px solid #f2f4f7;">
-                    <div><div style="font-weight:700; color:#101828;">{{ $quiz->Title ?? 'Untitled quiz' }}</div><div style="color:#667085; font-size:0.85rem;">{{ $quiz->Description ?? 'Available for this module' }}</div></div>
-                    <span class="badge bg-light text-primary">{{ $quiz->CreatedAt->diffForHumans() }}</span>
-                </div>
-            @empty
-                <div style="color:#667085;">No quizzes are available yet.</div>
-            @endforelse
+           @forelse($quizzes as $quiz)
+    @php
+        $now = now();
+        $end = $quiz->StartTime->copy()->addMinutes($quiz->Duration);
+        if ($quiz->StartTime > $now) {
+            $status = 'Upcoming';
+            $badgeClass = 'bg-light text-primary';
+        } elseif ($now <= $end) {
+            $status = 'Active now';
+            $badgeClass = 'bg-success text-white';
+        } else {
+            $status = 'Closed';
+            $badgeClass = 'bg-secondary text-white';
+        }
+    @endphp
+    <a href="{{ route('quiz.take', $quiz->QuizID) }}" style="text-decoration:none;">
+        <div style="display:flex; justify-content:space-between; align-items:center; padding: 12px 0; border-bottom:1px solid #f2f4f7;">
+            <div>
+                <div style="font-weight:700; color:#101828;">{{ $quiz->Title ?? 'Untitled quiz' }}</div>
+                <div style="color:#667085; font-size:0.85rem;">{{ $status }}</div>
+            </div>
+            <span class="badge {{ $badgeClass }}">{{ $quiz->StartTime->diffForHumans() }}</span>
+        </div>
+    </a>
+@empty
+    <div style="color:#667085;">No quizzes are available yet.</div>
+@endforelse
         </div>
     </div>
 
