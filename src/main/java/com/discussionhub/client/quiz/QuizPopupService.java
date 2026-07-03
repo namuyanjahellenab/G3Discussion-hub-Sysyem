@@ -32,9 +32,13 @@ import java.util.regex.Pattern;
  * found, blurs the main JavaFX window and shows a popup forcing the student
  * to start the quiz.
  *
- * Usage (call once from HelloApplication.start() after the main Stage is shown):
+ * Preferred usage (call once after login, with the session's real auth token):
  *
- *     QuizPopupService.start(primaryStage);
+ *     QuizPopupService.start(stage, SessionManager.token);
+ *
+ * Fallback usage (uses its own hardcoded test login - avoid in production):
+ *
+ *     QuizPopupService.start(stage);
  *
  * To stop polling (e.g. on logout or app close):
  *
@@ -48,11 +52,13 @@ public class QuizPopupService {
     private static final String ACTIVE_QUIZ_URL = BASE_URL + "/api/quiz/active-now";
     private static final String QUIZ_TAKE_BASE_URL = BASE_URL + "/quiz/";
 
-    // TODO: replace with real stored student credentials (e.g. read from a login screen/config)
+    // Fallback credentials, only used if start(Stage) is called without a session token.
+    // Prefer start(Stage, String token) wherever a logged-in session is available.
     private static final String STUDENT_EMAIL = "lecturer@test.com";
-    private static final String STUDENT_PASSWORD ="password123";
+    private static final String STUDENT_PASSWORD = "password123";
 
     private static String authToken = null;
+    private static boolean usingExternalToken = false;
 
     private static final int POLL_INTERVAL_MS = 15000; // 15 seconds
     private static final int CONNECT_TIMEOUT_MS = 4000;
@@ -67,10 +73,33 @@ public class QuizPopupService {
         // static utility class
     }
 
-    /** Begin polling for an active quiz. Call once, after primaryStage.show(). */
+    /**
+     * Begin polling for an active quiz using an already-authenticated session token
+     * (e.g. SessionManager.token after login). Preferred entry point.
+     */
+    public static void start(Stage stage, String token) {
+        authToken = token;
+        usingExternalToken = true;
+        startInternal(stage);
+    }
+
+    /**
+     * Begin polling using the service's own hardcoded test login.
+     * Kept for backwards compatibility / standalone testing only.
+     */
     public static void start(Stage stage) {
+        usingExternalToken = false;
+        authToken = null;
+        startInternal(stage);
+    }
+
+    private static void startInternal(Stage stage) {
         mainStage = stage;
         popupShown = false;
+
+        if (pollTimer != null) {
+            pollTimer.cancel(); // guard against double-start
+        }
 
         pollTimer = new Timer(true); // daemon thread, won't block app exit
         pollTimer.scheduleAtFixedRate(new TimerTask() {
@@ -89,14 +118,22 @@ public class QuizPopupService {
         }
         popupShown = false;
         authToken = null;
+        usingExternalToken = false;
     }
 
     // ---- Polling -----------------------------------------------------
-private static void checkForActiveQuiz() {
+    private static void checkForActiveQuiz() {
         if (popupShown) return; // already showing, skip this poll
 
         try {
             if (authToken == null) {
+                if (usingExternalToken) {
+                    // Session token was rejected/expired and we have no way to refresh
+                    // it ourselves - stop polling until the app restarts / re-logs in.
+                    System.out.println("QuizPopupService: session token missing, stopping poll");
+                    stop();
+                    return;
+                }
                 authToken = login();
                 if (authToken == null) {
                     System.out.println("QuizPopupService: login failed, skipping this poll");
@@ -116,9 +153,8 @@ private static void checkForActiveQuiz() {
                 Platform.runLater(() -> showQuizPopup(quiz));
             }
         } catch (UnauthorizedException e) {
-            // Token expired or invalid - clear it and force a fresh login next poll
-            System.out.println("QuizPopupService: token rejected, re-authenticating next poll");
-            authToken = null;
+            System.out.println("QuizPopupService: token rejected");
+            authToken = null; // next poll will either stop() (external) or re-login (internal)
         } catch (Exception e) {
             // Network errors are expected when offline; fail silently and retry next poll
             System.out.println("QuizPopupService: poll failed - " + e.getMessage());

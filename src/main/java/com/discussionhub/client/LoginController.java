@@ -1,6 +1,7 @@
 package com.discussionhub.client;
 
 import com.discussionhub.client.database.DatabaseManager;
+import com.discussionhub.client.quiz.QuizPopupService;
 import com.discussionhub.client.utils.DeltaSyncService;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
@@ -102,6 +103,9 @@ public class LoginController {
             Stage stage = (Stage) emailField.getScene().getWindow();
             stage.setScene(scene);
             stage.setTitle("DiscussionHub — Select Group");
+
+        // Start polling for active quizzes using this session's real auth token
+        QuizPopupService.start(stage, SessionManager.token);
         } catch (Exception e) {
             e.printStackTrace();
         }
