@@ -18,7 +18,7 @@
     /* Prevent layout flashing while JavaScript runs */
     .dashboard-grid-container {
         display: grid !important;
-        grid-template-columns: 260px 1fr 340px !important;
+        grid-template-columns: 1fr 340px !important;
         min-height: 100vh !important;
         width: 100% !important;
         background-color: #fcfcfd !important;
@@ -175,22 +175,7 @@
 <!-- Main Wrapper Layout Container -->
 <div class="dashboard-grid-container" id="clean-dashboard-root">
 
-    <!-- COLUMN 1: LEFT SIDEBAR -->
-    <div class="sidebar-panel">
-        <div class="sidebar-brand">
-            <i class="fa-solid fa-comments"></i>
-            <span>DISCUSSION HUB</span>
-        </div>
-        <ul class="sidebar-menu">
-            <li class="active"><a href="{{ route('dashboard') }}"><i class="fa-solid fa-table-columns"></i> Dashboard</a></li>
-            <li><a href="{{ route('forum.index') }}"><i class="fa-regular fa-comments"></i> Forum</a></li>
-            <li><a href="{{ route('messages.index') }}"><i class="fa-regular fa-envelope"></i> Messages</a></li>
-            <li><a href="{{ route('marks.index') }}"><i class="fa-regular fa-star"></i> Marks</a></li>
-            <li><a href="{{ route('quizzes.index') }}"><i class="fa-regular fa-file-lines"></i> Quizzes</a></li>
-            <li><a href="{{ route('recommend.index') }}"><i class="fa-regular fa-thumbs-up"></i> Recommend</a></li>
-            <li><a href="{{ route('settings.index') }}"><i class="fa-solid fa-gear"></i> Settings</a></li>
-        </ul>
-    </div>
+    
 
     <!-- COLUMN 2: WORKSPACE CONTENT -->
     <div class="content-workspace">
