@@ -156,4 +156,11 @@ Route::get('/quiz-test', function() {
 })->middleware('auth');
 
 // ->middleware('auth')
+use App\Http\Controllers\AdminGroupController;
+
+Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(function () {
+    Route::get('/groups', [AdminGroupController::class, 'index'])->name('groups.index');
+    Route::post('/groups', [AdminGroupController::class, 'store'])->name('groups.store');
+    Route::put('/groups/{group}', [AdminGroupController::class, 'update'])->name('groups.update');
+});
 

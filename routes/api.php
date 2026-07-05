@@ -9,6 +9,7 @@ use App\Http\Controllers\AuthController;
 use App\Http\Controllers\QuizEngineController;
 use App\Http\Controllers\QuizController;
 
+
 Route::post('/login', [AuthController::class, 'apiLogin']);
 Route::middleware('auth:sanctum')->get('/quiz/active-now', [QuizEngineController::class, 'activeNow']);
 Route::middleware('auth:sanctum')->post('/quiz/join', [QuizEngineController::class, 'join']);
@@ -101,7 +102,6 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/groups', [App\Http\Controllers\Api\GroupApiController::class, 'index']);
     Route::post('/groups/{group}/join', [App\Http\Controllers\Api\GroupApiController::class, 'join']);
 });
- 
 
 
 // Route::middleware('auth')->group(function () {

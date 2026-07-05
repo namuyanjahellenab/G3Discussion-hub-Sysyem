@@ -19,55 +19,74 @@
 
 <div class="sidebar-panel">
     <div class="sidebar-brand"><i class="fa-solid fa-comments"></i><span>DISCUSSION HUB</span></div>
-    <ul class="sidebar-menu">
-        <li class="{{ request()->routeIs('dashboard') ? 'active' : '' }}">
-            <a href="{{ route('dashboard') }}"><i class="fa-solid fa-table-columns"></i> Dashboard</a>
-        </li>
-        <li class="{{ request()->routeIs('forum.index') ? 'active' : '' }}">
-            <a href="{{ route('forum.index') }}"><i class="fa-regular fa-comments"></i> Forum</a>
-        </li>
-        <li class="{{ request()->routeIs('messages.index') ? 'active' : '' }}">
-            <a href="{{ route('messages.index') }}"><i class="fa-regular fa-envelope"></i> Messages</a>
-        </li>
-        <li class="{{ request()->routeIs('marks.index') ? 'active' : '' }}">
-    @if(auth()->user()->Role === 'Lecturer')
-    <a href="{{ route('dashboard') }}"><i class="fa-regular fa-star"></i> Marks</a>
+   <ul class="sidebar-menu">
+@if(auth()->user()->Role === 'Admin')
+    <li class="{{ request()->routeIs('admin.dashboard') ? 'active' : '' }}">
+        <a href="{{ route('dashboard') }}"><i class="fa-solid fa-table-columns"></i> Dashboard</a>
+    </li>
+    <li class="{{ request()->routeIs('admin.statistics') ? 'active' : '' }}">
+        <a href="#"><i class="fa-solid fa-chart-simple"></i> Statistics</a>
+    </li>
+    <li class="{{ request()->routeIs('admin.blacklist') ? 'active' : '' }}">
+        <a href="#"><i class="fa-solid fa-ban"></i> Blacklist</a>
+    </li>
+    <li class="{{ request()->routeIs('admin.groups.index') ? 'active' : '' }}">
+        <a href="{{ route('admin.groups.index') }}"><i class="fa-solid fa-people-group"></i> Groups</a>
+    </li>
+    <li class="{{ request()->routeIs('admin.announcements') ? 'active' : '' }}">
+        <a href="#"><i class="fa-solid fa-bullhorn"></i> Announcements</a>
+    </li>
+    <li class="{{ request()->routeIs('admin.settings') ? 'active' : '' }}">
+        <a href="#"><i class="fa-solid fa-gear"></i> Settings</a>
+    </li>
 @else
-    <a href="{{ route('marks.index') }}"><i class="fa-regular fa-star"></i> Marks</a>
-@endif
-        </li>
-
+    <li class="{{ request()->routeIs('dashboard') ? 'active' : '' }}">
+        <a href="{{ route('dashboard') }}"><i class="fa-solid fa-table-columns"></i> Dashboard</a>
+    </li>
+    <li class="{{ request()->routeIs('forum.index') ? 'active' : '' }}">
+        <a href="{{ route('forum.index') }}"><i class="fa-regular fa-comments"></i> Forum</a>
+    </li>
+    <li class="{{ request()->routeIs('messages.index') ? 'active' : '' }}">
+        <a href="{{ route('messages.index') }}"><i class="fa-regular fa-envelope"></i> Messages</a>
+    </li>
+    <li class="{{ request()->routeIs('marks.index') ? 'active' : '' }}">
         @if(auth()->user()->Role === 'Lecturer')
-            <li class="dropdown {{ request()->routeIs('quiz.schedule') || request()->routeIs('dashboard') ? 'active' : '' }}">
-                <a href="#" class="dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
-                    <i class="fa-regular fa-file-lines"></i> Quizzes
-                </a>
-                <ul class="dropdown-menu">
-                    <li>
-                        <a class="dropdown-item" href="{{ route('quiz.schedule') }}">
-                            <i class="fa-solid fa-plus"></i> Schedule Quiz
-                        </a>
-                    </li>
-                    <li>
-                        <a class="dropdown-item" href="{{ route('dashboard') }}">
-                            <i class="fa-solid fa-chart-simple"></i> Quiz Results
-                        </a>
-                    </li>
-                </ul>
-            </li>
+            <a href="{{ route('dashboard') }}"><i class="fa-regular fa-star"></i> Marks</a>
         @else
-            <li class="{{ request()->routeIs('quizzes.index') ? 'active' : '' }}">
-                <a href="{{ route('quizzes.index') }}"><i class="fa-regular fa-file-lines"></i> Quizzes</a>
-            </li>
+            <a href="{{ route('marks.index') }}"><i class="fa-regular fa-star"></i> Marks</a>
         @endif
-
-        <li class="{{ request()->routeIs('recommend.index') ? 'active' : '' }}">
-            <a href="{{ route('recommend.index') }}"><i class="fa-regular fa-thumbs-up"></i> Recommend</a>
+    </li>
+    @if(auth()->user()->Role === 'Lecturer')
+        <li class="dropdown {{ request()->routeIs('quiz.schedule') || request()->routeIs('dashboard') ? 'active' : '' }}">
+            <a href="#" class="dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
+                <i class="fa-regular fa-file-lines"></i> Quizzes
+            </a>
+            <ul class="dropdown-menu">
+                <li>
+                    <a class="dropdown-item" href="{{ route('quiz.schedule') }}">
+                        <i class="fa-solid fa-plus"></i> Schedule Quiz
+                    </a>
+                </li>
+                <li>
+                    <a class="dropdown-item" href="{{ route('dashboard') }}">
+                        <i class="fa-solid fa-chart-simple"></i> Quiz Results
+                    </a>
+                </li>
+            </ul>
         </li>
-        <li class="{{ request()->routeIs('settings.index') ? 'active' : '' }}">
-            <a href="{{ route('settings.index') }}"><i class="fa-solid fa-gear"></i> Settings</a>
+    @else
+        <li class="{{ request()->routeIs('quizzes.index') ? 'active' : '' }}">
+            <a href="{{ route('quizzes.index') }}"><i class="fa-regular fa-file-lines"></i> Quizzes</a>
         </li>
-    </ul>
+    @endif
+    <li class="{{ request()->routeIs('recommend.index') ? 'active' : '' }}">
+        <a href="{{ route('recommend.index') }}"><i class="fa-regular fa-thumbs-up"></i> Recommend</a>
+    </li>
+    <li class="{{ request()->routeIs('settings.index') ? 'active' : '' }}">
+        <a href="{{ route('settings.index') }}"><i class="fa-solid fa-gear"></i> Settings</a>
+    </li>
+@endif
+</ul>
 </div>
 
 <script>
