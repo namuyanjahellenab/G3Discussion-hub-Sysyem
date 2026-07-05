@@ -168,7 +168,7 @@ public class QuizPopupService {
 
     /** Logs in and returns the Sanctum token, or null on failure. */
     private static String login() throws Exception {
-        URL url = new URL(LOGIN_URL);
+        URL url = URI.create(LOGIN_URL).toURL();
         HttpURLConnection conn = (HttpURLConnection) url.openConnection();
         conn.setRequestMethod("POST");
         conn.setConnectTimeout(CONNECT_TIMEOUT_MS);

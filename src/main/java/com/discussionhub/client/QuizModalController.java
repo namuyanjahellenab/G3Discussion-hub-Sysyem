@@ -11,6 +11,7 @@ import javafx.util.Duration;
 
 import java.io.OutputStream;
 import java.net.HttpURLConnection;
+import java.net.URI;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
@@ -139,7 +140,7 @@ public class QuizModalController {
 
         new Thread(() -> {
             try {
-                URL url = new URL("http://localhost:8000/api/quiz/submit");
+                URL url = URI.create("http://localhost:8000/api/quiz/submit").toURL();
                 HttpURLConnection conn = (HttpURLConnection) url.openConnection();
                 conn.setRequestMethod("POST");
                 conn.setRequestProperty("Authorization", "Bearer " + SessionManager.token);

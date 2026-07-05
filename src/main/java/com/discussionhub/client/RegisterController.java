@@ -11,6 +11,7 @@ import javafx.stage.Stage;
 
 import java.io.OutputStream;
 import java.net.HttpURLConnection;
+import java.net.URI;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
 
@@ -108,7 +109,7 @@ public class RegisterController {
 
         new Thread(() -> {
             try {
-                URL url = new URL("http://localhost:8000/api/register");
+                URL url = URI.create("http://localhost:8000/api/register").toURL();
                 HttpURLConnection conn = (HttpURLConnection) url.openConnection();
                 conn.setRequestMethod("POST");
                 conn.setRequestProperty("Content-Type", "application/json");

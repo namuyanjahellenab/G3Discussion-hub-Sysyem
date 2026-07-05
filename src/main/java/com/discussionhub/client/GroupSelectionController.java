@@ -2,7 +2,6 @@ package com.discussionhub.client;
 
 import com.discussionhub.client.database.DatabaseManager;
 import com.discussionhub.client.utils.DeltaSyncService;
-import com.discussionhub.client.utils.NetworkUtil;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
@@ -14,10 +13,9 @@ import javafx.stage.Stage;
 
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
-import java.io.OutputStream;
 import java.net.HttpURLConnection;
+import java.net.URI;
 import java.net.URL;
-import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -43,7 +41,7 @@ public class GroupSelectionController {
     private void loadGroups() {
         new Thread(() -> {
             try {
-                URL url = new URL("http://localhost:8000/api/groups");
+                URL url = URI.create("http://localhost:8000/api/groups").toURL();
                 HttpURLConnection conn = (HttpURLConnection) url.openConnection();
                 conn.setRequestMethod("GET");
                 conn.setRequestProperty("Authorization", "Bearer " + SessionManager.token);
@@ -136,7 +134,7 @@ public class GroupSelectionController {
     private void onJoinGroup(int groupId, Button joinBtn) {
         new Thread(() -> {
             try {
-                URL url = new URL("http://localhost:8000/api/groups/" + groupId + "/join");
+                URL url = URI.create("http://localhost:8000/api/groups/" + groupId + "/join").toURL();
                 HttpURLConnection conn = (HttpURLConnection) url.openConnection();
                 conn.setRequestMethod("POST");
                 conn.setRequestProperty("Authorization", "Bearer " + SessionManager.token);

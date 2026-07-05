@@ -97,7 +97,10 @@ Route::middleware('auth:sanctum')->get('/topics', function (Request $request) {
 
     return response()->json($visibleTopics);
 });
-
+Route::middleware('auth:sanctum')->group(function () {
+    Route::get('/groups', [App\Http\Controllers\Api\GroupApiController::class, 'index']);
+    Route::post('/groups/{group}/join', [App\Http\Controllers\Api\GroupApiController::class, 'join']);
+});
  
 
 

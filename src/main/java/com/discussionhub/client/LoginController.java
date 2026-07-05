@@ -12,6 +12,7 @@ import javafx.stage.Stage;
 
 import java.io.OutputStream;
 import java.net.HttpURLConnection;
+import java.net.URI;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.util.Scanner;
@@ -36,38 +37,38 @@ public class LoginController {
 
     @FXML
     public void onLogin() {
-        String email = emailField.getText();
-        String password = passwordField.isVisible() ? passwordField.getText() : passwordVisible.getText();
+    String email = emailField.getText();
+    String password = passwordField.isVisible() ? passwordField.getText() : passwordVisible.getText();
 
-        if (email.isEmpty() || password.isEmpty()) {
-            errorLabel.setText("Please fill all fields.");
-            errorLabel.setVisible(true);
-            return;
-        }
+    if (email.isEmpty() || password.isEmpty()) {
+        errorLabel.setText("Please fill all fields.");
+        errorLabel.setVisible(true);
+        return;
+    }
 
-        new Thread(() -> {
-            try {
-                URL url = new URL("http://localhost:8000/api/login");
-                HttpURLConnection conn = (HttpURLConnection) url.openConnection();
-                conn.setRequestMethod("POST");
-                conn.setRequestProperty("Content-Type", "application/json");
-                conn.setDoOutput(true);
+    new Thread(() -> {
+        try {
+            URL url = URI.create("http://localhost:8000/api/login").toURL();
+            HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+            conn.setRequestMethod("POST");
+            conn.setRequestProperty("Content-Type", "application/json");
+            conn.setDoOutput(true);
 
-                String jsonInputString = String.format("{\"email\": \"%s\", \"password\": \"%s\"}", email, password);
+            String jsonInputString = String.format("{\"email\": \"%s\", \"password\": \"%s\"}", email, password);
 
-                try (OutputStream os = conn.getOutputStream()) {
-                    byte[] input = jsonInputString.getBytes(StandardCharsets.UTF_8);
-                    os.write(input, 0, input.length);
-                }
+            try (OutputStream os = conn.getOutputStream()) {
+                byte[] input = jsonInputString.getBytes(StandardCharsets.UTF_8);
+                os.write(input, 0, input.length);
+            }
 
-                int code = conn.getResponseCode();
-                if (code == 200) {
-                    Scanner s = new Scanner(conn.getInputStream()).useDelimiter("\\A");
+            int code = conn.getResponseCode();
+            if (code == 200) {
+                try (Scanner s = new Scanner(conn.getInputStream()).useDelimiter("\\A")) {
                     String result = s.hasNext() ? s.next() : "";
-                    
-                    // Simple JSON parsing (expecting {"token":"...", "userId":1})
+
+                    // Simple JSON parsing (actual response shape: {"token":"...","user":{"id":5,...}})
                     String token = extractJsonValue(result, "token");
-                    String userIdStr = extractJsonValue(result, "userId");
+                    String userIdStr = extractJsonValue(result, "id");
                     int userId = userIdStr.isEmpty() ? 1 : Integer.parseInt(userIdStr);
 
                     SessionManager.token = token;
@@ -75,20 +76,21 @@ public class LoginController {
                     SessionManager.userEmail = email;
 
                     Platform.runLater(this::loadGroupSelection);
-                } else {
-                    Platform.runLater(() -> {
-                        errorLabel.setText("Invalid credentials.");
-                        errorLabel.setVisible(true);
-                    });
                 }
-            } catch (Exception e) {
+            } else {
                 Platform.runLater(() -> {
-                    errorLabel.setText("Server error: " + e.getMessage());
+                    errorLabel.setText("Invalid credentials.");
                     errorLabel.setVisible(true);
                 });
             }
-        }).start();
-    }
+        } catch (Exception e) {
+            Platform.runLater(() -> {
+                errorLabel.setText("Server error: " + e.getMessage());
+                errorLabel.setVisible(true);
+            });
+        }
+    }).start();
+}
 
     private void loadGroupSelection() {
         try {

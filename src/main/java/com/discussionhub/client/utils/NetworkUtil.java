@@ -2,6 +2,7 @@ package com.discussionhub.client.utils;
 
 import java.io.IOException;
 import java.net.HttpURLConnection;
+import java.net.URI;
 import java.net.URL;
 
 public class NetworkUtil {
@@ -13,7 +14,7 @@ public class NetworkUtil {
 
     public static boolean isNetworkAvailable() {
         try {
-            URL url = new URL(PROBE_URL);
+            URL url = URI.create(PROBE_URL).toURL();
             HttpURLConnection connection = (HttpURLConnection) url.openConnection();
 
             connection.setConnectTimeout(CONNECT_TIMEOUT_MS);

@@ -48,7 +48,7 @@
                    style="-fx-text-fill: #1a73e8; -fx-font-weight: bold;"/>
         <Region HBox.hgrow="ALWAYS"/>
         <Button fx:id="continueButton" text="Continue to Dashboard →" onAction="#onContinue"
-                disabled="true"
+                disable="true"
                 style="-fx-background-color: #1a73e8; -fx-text-fill: white; -fx-font-weight: bold; -fx-padding: 12; -fx-background-radius: 6;"/>
     </HBox>
 

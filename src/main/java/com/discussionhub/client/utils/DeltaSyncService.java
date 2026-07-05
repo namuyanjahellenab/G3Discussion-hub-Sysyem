@@ -7,6 +7,7 @@ import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.net.HttpURLConnection;
+import java.net.URI;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
@@ -76,7 +77,7 @@ public class DeltaSyncService {
 
     private boolean sendPayloadToServer(String jsonPayload) {
         try {
-            URL url = new URL(BASE_URL + PUSH_PATH);
+            URL url =URI.create(BASE_URL + PUSH_PATH).toURL();
             HttpURLConnection conn = (HttpURLConnection) url.openConnection();
 
             conn.setRequestMethod("POST");
@@ -124,7 +125,7 @@ public class DeltaSyncService {
     private String fetchServerChanges(String since) {
         try {
             String encodedSince = java.net.URLEncoder.encode(since, StandardCharsets.UTF_8);
-            URL url = new URL(BASE_URL + PULL_PATH + "?since=" + encodedSince);
+            URL url = URI.create(BASE_URL + PULL_PATH + "?since=" + encodedSince).toURL();
             HttpURLConnection conn = (HttpURLConnection) url.openConnection();
 
             conn.setRequestMethod("GET");
