@@ -39,14 +39,15 @@ class TopicSeeder extends Seeder
             if ($group) {
                 // Create or update the topic for this group
                 Topic::updateOrCreate(
-                    [
-                        'GroupID' => $group->GroupID,
-                        'Title' => $topicTitle,
-                    ],
-                    [
-                        'CreatedBy' => $systemUser->UserID,
-                    ]
-                );
+    [
+        'GroupID' => $group->GroupID,
+        'Title' => $topicTitle,
+    ],
+    [
+        'CreatedBy' => $systemUser->UserID,
+        'Category' => $topicTitle,
+    ]
+);
             }
         }
     }
