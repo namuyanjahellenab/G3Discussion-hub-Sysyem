@@ -248,9 +248,7 @@
         </div>
     </div>
 
-    
-    <div class="right-info-panel">
-    
+    <!-- COLUMN 3: RIGHT INFO PANEL -->
     <div class="right-info-panel">
     <div>
         <div style="color: #667085; font-weight: 700; text-transform: uppercase; font-size: 0.75rem; letter-spacing: 0.5px; margin-bottom: 8px;">

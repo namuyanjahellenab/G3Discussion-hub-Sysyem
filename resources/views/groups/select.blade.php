@@ -192,56 +192,66 @@
     </div>
 
     <!-- Strictly Forced Side-by-Side 2-Column Grid Layout -->
-    <div class="cards-row" style="margin-bottom: 2.5rem;">
-        @foreach($groups as $group)
-            @php
-                $courseCode = match($group->GroupName) {
-                    'Algorithms' => 'CSC301',
-                    'Databases' => 'CSC302',
-                    'Software Engineering', 'Software Eng.' => 'CSC303',
-                    'Networks' => 'CSC304',
-                    default => 'CSC300',
-                };
+    <form method="POST" action="{{ route('groups.select.multiple') }}" id="groupSelectionForm">
+        @csrf
+        <div class="cards-row" style="margin-bottom: 2.5rem;">
+            @foreach($groups as $group)
+                @php
+                    $courseCode = match($group->GroupName) {
+                        'Algorithms' => 'CSC301',
+                        'Databases' => 'CSC302',
+                        'Software Engineering', 'Software Eng.' => 'CSC303',
+                        'Networks' => 'CSC304',
+                        default => 'CSC300',
+                    };
 
-                $accentClass = match($group->GroupName) {
-                    'Algorithms' => 'bar-algorithms',
-                    'Databases' => 'bar-databases',
-                    'Software Engineering', 'Software Eng.' => 'bar-software',
-                    'Networks' => 'bar-networks',
-                    default => '',
-                };
-            @endphp
+                    $accentClass = match($group->GroupName) {
+                        'Algorithms' => 'bar-algorithms',
+                        'Databases' => 'bar-databases',
+                        'Software Engineering', 'Software Eng.' => 'bar-software',
+                        'Networks' => 'bar-networks',
+                        default => '',
+                    };
+                @endphp
 
-            <div class="card-col">
-                <div class="group-card {{ $accentClass }}">
-                    
-                    <!-- Top Info Meta Row -->
-                    <div class="card-meta-line">
-                        <span class="course-badge">{{ $courseCode }}</span>
-                        <span class="member-pill">
-                            <i class="fa-solid fa-users" style="font-size: 0.75rem; opacity: 0.8; margin-right: 4px;"></i> 
-                            {{ $group->member_count ?? 0 }} members
-                        </span>
+                <div class="card-col">
+                    <div class="group-card {{ $accentClass }}">
+                        
+                        <!-- Top Info Meta Row -->
+                        <div class="card-meta-line">
+                            <span class="course-badge">{{ $courseCode }}</span>
+                            <span class="member-pill">
+                                <i class="fa-solid fa-users" style="font-size: 0.75rem; opacity: 0.8; margin-right: 4px;"></i> 
+                                {{ $group->member_count ?? 0 }} members
+                            </span>
+                        </div>
+
+                        <!-- Main Group Display Header Text -->
+                        <h2 class="group-title">{{ $group->GroupName }}</h2>
+
+                        <!-- Checkbox for Multiple Selection -->
+                        <div style="margin-top: auto; padding: 1rem 0;">
+                            <label style="display: flex; align-items: center; justify-content: center; gap: 10px; cursor: pointer; font-size: 1rem; color: #101828; font-weight: 500;">
+                                <input type="checkbox" name="groups[]" value="{{ $group->GroupID }}" 
+                                       {{ $group->userJoined ? 'checked' : '' }}
+                                       style="width: 20px; height: 20px; cursor: pointer; accent-color: #0d52cc;">
+                                <span>{{ $group->userJoined ? 'Selected' : 'Select this group' }}</span>
+                            </label>
+                        </div>
+
                     </div>
-
-                    <!-- Main Group Display Header Text -->
-                    <h2 class="group-title">{{ $group->GroupName }}</h2>
-
-                    <!-- Action Form Button -->
-                    <div style="margin-top: auto;">
-                        <form method="POST" action="{{ route('groups.join', $group->GroupID) }}" style="margin: 0;">
-                            @csrf
-                            <button type="submit" class="btn-group-join" {{ $group->userJoined ? 'disabled' : '' }}>
-                                <span>{{ $group->userJoined ? 'Joined' : 'Join Group' }}</span>
-                                <span style="font-size: 0.85rem; margin-left: 2px;"><i class="fa-solid fa-chevron-right" style="font-size: 0.75rem;"></i></span>
-                            </button>
-                        </form>
-                    </div>
-
                 </div>
-            </div>
-        @endforeach
-    </div>
+            @endforeach
+        </div>
+
+        <!-- Proceed Button -->
+        <div style="text-align: center; margin-top: 2rem;">
+            <button type="submit" class="btn-group-join" style="max-width: 400px; margin: 0 auto; font-size: 1.1rem; padding: 14px;">
+                <span>Proceed to Dashboard</span>
+                <span style="font-size: 1rem; margin-left: 8px;"><i class="fa-solid fa-arrow-right"></i></span>
+            </button>
+        </div>
+    </form>
 
     <!-- Bottom Pagination Indicators & Subtext Note Elements -->
     <div style="text-align: center; margin-top: 2rem;">

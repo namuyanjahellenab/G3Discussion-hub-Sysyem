@@ -10,7 +10,7 @@ class Topic extends Model
     protected $primaryKey = 'TopicID';
     const CREATED_AT = 'CreatedAt';
     const UPDATED_AT = 'UpdatedAt';
-
+protected $fillable = ['Title', 'GroupID', 'CreatedBy'];
     public function creator()
     {
         return $this->belongsTo(User::class, 'CreatedBy', 'UserID');
@@ -20,4 +20,11 @@ class Topic extends Model
     {
         return $this->hasMany(Post::class, 'TopicID', 'TopicID');
     }
+
+    public function group()
+    {
+        return $this->belongsTo(Group::class, 'GroupID', 'GroupID');
+    }
+
+
 }

@@ -14,7 +14,8 @@
 <body>
     <div class="header">
         <h2>{{ $topic->Title ?? 'Discussion Export' }}</h2>
-        <div class="meta">Group: {{ $topic->creator?->name ?? 'Discussion Hub' }}</div>
+        <div class="meta">Group: {{ $topic->group?->GroupName ?? 'Discussion Hub' }}</div>
+
         <div class="meta">Date: {{ now()->format('Y-m-d H:i') }}</div>
     </div>
 

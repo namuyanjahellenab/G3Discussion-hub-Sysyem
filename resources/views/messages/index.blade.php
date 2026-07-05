@@ -1,6 +1,7 @@
 @extends('layouts.app')
 
 @section('content')
+
 @php
     $nameParts = explode(' ', auth()->user()->name ?? auth()->user()->UserName ?? '');
     $initials = collect($nameParts)
@@ -93,20 +94,20 @@
         </div>
 
         <!-- Filter Utility Bar -->
-        <form method="GET" class="filter-bar">
-            <select name="group_id" class="form-select filter-select" style="max-width: 180px;" onchange="this.form.submit()">
+        <form method="GET" class="filter-bar" id="filter-form">
+            <select name="group_id" class="form-select filter-select" style="max-width: 180px;" onchange="this.form.submit()" id="group-filter">
                 <option value="">All groups</option>
-                @foreach($joinedGroups as $group)
-                    <option value="{{ $group->GroupID }}" {{ request('group_id') == $group->GroupID ? 'selected' : '' }}>{{ $group->GroupName }}</option>
-                @endforeach
+                @if($joinedGroups->count() > 0)
+                    @foreach($joinedGroups as $group)
+                        <option value="{{ $group->GroupID }}" {{ ($group_id ?? request('group_id')) == $group->GroupID ? 'selected' : '' }}>{{ $group->GroupName }}</option>
+                    @endforeach
+                @else
+                    <option value="" disabled>No groups joined</option>
+                @endif
             </select>
             
-            <select name="topic_id" class="form-select filter-select" style="max-width: 180px;" onchange="this.form.submit()">
-                <option value="">All topics</option>
-                @foreach($topics as $topic)
-                    <option value="{{ $topic->TopicID }}" {{ request('topic_id') == $topic->TopicID ? 'selected' : '' }}>{{ $topic->Title }}</option>
-                @endforeach
-            </select>
+            <!-- Topic filter is hidden - topics are auto-managed per group -->
+            <input type="hidden" name="topic_id" value="{{ $topic_id ?? request('topic_id') }}">
             
             <div class="search-wrapper">
                 <i class="fa-solid fa-magnifying-glass"></i>
@@ -114,44 +115,28 @@
             </div>
         </form>
 
+        @if($group_id && $topics->count() > 0)
+            <div style="margin-top: 1rem; padding: 12px 16px; background: var(--primary-light); border-left: 4px solid var(--primary-color); border-radius: var(--radius-sm); display: flex; align-items: center; gap: 12px;">
+                <i class="fa-solid fa-hashtag" style="color: var(--primary-color); font-size: 1.1rem;"></i>
+                <div>
+                    <span style="font-weight: 600; color: var(--text-main); font-size: 0.95rem;">
+                        @php
+                            $currentGroup = $joinedGroups->firstWhere('GroupID', $group_id);
+                        @endphp
+                        {{ $currentGroup->GroupName ?? 'Group' }} Topic:
+                    </span>
+                    <span style="color: var(--text-muted); font-size: 0.9rem; margin-left: 8px;">
+                        {{ $topics->first()->Title ?? 'General Discussion' }}
+                    </span>
+                </div>
+            </div>
+        @endif
+
         <!-- Dynamic Content Panel -->
         <div class="conversation-panel">
             <!-- Chat Messages Container Viewport -->
             <div id="chat-messages-container" style="padding: 24px; background: #f0f2f5; display: flex; flex-direction: column; gap: 16px; min-height: 350px; max-height: 500px; overflow-y: auto;">
                 
-                <!-- DEFAULT DEMO MESSAGES (FROM OTHER USERS) WITH AVATARS & DYNAMIC TIMESTAMPS -->
-                <div class="msg-bubble-wrapper theirs-wrapper" data-sender="Alex Johnson" data-role="Lead Architect" data-email="alex.j@university.edu">
-                    <div class="avatar-circle-ui avatar-orange view-sender-profile" style="cursor: pointer;">AJ</div>
-                    <span class="reply-action-btn" onclick="setReplyContext('Alex Johnson', 'Hey team! Did everyone finish reading through the latest project constraints...')"><i class="fa-solid fa-reply"></i> Reply</span>
-                    
-                    <div style="padding: 12px 16px; border: none; box-shadow: 0 1px 2px rgba(0,0,0,0.1); border-radius: 0px 12px 12px 12px; background-color: #ffffff; font-family: 'Inter', sans-serif; flex-grow: 1;">
-                        <div style="display: flex; align-items: center; justify-content: space-between; gap: 24px; margin-bottom: 4px;">
-                            <span class="view-sender-profile" style="font-weight: 600; font-size: 0.85rem; color: var(--primary-color); cursor: pointer;">Alex Johnson</span>
-                            <!-- Dynamic timestamp calculation anchor -->
-                            <span class="live-timestamp" data-timestamp="{{ now()->subMinutes(5)->timestamp }}" style="font-size: 0.7rem; color: var(--text-muted); margin-left: auto;"></span>
-                        </div>
-                        <div class="message-actual-body" style="color: #344054; line-height: 1.4; font-size: 0.92rem; word-break: break-word; white-space: pre-wrap;">Hey team! Did everyone finish reading through the latest project constraints before the review meeting?</div>
-                    </div>
-                </div>
-
-                <div class="msg-bubble-wrapper theirs-wrapper" data-sender="Sarah Smith" data-role="Research Assistant" data-email="sarah.s@university.edu">
-                    <div class="avatar-circle-ui avatar-purple view-sender-profile" style="cursor: pointer;">SS</div>
-                    <span class="reply-action-btn" onclick="setReplyContext('Sarah Smith', 'Yes, I looked over them! I added the technical checklist asset...')"><i class="fa-solid fa-reply"></i> Reply</span>
-                    
-                    <div style="padding: 12px 16px; border: none; box-shadow: 0 1px 2px rgba(0,0,0,0.1); border-radius: 0px 12px 12px 12px; background-color: #ffffff; font-family: 'Inter', sans-serif; flex-grow: 1;">
-                        <div style="display: flex; align-items: center; justify-content: space-between; gap: 24px; margin-bottom: 4px;">
-                            <span class="view-sender-profile" style="font-weight: 600; font-size: 0.85rem; color: var(--primary-color); cursor: pointer;">Sarah Smith</span>
-                            <span class="live-timestamp" data-timestamp="{{ now()->subMinutes(2)->timestamp }}" style="font-size: 0.7rem; color: var(--text-muted); margin-left: auto;"></span>
-                        </div>
-                        <div class="message-actual-body" style="color: #344054; line-height: 1.4; font-size: 0.92rem; word-break: break-word; white-space: pre-wrap;">Yes, I looked over them! I added the technical checklist asset to our hub workspace folder as well. Let me know what you think.</div>
-                        <div style="margin-top: 8px; padding: 6px 10px; background: rgba(0,0,0,0.04); border-radius: 6px; display: flex; align-items: center; gap: 8px; font-size: 0.8rem;">
-                            <i class="fa-solid fa-paperclip" style="color: var(--text-muted);"></i>
-                            <a href="#" onclick="return false;" style="color: var(--primary-color); text-decoration: none; font-weight: 500;">Technical_Requirements.pdf</a>
-                        </div>
-                    </div>
-                </div>
-                <!-- END DEFAULT DEMO MESSAGES -->
-
                 @foreach($threadedPosts as $post)
                     @php
                         $isMine = ($post->author?->id === auth()->id() || $post->AuthorID === auth()->id());
@@ -160,6 +145,9 @@
                         // Parse sender initials safely
                         $loopParts = explode(' ', $senderName);
                         $loopInitials = collect($loopParts)->filter()->map(fn($p) => mb_substr($p,0,1))->take(2)->implode('');
+                        
+                        $borderRadius = $isMine ? '12px 0px 12px 12px' : '0px 12px 12px 12px';
+                        $bgColor = $isMine ? '#d9fdd3' : '#ffffff';
                     @endphp
 
                     <div class="msg-bubble-wrapper {{ $isMine ? 'mine-wrapper' : 'theirs-wrapper' }}" data-sender="{{ $senderName }}" data-role="Verified Contributor" data-email="{{ $post->author?->email ?? 'unspecified@domain.edu' }}">
@@ -169,15 +157,13 @@
                         
                         <span class="reply-action-btn" onclick="setReplyContext('{{ $isMine ? 'You' : $senderName }}', '{{ Str::limit(addslashes($post->Content), 50) }}')"><i class="fa-solid fa-reply"></i> Reply</span>
                         
-                        <div style="padding: 12px 16px; border: none; box-shadow: 0 1px 2px rgba(0,0,0,0.1); border-radius: {{ $isMine ? '12px 0px 12px 12px' : '0px 12px 12px 12px' }}; background-color: {{ $isMine ? '#d9fdd3' : '#ffffff' }}; font-family: 'Inter', sans-serif; flex-grow: 1;">
-                            <div style="display: flex; align-items: center; justify-content: space-between; gap: 24px; margin-bottom: 4px;">
-                                @if(!$isMine)
-                                    <span class="view-sender-profile" style="font-weight: 600; font-size: 0.85rem; color: var(--primary-color); cursor: pointer;">
-                                        {{ $senderName }}
-                                    </span>
-                                @endif
-                                <span class="live-timestamp" data-timestamp="{{ $post->CreatedAt ? $post->CreatedAt->timestamp : now()->timestamp }}" style="font-size: 0.7rem; color: var(--text-muted); margin-left: auto;"></span>
-                            </div>
+                        <div style="padding: 12px 16px; border: none; box-shadow: 0 1px 2px rgba(0,0,0,0.1); border-radius: {{ $borderRadius }}; background-color: {{ $bgColor }}; font-family: 'Inter', sans-serif; flex-grow: 1;"> 
+                            @if(!$isMine)
+                                <span class="view-sender-profile" style="font-weight: 600; font-size: 0.85rem; color: var(--primary-color); cursor: pointer;">
+                                    {{ $senderName }}
+                                </span>
+                            @endif
+                            <span class="live-timestamp" data-timestamp="{{ $post->CreatedAt ? $post->CreatedAt->timestamp : now()->timestamp }}" style="font-size: 0.7rem; color: var(--text-muted); margin-left: auto;"></span>
 
                             @if(!empty($post->parent_reply_text))
                                 <div style="background: rgba(0,0,0,0.05); border-left: 3px solid var(--primary-color); padding: 6px 10px; font-size: 0.8rem; border-radius: 4px; margin-bottom: 8px; color: var(--text-muted);">
@@ -202,7 +188,9 @@
             <div style="padding: 16px 20px; background: #fff; border-top: 1px solid var(--border-color);">
                 <form method="POST" action="{{ route('messages.store') }}" id="whatsapp-form" enctype="multipart/form-data">
                     @csrf
-                    <input type="hidden" name="topic_id" value="{{ request('topic_id') ?: ($topics->first()?->TopicID ?? '') }}">
+                    <input type="hidden" name="topic_id" id="message-topic-id" value="{{ $topic_id ?? request('topic_id') }}">
+                    <input type="hidden" name="group_id" id="message-group-id" value="{{ $group_id ?? request('group_id') }}">
+                    <input type="hidden" name="search" value="{{ request('search') }}">
                     
                     <!-- Nested Reply Metadata Trackers -->
                     <input type="hidden" name="parent_reply_text" id="parent-reply-text-input" value="">
@@ -228,7 +216,7 @@
                         <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px 16px; background: #f9fafb; border-top: 1px solid #f2f4f7;">
                             <div>
                                 <label style="cursor: pointer; color: var(--text-muted); font-size: 0.85rem; display: flex; align-items: center; gap: 6px; user-select: none;">
-                                    <i class="fa-solid fa-paperclip"></i> Add Asset
+                                    <i class="fa-solid fa-paperclip"></i> Attach Files
                                     <input type="file" name="attachment" id="file-input-field" style="display: none;">
                                 </label>
                             </div>
@@ -241,7 +229,7 @@
                     </div>
                 </form>
             </div>
-        </div>
+        </div> 
     </div>
 
     <!-- Right Sidebar Information Panel -->
@@ -260,7 +248,7 @@
         <div style="background: var(--bg-panel); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 20px;">
             <div class="panel-section-title">Workspace Actions</div>
             <a href="#" style="background: var(--primary-color); border:none; font-weight:600; font-size:0.9rem; padding: 10px 14px; border-radius: var(--radius-sm); display:block; text-align:center; text-decoration:none; color:#fff; margin-bottom:12px;">
-                <i class="fa-solid fa-file-export" style="margin-right: 6px;"></i> Export to pdf
+                <i class="fa-solid fa-file-export" style="margin-right: 6px;"></i> share via
             </a>
             
             <div class="share-grid">
@@ -404,72 +392,127 @@
         }
 
         if (chatForm && chatTextArea && messagesContainer) {
-            chatForm.addEventListener('submit', function (e) {
-                e.preventDefault();
+            chatForm.addEventListener('submit', async function (event) {
+                event.preventDefault();
 
                 const messageText = chatTextArea.value.trim();
-                const parentReplyVal = document.getElementById('parent-reply-text-input').value;
-                if (!messageText && (!fileInputField.files || fileInputField.files.length === 0)) return;
+                const hasAttachment = fileInputField.files && fileInputField.files.length > 0;
 
-                const wrapperDiv = document.createElement('div');
-                wrapperDiv.className = "msg-bubble-wrapper mine-wrapper";
-                wrapperDiv.setAttribute('data-sender', 'You');
-                wrapperDiv.setAttribute('data-role', 'Student User');
-                wrapperDiv.setAttribute('data-email', 'your.account@university.edu');
-
-                const currentUnix = Math.floor(Date.now() / 1000);
-
-                let attachmentHTML = '';
-                if (fileInputField.files && fileInputField.files.length > 0) {
-                    attachmentHTML = `
-                        <div style="margin-top: 8px; padding: 6px 10px; background: rgba(0,0,0,0.05); border-radius: 6px; display: flex; align-items: center; gap: 8px; font-size: 0.8rem;">
-                            <i class="fa-solid fa-file-lines" style="color: #128c7e;"></i>
-                            <span style="color: #128c7e; font-weight: 500;">${fileInputField.files[0].name}</span>
-                        </div>
-                    `;
+                if (!messageText && !hasAttachment) {
+                    return;
                 }
 
-                let replyBoxHTML = '';
-                if (parentReplyVal) {
-                    replyBoxHTML = `
-                        <div style="background: rgba(0,0,0,0.05); border-left: 3px solid var(--primary-color); padding: 6px 10px; font-size: 0.8rem; border-radius: 4px; margin-bottom: 8px; color: var(--text-muted); text-align: left;">
-                            <i class="fa-solid fa-quote-left" style="font-size:0.65rem; margin-right:4px; opacity:0.5;"></i> ${parentReplyVal}
-                        </div>
-                    `;
-                }
-
-                // Escaping content snippets dynamically to avoid inline syntax ruptures
-                const escapedSnippet = messageText.substring(0, 50).replace(/'/g, "\\'").replace(/"/g, '&quot;');
-
-                wrapperDiv.innerHTML = `
-                    <span class="reply-action-btn" onclick="setReplyContext('You', '${escapedSnippet}')"><i class="fa-solid fa-reply"></i> Reply</span>
-                    <div style="padding: 12px 16px; border: none; box-shadow: 0 1px 2px rgba(0,0,0,0.1); border-radius: 12px 0px 12px 12px; background-color: #d9fdd3; font-family: 'Inter', sans-serif; flex-grow: 1;">
-                        <div style="display: flex; align-items: center; justify-content: flex-end; margin-bottom: 4px;">
-                            <span class="live-timestamp" data-timestamp="${currentUnix}" style="font-size: 0.7rem; color: #667085;">Just now</span>
-                        </div>
-                        ${replyBoxHTML}
-                        <div class="message-actual-body" style="color: #344054; line-height: 1.4; font-size: 0.92rem; word-break: break-word; white-space: pre-wrap;">${messageText.replace(/[&<>'"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]))}</div>
-                        ${attachmentHTML}
-                    </div>
-                `;
-
-                messagesContainer.appendChild(wrapperDiv);
-                updateTimestamps();
-                messagesContainer.scrollTop = messagesContainer.scrollHeight;
+                const csrfTokenEl = chatForm.querySelector('input[name="_token"]');
+                const csrfToken = csrfTokenEl ? csrfTokenEl.value : '';
 
                 const formData = new FormData(chatForm);
-                fetch(chatForm.action, {
-                    method: 'POST',
-                    body: formData,
-                    headers: { 'X-Requested-With': 'XMLHttpRequest' }
-                }).catch(error => console.error('Database connection intercept error:', error));
 
-                chatTextArea.value = '';
-                fileInputField.value = '';
-                filePreviewStatus.style.display = 'none';
-                clearReplyContext();
+                const submitBtn = chatForm.querySelector('button[type="submit"]');
+                if (submitBtn) submitBtn.disabled = true;
+
+                try {
+                    const res = await fetch(chatForm.action, {
+                        method: 'POST',
+                        headers: {
+                            'X-CSRF-TOKEN': csrfToken,
+                            'Accept': 'application/json',
+                        },
+                        body: formData,
+                    });
+
+                    if (res.status === 422) {
+                        const data = await res.json().catch(() => null);
+                        console.error('Validation error', data);
+                        return;
+                    }
+
+                    if (!res.ok) {
+                        const data = await res.json().catch(() => null);
+                        console.error('Server error', data);
+                        return;
+                    }
+
+                    const data = await res.json();
+                    if (!data || data.success !== true || !data.html) {
+                        console.error('Unexpected response', data);
+                        return;
+                    }
+
+                    // Append server-confirmed message only
+                    messagesContainer.insertAdjacentHTML('beforeend', data.html);
+
+                    updateTimestamps();
+                    messagesContainer.scrollTop = messagesContainer.scrollHeight;
+
+                    // Clear form
+                    chatTextArea.value = '';
+                    clearReplyContext();
+                    fileInputField.value = '';
+                    filePreviewStatus.style.display = 'none';
+                } catch (err) {
+                    console.error('Fetch error', err);
+                } finally {
+                    if (submitBtn) submitBtn.disabled = false;
+                }
             });
         }
+
+        // Automatic polling every 3 seconds for new messages
+        const pollUrl = '{{ route('messages.poll') }}';
+        let topicId = document.getElementById('message-topic-id')?.value || null;
+        let groupId = document.getElementById('message-group-id')?.value || null;
+
+        // Backend uses PostID for dedupe; expose latest PostID from DOM when possible.
+        let pollingLatestPostId = (() => {
+            let maxId = 0;
+            messagesContainer.querySelectorAll('[data-post-id]').forEach(el => {
+                const v = parseInt(el.getAttribute('data-post-id') || '0', 10);
+                if (!Number.isNaN(v) && v > maxId) maxId = v;
+            });
+            return maxId;
+        })();
+
+        const pollMessages = async () => {
+            if (!topicId) return;
+
+            // Ensure we don't spam concurrent requests
+            if (pollMessages._busy) return;
+            pollMessages._busy = true;
+
+            try {
+                const res = await fetch(pollUrl + '?topic_id=' + encodeURIComponent(topicId) + '&group_id=' + encodeURIComponent(groupId || '') + '&newer_than=' + encodeURIComponent(pollingLatestPostId), {
+                    method: 'GET',
+                    headers: {
+                        'Accept': 'application/json'
+                    }
+                });
+
+                if (!res.ok) return;
+                const data = await res.json().catch(() => null);
+                if (!data || data.success !== true) return;
+
+                if (data.html) {
+                    messagesContainer.insertAdjacentHTML('beforeend', data.html);
+                    updateTimestamps();
+                    messagesContainer.scrollTop = messagesContainer.scrollHeight;
+                }
+
+                if (typeof data.latest_id === 'number') {
+                    pollingLatestPostId = data.latest_id;
+                }
+            } catch (e) {
+                console.error('Polling error', e);
+            } finally {
+                pollMessages._busy = false;
+            }
+        };
+
+        // Start polling
+        pollMessages();
+        setInterval(pollMessages, 3000);
+
     });
 </script>
 @endsection
+
+

@@ -91,10 +91,8 @@ class DashboardController extends Controller
             ->take(6);
 
         return view('dashboard.index', compact('joined_groups', 'notifications', 'recentActivity', 'notificationsCount'))
-            ->with([
-                'showSidebar' => false,
-                'showNavbar'  => false,
-            ]);
+            ->with('showSidebar', true)
+            ->with('showNavbar', true);
     }
 
     protected function lecturer()
