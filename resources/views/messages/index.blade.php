@@ -157,6 +157,12 @@
                         
                         <span class="reply-action-btn" onclick="setReplyContext('{{ $isMine ? 'You' : $senderName }}', '{{ Str::limit(addslashes($post->Content), 50) }}')"><i class="fa-solid fa-reply"></i> Reply</span>
                         
+                        @if($isMine)
+                            <span class="reply-action-btn delete-action-btn" onclick="deleteMessage({{ $post->PostID }})" style="left: -150px;">
+                                <i class="fa-solid fa-trash"></i> Delete
+                            </span>
+                        @endif
+                        
                         <div style="padding: 12px 16px; border: none; box-shadow: 0 1px 2px rgba(0,0,0,0.1); border-radius: {{ $borderRadius }}; background-color: {{ $bgColor }}; font-family: 'Inter', sans-serif; flex-grow: 1;"> 
                             @if(!$isMine)
                                 <span class="view-sender-profile" style="font-weight: 600; font-size: 0.85rem; color: var(--primary-color); cursor: pointer;">
@@ -247,8 +253,13 @@
 
         <div style="background: var(--bg-panel); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 20px;">
             <div class="panel-section-title">Workspace Actions</div>
-            <a href="#" style="background: var(--primary-color); border:none; font-weight:600; font-size:0.9rem; padding: 10px 14px; border-radius: var(--radius-sm); display:block; text-align:center; text-decoration:none; color:#fff; margin-bottom:12px;">
-                <i class="fa-solid fa-file-export" style="margin-right: 6px;"></i> share via
+            @if($topic_id ?? request('topic_id'))
+                <a href="{{ route('topics.export', $topic_id ?? request('topic_id')) }}" style="background: var(--primary-color); border:none; font-weight:600; font-size:0.9rem; padding: 10px 14px; border-radius: var(--radius-sm); display:block; text-align:center; text-decoration:none; color:#fff; margin-bottom:12px;">
+                    <i class="fa-solid fa-file-pdf" style="margin-right: 6px;"></i> Export to PDF
+                </a>
+            @endif
+            <a href="{{ route('recommend.index') }}" style="background: var(--primary-color); border:none; font-weight:600; font-size:0.9rem; padding: 10px 14px; border-radius: var(--radius-sm); display:block; text-align:center; text-decoration:none; color:#fff; margin-bottom:12px;">
+                <i class="fa-solid fa-share-nodes" style="margin-right: 6px;"></i> Share via
             </a>
             
             <div class="share-grid">
@@ -315,6 +326,47 @@
     function clearReplyContext() {
         document.getElementById('parent-reply-text-input').value = '';
         document.getElementById('reply-context-banner').style.display = 'none';
+    }
+
+    async function deleteMessage(postId) {
+        if (!confirm('Are you sure you want to delete this message?')) {
+            return;
+        }
+
+        const csrfToken = document.querySelector('input[name="_token"]').value;
+        const messageElement = document.querySelector(`[data-post-id="${postId}"]`);
+
+        try {
+            const res = await fetch(`/messages/${postId}`, {
+                method: 'DELETE',
+                headers: {
+                    'X-CSRF-TOKEN': csrfToken,
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/json',
+                },
+            });
+
+            if (!res.ok) {
+                const data = await res.json().catch(() => null);
+                console.error('Delete failed', data);
+                alert('Failed to delete message. Please try again.');
+                return;
+            }
+
+            // Remove the message element from DOM with animation
+            if (messageElement) {
+                messageElement.style.transition = 'opacity 0.3s ease, transform 0.3s ease';
+                messageElement.style.opacity = '0';
+                messageElement.style.transform = 'translateX(20px)';
+                
+                setTimeout(() => {
+                    messageElement.remove();
+                }, 300);
+            }
+        } catch (err) {
+            console.error('Delete error', err);
+            alert('Failed to delete message. Please try again.');
+        }
     }
 
     document.addEventListener('DOMContentLoaded', function () {
@@ -480,7 +532,8 @@
             pollMessages._busy = true;
 
             try {
-                const res = await fetch(pollUrl + '?topic_id=' + encodeURIComponent(topicId) + '&group_id=' + encodeURIComponent(groupId || '') + '&newer_than=' + encodeURIComponent(pollingLatestPostId), {
+                const pollUrlWithParams = pollUrl + '?topic_id=' + encodeURIComponent(topicId) + '&group_id=' + encodeURIComponent(groupId || '') + '&newer_than=' + encodeURIComponent(pollingLatestPostId);
+                const res = await fetch(pollUrlWithParams, {
                     method: 'GET',
                     headers: {
                         'Accept': 'application/json'

@@ -41,6 +41,17 @@
                     <div style="font-size: 1.6rem; font-weight: 700; color: #101828;">{{ $value }}</div>
                 </div>
             @endforeach
+            
+            <!-- Participation Card -->
+            <div class="dashboard-group-card" style="border-left: 4px solid #10b981;">
+                <div style="width: 44px; height: 44px; background: #d1fae5; color: #10b981; border-radius: 10px; display:flex; align-items:center; justify-content:center; margin-bottom: 16px;"><i class="fa-solid fa-users"></i></div>
+                <h5 style="color: #101828; font-size: 1.05rem; font-weight: 700; margin: 0 0 8px 0;">Participation</h5>
+                <div style="font-size: 1.6rem; font-weight: 700; color: #101828;">{{ $marks['participation'] }}/10</div>
+                <div style="font-size: 0.85rem; color: #667085; margin-top: 8px;">
+                    <div>Posts: {{ $marks['participation_details']['posts'] }}</div>
+                    <div>Replies: {{ $marks['participation_details']['replies'] }}</div>
+                </div>
+            </div>
         </div>
     </div>
 
