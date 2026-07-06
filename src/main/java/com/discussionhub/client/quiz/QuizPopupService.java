@@ -1,7 +1,9 @@
 package com.discussionhub.client.quiz;
 
 import javafx.application.Platform;
+import javafx.fxml.FXMLLoader;
 import javafx.geometry.Pos;
+import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
@@ -17,6 +19,7 @@ import javafx.stage.StageStyle;
 
 import java.awt.Desktop;
 import java.io.BufferedReader;
+import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.net.HttpURLConnection;
@@ -26,6 +29,12 @@ import java.util.Timer;
 import java.util.TimerTask;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+
+import com.discussionhub.client.QuizModalController;
+import org.json.JSONArray;
+import org.json.JSONObject;
+import java.util.List;
+import java.util.ArrayList;
 
 /**
  * Polls the Laravel quiz-engine endpoint for an active quiz and, when one is
@@ -308,10 +317,39 @@ public class QuizPopupService {
             "-fx-background-radius: 8; -fx-padding: 12 28;"
         ));
 
-        startButton.setOnAction(e -> {
-            openQuizInBrowser(quiz.quizId);
-            closePopup(popupStage);
-        });
+    startButton.setOnAction(e -> {
+    closePopup(popupStage);
+    new Thread(() -> {
+        try {
+            String joinJson = fetchQuizJoinJson(quiz.quizId);
+            QuizJoinData data = parseJoinResponse(joinJson);
+
+            Platform.runLater(() -> {
+                try {
+                    FXMLLoader loader = new FXMLLoader(QuizPopupService.class.getResource("/com/discussionhub/client/quiz-modal.fxml"));
+                    Parent root = loader.load();
+                    QuizModalController controller = loader.getController();
+                    controller.setQuizData(
+                        String.valueOf(quiz.quizId),
+                        data.title,
+                        data.questionTexts,
+                        data.optionsList,
+                        data.questionIds,
+                        data.durationMinutes
+                    );
+                    Stage quizStage = new Stage();
+                    quizStage.setScene(new Scene(root));
+                    quizStage.initModality(Modality.APPLICATION_MODAL);
+                    quizStage.show();
+                } catch (IOException ex) {
+                    ex.printStackTrace();
+                }
+            });
+        } catch (Exception ex) {
+            System.out.println("QuizPopupService: failed to join quiz - " + ex.getMessage());
+        }
+    }).start();
+});
 
         Label footnote = new Label("This quiz will auto-submit when time runs out");
         footnote.setFont(Font.font(10));
@@ -349,7 +387,73 @@ public class QuizPopupService {
         popupStage.close();
         popupShown = false; // allow future quizzes to trigger again
     }
+      // ---- Fetch full quiz content (questions/options) before showing the modal ----
 
+private static String fetchQuizJoinJson(int quizId) throws Exception {
+    URL url = URI.create(BASE_URL + "/api/quiz/join").toURL();
+    HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+    conn.setRequestMethod("POST");
+    conn.setConnectTimeout(CONNECT_TIMEOUT_MS);
+    conn.setReadTimeout(READ_TIMEOUT_MS);
+    conn.setRequestProperty("Accept", "application/json");
+    conn.setRequestProperty("Content-Type", "application/json");
+    conn.setRequestProperty("Authorization", "Bearer " + authToken);
+    conn.setDoOutput(true);
+
+    String body = "{\"QuizID\":" + quizId + "}";
+    try (OutputStream os = conn.getOutputStream()) {
+        os.write(body.getBytes("UTF-8"));
+    }
+
+    int status = conn.getResponseCode();
+    if (status != 200) {
+        throw new RuntimeException("Join failed with status " + status);
+    }
+
+    StringBuilder sb = new StringBuilder();
+    try (BufferedReader reader = new BufferedReader(new InputStreamReader(conn.getInputStream()))) {
+        String line;
+        while ((line = reader.readLine()) != null) {
+            sb.append(line);
+        }
+    }
+    return sb.toString();
+}
+
+private static class QuizJoinData {
+    String title;
+    List<String> questionTexts = new ArrayList<>();
+    List<String[]> optionsList = new ArrayList<>();
+    List<Integer> questionIds = new ArrayList<>();
+    int durationMinutes;
+}
+
+private static QuizJoinData parseJoinResponse(String json) {
+    JSONObject obj = new JSONObject(json);
+    QuizJoinData data = new QuizJoinData();
+    data.title = obj.getString("Title");
+   
+
+    int allocatedSeconds = obj.getInt("AllocatedSeconds");
+    data.durationMinutes = (int) Math.ceil(allocatedSeconds / 60.0);
+
+    JSONArray questions = obj.getJSONArray("Questions");
+    for (int i = 0; i < questions.length(); i++) {
+        JSONObject q = questions.getJSONObject(i);
+        data.questionIds.add(q.getInt("QuestionID")); 
+        data.questionTexts.add(q.getString("QuestionText"));
+
+        String optionsRaw = q.isNull("Options") ? "[]" : q.optString("Options", "[]");
+        JSONArray optArray = new JSONArray(optionsRaw);
+        String[] opts = new String[optArray.length()];
+        for (int j = 0; j < optArray.length(); j++) {
+            opts[j] = optArray.getString(j);
+        }
+        data.optionsList.add(opts);
+    }
+
+    return data;
+}
     private static void openQuizInBrowser(int quizId) {
         try {
             String url = QUIZ_TAKE_BASE_URL + quizId + "/take";
