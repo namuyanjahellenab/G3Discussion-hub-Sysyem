@@ -10,7 +10,7 @@ class EnsureUserIsAdmin
 {
     public function handle(Request $request, Closure $next)
     {
-        if (Auth::user()?->Role !== 'Admin') {
+        if (Auth::user()?->Role !== 'Administrator') {
             abort(403, 'Unauthorized.');
         }
 
