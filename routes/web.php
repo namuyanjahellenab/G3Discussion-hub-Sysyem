@@ -71,6 +71,9 @@ Route::post('/messages', [DiscussionHubPageController::class, 'storeMessage'])
         ->middleware('verified')
         ->name('messages.poll');
 
+    Route::delete('/messages/{post}', [DiscussionHubPageController::class, 'deleteMessage'])
+        ->middleware('verified')
+        ->name('messages.destroy');
 
     Route::get('/messages/{post}/attachment', [AttachmentController::class, 'download'])
         ->middleware('verified')

@@ -461,17 +461,55 @@ class DiscussionHubPageController extends Controller
             'Content-Type' => 'application/pdf',
         ]);
     }
-public function marks()
+
+    public function deleteMessage(Post $post)
+    {
+        $userId = Auth::id();
+        
+        // Only allow the author to delete their own message
+        if ($post->UserID !== $userId) {
+            abort(403, 'You are not authorized to delete this message.');
+        }
+
+        // Delete attachment if exists
+        if ($post->Attachment) {
+            Storage::disk('public')->delete($post->Attachment);
+        }
+
+        // Delete the post
+        $post->delete();
+
+        if (request()->wantsJson()) {
+            return response()->json(['success' => true, 'message' => 'Message deleted successfully.']);
+        }
+
+        return back()->with('status', 'Message deleted successfully.');
+    }
+
+    public function marks()
 {
     if (auth()->user()->Role === 'Lecturer') {
         return redirect()->route('dashboard');
     }
 
+    $user = Auth::user();
+    
+    // Get participation data
+    $participation = \App\Models\Participation::where('UserID', $user->UserID)->first();
+    $participationScore = $participation ? $participation->ParticipationScore : 0;
+    $participationMarks = min(10, $participationScore); // Cap at 10 marks
+    
     $marks = [
         'coursework' => 78,
         'cats' => 84,
         'exams' => 81,
         'gpa' => 4.2,
+        'participation' => $participationMarks,
+        'participation_details' => [
+            'posts' => $participation->PostCount ?? 0,
+            'replies' => $participation->ReplyCount ?? 0,
+            'score' => $participationScore,
+        ],
     ];
 
     return view('marks.index', compact('marks'))->with('showSidebar', false);
