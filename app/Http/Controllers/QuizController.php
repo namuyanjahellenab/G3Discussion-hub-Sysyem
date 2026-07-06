@@ -13,18 +13,20 @@ class QuizController extends Controller
     // Loads the quiz scheduling screen
 public function create()
 {
-    return view('quizzes.schedule');
+    $groups = \App\Models\Group::orderBy('GroupName')->get();
+    return view('quizzes.schedule', compact('groups'));
 }
     // ─── WEEK 1: Schedule a quiz ────────────────────────────────
     public function scheduleAssessment(Request $request)
     {
         // Step 1 — Validate all incoming data
         $request->validate([
-            'Title'          => 'required|string|max:255',
-            'StartTime'      => 'required|date',
-            'Duration'       => 'required|integer|min:1',
-            'TargetCategory' => 'required|string|max:100',
-            'Questions'      => 'required|array|min:1',
+    'Title'          => 'required|string|max:255',
+    'StartTime'      => 'required|date',
+    'Duration'       => 'required|integer|min:1',
+    'TargetCategory' => 'required|string|max:100',
+    'GroupID'        => 'required|integer|exists:Group,GroupID',
+    'Questions'      => 'required|array|min:1',
             'Questions.*.QuestionText'  => 'required|string',
             'Questions.*.QuestionType' => 'required|in:MCQ,Open',
             'Questions.*.Options'      => 'nullable|array',
@@ -34,12 +36,13 @@ public function create()
 
         // Step 2 — Save the quiz
         $quiz = Quiz::create([
-            'LecturerID'     => auth()->user()->UserID,
-            'Title'          => $request->Title,
-            'StartTime'       => Carbon::parse($request->StartTime, 'Africa/Kampala')->setTimezone('UTC'),
-            'Duration'       => $request->Duration,
-            'TargetCategory' => $request->TargetCategory,
-        ]);
+    'LecturerID'     => auth()->user()->UserID,
+    'GroupID'        => $request->GroupID,
+    'Title'          => $request->Title,
+    'StartTime'       => Carbon::parse($request->StartTime, 'Africa/Kampala')->setTimezone('UTC'),
+    'Duration'       => $request->Duration,
+    'TargetCategory' => $request->TargetCategory,
+]);
 
         // Step 3 — Save the questions
         foreach ($request->Questions as $q) {
@@ -53,16 +56,18 @@ public function create()
             ]);
         }
 
-        // Step 4 — Notify all target students
-        $students = User::where('TargetCategory', $request->TargetCategory)
-                        ->where('Role', 'Student')
-                        ->get();
-
+        // Step 4 — Notify all active students in the target group
+$students = User::whereHas('groupMemberships', function ($q) use ($request) {
+                    $q->where('GroupID', $request->GroupID)
+                      ->where('Status', 'Active');
+                })
+                ->where('Role', 'Student')
+                ->get();
         foreach ($students as $student) {
             Notification::create([
                 'UserID'  => $student->UserID,
                 'Message' => 'New quiz scheduled: ' . $request->Title,
-                'Status'  => 'Unread',
+                'Status'  => false,
                 'Type'    => 'Quiz Announcement',
             ]);
         }

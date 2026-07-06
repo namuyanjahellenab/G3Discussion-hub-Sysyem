@@ -521,11 +521,13 @@
                 <div class="field-row">
                     <div>
                         <label class="field-label">Group Selector</label>
+                        
                         <select id="GroupSelector" class="field-input">
-                            <option value="">-- Select Group --</option>
-                            <option>Group A</option>
-                            <option>Group B</option>
-                            <option>Group C</option>
+    <option value="">-- Select Group --</option>
+    @foreach($groups as $group)
+        <option value="{{ $group->GroupID }}">{{ $group->GroupName }}</option>
+    @endforeach
+</select>
                         </select>
                     </div>
                     <div>
@@ -841,12 +843,14 @@
         const startTime = getStartTime();
         const duration  = parseInt(document.getElementById('Duration').value);
         const category  = document.getElementById('TargetCategory').value;
-        const questions = collectQuestions();
+const groupId    = document.getElementById('GroupSelector').value;
+const questions = collectQuestions();
 
-        if (!title)     return showError('Please enter a quiz title.');
-        if (!startTime) return showError('Please select a date and start time.');
-        if (!duration)  return showError('Please enter a duration in minutes.');
-        if (!category)  return showError('Please select a target category.');
+if (!title)     return showError('Please enter a quiz title.');
+if (!startTime) return showError('Please select a date and start time.');
+if (!duration)  return showError('Please enter a duration in minutes.');
+if (!category)  return showError('Please select a target category.');
+if (!groupId)   return showError('Please select a group.');
         if (questions.length === 0) return showError('Please add at least one question.');
 
         try {
@@ -859,12 +863,13 @@
                                             .getAttribute('content'),
                 },
                 body: JSON.stringify({
-                    Title:          title,
-                    StartTime:      startTime,
-                    Duration:       duration,
-                    TargetCategory: category,
-                    Questions:      questions,
-                }),
+    Title:          title,
+    StartTime:      startTime,
+    Duration:       duration,
+    TargetCategory: category,
+    GroupID:        groupId,
+    Questions:      questions,
+}),
             });
 
             const data = await response.json();
