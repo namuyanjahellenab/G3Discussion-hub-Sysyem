@@ -198,7 +198,7 @@
                         </div>
                         <h5 style="color: #101828; font-size: 1.15rem; font-weight: 700; margin: 0 0 4px 0;">{{ $group->GroupName }}</h5>
                         <p style="color: #667085; font-size: 0.85rem; margin: 0 0 24px 0;">{{ $group->member_count ?? 0 }} members</p>
-                        <a href="{{ route('groups.forum', $group) }}" class="btn-view-forum">
+                        <a href="{{ route('groups.topics', $group) }}" class="btn-view-forum">
                             <span>View Forum</span>
                             <i class="fa-solid fa-arrow-right" style="font-size: 0.8rem;"></i>
                         </a>

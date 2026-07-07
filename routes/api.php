@@ -103,7 +103,6 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/groups/{group}/join', [App\Http\Controllers\Api\GroupApiController::class, 'join']);
 });
 
-
 // Route::middleware('auth')->group(function () {
 //     Route::post('/quiz/schedule',    [QuizController::class,       'scheduleAssessment']);
 //     // Route::post('/quiz/join',        [QuizEngineController::class, 'join']);

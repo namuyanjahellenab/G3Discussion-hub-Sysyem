@@ -10,6 +10,7 @@ class Reply extends Model
     protected $primaryKey = 'ReplyID';
     const CREATED_AT = 'CreatedAt';
     const UPDATED_AT = 'UpdatedAt';
+    protected $fillable = ['PostID', 'UserID', 'ReplyContent', 'IsAccepted'];
 
     public function author()
     {

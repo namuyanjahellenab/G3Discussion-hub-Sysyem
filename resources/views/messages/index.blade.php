@@ -457,8 +457,23 @@
                 const formData = new FormData(chatForm);
 
                 const submitBtn = chatForm.querySelector('button[type="submit"]');
-                if (submitBtn) submitBtn.disabled = true;
+if (submitBtn) submitBtn.disabled = true;
 
+try {
+    const res = await fetch(chatForm.action, {
+        method: 'POST',
+        headers: {
+            'X-CSRF-TOKEN': csrfToken,
+            'Accept': 'application/json',
+        },
+        body: formData,
+    });
+    ...
+} catch (err) {
+    console.error('Fetch error', err);
+} finally {
+    if (submitBtn) submitBtn.disabled = false;
+}
                     const res = await fetch(chatForm.action, {
                         method: 'POST',
                         headers: {

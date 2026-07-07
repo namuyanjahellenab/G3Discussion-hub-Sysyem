@@ -43,7 +43,7 @@
                     <div class="group-card-icon"><i class="fa-solid fa-users"></i></div>
                     <h5 style="color: #101828; font-size: 1.1rem; font-weight: 700; margin: 0 0 6px 0;">{{ $group->GroupName }}</h5>
                     <p style="color: #667085; font-size: 0.9rem; margin: 0 0 16px 0;">{{ $group->Description ?? 'Joined discussion group' }}</p>
-                    <a href="{{ route('groups.forum', $group) }}" class="btn btn-primary w-100" style="background-color: #0d52cc; border-color: #0d52cc;">Open Group Forum</a>
+                    <a href="{{ route('groups.topics', $group) }}" class="btn btn-primary w-100" ...>Open Group Forum</a>
                 </div>
             @empty
                 <div style="grid-column: 1 / -1; padding: 2rem; background: #ffffff; border: 1px solid #e4e7ec; border-radius: 12px; color: #667085;">You have not joined any groups yet.</div>
@@ -55,7 +55,7 @@
             @forelse($topics as $topic)
                 <div style="display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 14px 0; border-bottom: 1px solid #f2f4f7;">
                     <div>
-                        <div style="color: #101828; font-weight: 700;">{{ $topic->Title }}</div>
+                        <div style="color: #101828; font-weight: 700;"><a href="{{ route('topics.show', $topic) }}" style="color: inherit; text-decoration: none;">{{ $topic->Title }}</a></div>
                         <div style="color: #667085; font-size: 0.85rem; margin-top: 2px;">Created by {{ $topic->creator?->UserName ?? $topic->creator?->name ?? 'a member' }}</div>
                     </div>
                     <div style="color: #98a2b3; font-size: 0.8rem; white-space: nowrap;">{{ $topic->CreatedAt->diffForHumans() }}</div>

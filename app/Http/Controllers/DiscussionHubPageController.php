@@ -19,6 +19,7 @@ use Dompdf\Dompdf;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Log;
+use App\Models\Reply;
 
 class DiscussionHubPageController extends Controller
 {
@@ -690,4 +691,120 @@ return view('recommend.index', compact('joinedGroups', 'recommendedTopics', 'rec
 
         return back()->with('status', 'Settings updated.');
     }
+    public function groupTopics(Request $request, Group $group)
+{
+    $search = $request->input('search');
+    $filter = $request->input('filter', 'all');
+
+    $topics = Topic::where('GroupID', $group->GroupID)
+        ->withCount('posts')
+        ->with('creator')
+        ->when($search, function ($q) use ($search) {
+            $q->where('Title', 'like', "%{$search}%");
+        })
+        ->when($filter !== 'all', function ($q) use ($filter) {
+            $q->where('Status', $filter);
+        })
+        ->orderByDesc('IsPinned')
+        ->latest('CreatedAt')
+        ->paginate(5)
+        ->withQueryString();
+
+    return view('forum.group', compact('group', 'topics', 'search', 'filter'));
 }
+
+public function createTopic(Group $group)
+{
+    return view('topics.create', compact('group'));
+}
+
+public function storeTopic(Request $request)
+{
+    $request->validate([
+        'Title' => 'required|string|max:255',
+        'GroupID' => 'required|exists:Group,GroupID',
+        'Content' => 'required|string',
+    ]);
+
+    $group = Group::find($request->input('GroupID'));
+
+    $topic = Topic::create([
+        'Title' => $request->input('Title'),
+        'GroupID' => $request->input('GroupID'),
+        'CreatedBy' => Auth::id(),
+        'Status' => 'open',
+        'Category' => $group->GroupName,
+    ]);
+
+    Post::create([
+        'TopicID' => $topic->TopicID,
+        'UserID' => Auth::id(),
+        'Content' => $request->input('Content'),
+    ]);
+
+    return redirect()->route('topics.show', $topic->TopicID);
+}
+
+public function showTopic(Topic $topic)
+{
+    $mainPost = Post::where('TopicID', $topic->TopicID)
+        ->with(['author', 'replies.author'])
+        ->oldest('CreatedAt')
+        ->first();
+
+    $participants = collect();
+    if ($mainPost) {
+        $participants->push($mainPost->author);
+        foreach ($mainPost->replies as $reply) {
+            $participants->push($reply->author);
+        }
+    }
+    $participants = $participants->filter()->unique('UserID');
+
+    $lastActivity = $mainPost?->replies->max('CreatedAt') ?? $mainPost?->CreatedAt;
+
+    $recommended = Topic::where('GroupID', $topic->GroupID)
+        ->where('TopicID', '!=', $topic->TopicID)
+        ->withCount('posts')
+        ->latest('CreatedAt')
+        ->take(3)
+        ->get();
+
+    return view('topics.show', compact('topic', 'mainPost', 'participants', 'lastActivity', 'recommended'));
+}
+
+public function storeReply(Request $request, Post $post)
+{
+    $request->validate(['ReplyContent' => 'required|string']);
+
+    Reply::create([
+        'PostID' => $post->PostID,
+        'UserID' => Auth::id(),
+        'ReplyContent' => $request->input('ReplyContent'),
+    ]);
+
+    // Auto-mark topic as answered if a lecturer replies
+    if (Auth::user()->Role === 'Lecturer') {
+        $post->topic()->update(['Status' => 'answered']);
+    }
+
+    return redirect()->route('topics.show', $post->TopicID);
+}
+
+public function acceptAnswer(Reply $reply)
+{
+    // Only a lecturer can accept an answer
+    if (Auth::user()->Role !== 'Lecturer') {
+        abort(403, 'Only a lecturer can mark an answer as accepted.');
+    }
+
+    $post = $reply->post;
+
+    Reply::where('PostID', $post->PostID)->update(['IsAccepted' => false]);
+    $reply->update(['IsAccepted' => true]);
+    $post->topic()->update(['Status' => 'answered']);
+
+    return redirect()->route('topics.show', $post->TopicID);
+}
+    }
+
