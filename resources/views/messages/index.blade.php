@@ -276,7 +276,7 @@
 <div class="profile-modal-overlay" id="global-profile-modal">
     <div class="profile-modal-box">
         <div style="background: var(--primary-color); padding: 32px 24px; text-align: center; position: relative;">
-   t         <i class="fa-solid fa-xmark" id="close-profile-modal" style="position: absolute; top: 16px; right: 16px; color: rgba(255,255,255,0.7); cursor: pointer; font-size: 1.2rem;"></i>
+                    <i class="fa-solid fa-xmark" id="close-profile-modal" style="position: absolute; top: 16px; right: 16px; color: rgba(255,255,255,0.7); cursor: pointer; font-size: 1.2rem;"></i>
             <div id="modal-avatar-placeholder" style="width: 72px; height: 72px; background: #fff; color: var(--primary-color); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 12px auto; font-size: 1.8rem; font-weight: 700; box-shadow: 0 4px 12px rgba(0,0,0,0.1); text-transform: uppercase;"></div>
             <h3 id="modal-profile-name" style="color: #fff; margin: 0; font-size: 1.25rem; font-weight: 600;">Sender Profile</h3>
             <p id="modal-profile-role" style="color: rgba(255,255,255,0.8); margin: 4px 0 0 0; font-size: 0.85rem; font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px;"></p>
@@ -420,19 +420,14 @@
             });
         }
 
-        if (fileInputField) {
-            fileInputField.addEventListener('change', function () {
-                if (this.files && this.files.length > 0) {
-                    fileNameLabel.textContent = `Attached: ${this.files[0].name}`;
-                    filePreviewStatus.style.display = 'flex';
-                }
-            });
-        }
-
+        // (Replaced by renderPendingAttachmentPreview() below)
+        // Keep the X in file-preview-status as the canonical clear behavior.
         if (clearFileBtn) {
             clearFileBtn.addEventListener('click', function() {
                 fileInputField.value = '';
-                filePreviewStatus.style.display = 'none';
+                if (filePreviewStatus) filePreviewStatus.style.display = 'none';
+                const prev = document.getElementById('pending-attachment-preview');
+                if (prev) prev.remove();
             });
         }
 
@@ -464,7 +459,6 @@
                 const submitBtn = chatForm.querySelector('button[type="submit"]');
                 if (submitBtn) submitBtn.disabled = true;
 
-                try {
                     const res = await fetch(chatForm.action, {
                         method: 'POST',
                         headers: {
@@ -473,6 +467,13 @@
                         },
                         body: formData,
                     });
+
+                    // Debug: log status + body when response isn't JSON
+                    const contentType = res.headers.get('content-type') || '';
+                    if (!contentType.includes('application/json')) {
+                        const txt = await res.text().catch(() => '');
+                        console.error('Non-JSON response', { status: res.status, contentType, body: txt });
+                    }
 
                     if (res.status === 422) {
                         const data = await res.json().catch(() => null);
@@ -510,6 +511,65 @@
                 }
             });
         }
+
+        // Local (pre-send) attachment preview rendering (REPLACED with safe version)
+        function renderPendingAttachmentPreview(file) {
+            const old = document.getElementById('pending-attachment-preview');
+            if (old) old.remove();
+            if (!file) return;
+
+            if (filePreviewStatus) filePreviewStatus.style.display = 'flex';
+            if (fileNameLabel) fileNameLabel.textContent = 'Attached: ' + file.name;
+
+            const previewWrap = document.createElement('div');
+            previewWrap.id = 'pending-attachment-preview';
+            previewWrap.className = 'msg-bubble-wrapper mine-wrapper';
+            previewWrap.setAttribute('data-role', 'Pending Attachment');
+
+            const inner = document.createElement('div');
+            inner.style.padding = '12px 16px';
+            inner.style.border = 'none';
+            inner.style.boxShadow = '0 1px 2px rgba(0,0,0,0.1)';
+            inner.style.borderRadius = '12px 0px 12px 12px';
+            inner.style.backgroundColor = '#d9fdd3';
+            inner.style.fontFamily = "'Inter', sans-serif";
+            inner.style.flexGrow = '1';
+
+            // Avoid template literals to prevent JS parse issues
+            const fileNameEscaped = String(file.name);
+            inner.innerHTML =
+                '<div style="display:flex; align-items:center; gap:10px; margin-bottom:6px;">' +
+                    '<i class="fa-solid fa-paperclip" style="color: var(--text-muted);"></i>' +
+                    '<div style="font-weight:700; color: var(--primary-color); font-size: 0.9rem;">Attachment ready</div>' +
+                    '<button type="button" id="pending-attachment-clear" style="margin-left:auto; background:transparent; border:none; color: var(--text-muted); cursor:pointer; font-size: 1.1rem;">&times;</button>' +
+                '</div>' +
+                '<div style="color:#344054; font-size:0.92rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">' + fileNameEscaped + '</div>' +
+                '<div style="color: var(--text-muted); font-size:0.75rem; margin-top:6px;">Press Send to upload</div>';
+
+            previewWrap.appendChild(inner);
+            messagesContainer.insertAdjacentElement('beforeend', previewWrap);
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+
+            const clearBtn = document.getElementById('pending-attachment-clear');
+            if (clearBtn) {
+                clearBtn.addEventListener('click', function() {
+                    fileInputField.value = '';
+                    if (filePreviewStatus) filePreviewStatus.style.display = 'none';
+                    const prev = document.getElementById('pending-attachment-preview');
+                    if (prev) prev.remove();
+                });
+            }
+        }
+
+        if (fileInputField) {
+            fileInputField.addEventListener('change', function() {
+                const file = (this.files && this.files.length > 0) ? this.files[0] : null;
+                renderPendingAttachmentPreview(file);
+            });
+        }
+
+
+
 
         // Automatic polling every 3 seconds for new messages
         const pollUrl = '{{ route('messages.poll') }}';

@@ -121,7 +121,15 @@ class DiscussionHubPageController extends Controller
             ->orderBy('CreatedAt');
 
         if ($topicId) {
+            // Strictly scope to the selected topic (topic selection already implies group scope)
             $query->where('TopicID', $topicId);
+
+            // If group is provided, also enforce that topic belongs to that group.
+            if (!empty($groupId)) {
+                $query->whereHas('topic', function ($t) use ($groupId) {
+                    $t->where('GroupID', $groupId);
+                });
+            }
         } elseif ($groupId) {
             // If no topic selected but group is selected, filter by group's topics only
             $groupTopicIds = Topic::where('GroupID', $groupId)->pluck('TopicID');
@@ -236,11 +244,23 @@ class DiscussionHubPageController extends Controller
                 abort(403, 'You are not a member of the selected group.');
             }
 
-            // Enforce that the chosen topic belongs to the selected group (requires GroupID on Topic).
-           $topic = Topic::query()->where('TopicID', $request->topic_id)->first();
-           if (!$topic || (string)($topic->GroupID ?? '') !== (string)$groupId) {
-               abort(403, 'Selected topic does not belong to the selected group.');
+            // Enforce that the chosen topic belongs to the selected group.
+            // If frontend sends a mismatched topic_id, we must switch it to a topic that belongs to this group.
+            $topic = Topic::query()->where('TopicID', $request->topic_id)->first();
+            if (!$topic || (string)($topic->GroupID ?? '') !== (string)$groupId) {
+                $topic = Topic::where('GroupID', $groupId)->orderBy('CreatedAt')->first();
+                if (!$topic) {
+                    $topic = Topic::create([
+                        'Title' => 'General Discussion',
+                        'GroupID' => $groupId,
+                        'CreatedBy' => Auth::user()->UserID,
+                    ]);
+                }
+                $request->merge(['topic_id' => $topic->TopicID]);
             }
+
+            // IMPORTANT: also update local $topicId variable used below for Post::create.
+            $topicId = $request->input('topic_id');
         }
 
         if (blank($request->content) && !$request->hasFile('attachment')) {
@@ -370,30 +390,41 @@ class DiscussionHubPageController extends Controller
             'newer_than' => ['required', 'integer', 'min:0'],
         ]);
 
+        // Always derive the authoritative group from the topic itself.
+        // This prevents cross-group leakage if the frontend sends stale/empty group_id.
+        $topic = Topic::query()->where('TopicID', $request->topic_id)->first();
+        if (!$topic) {
+            abort(404, 'Topic not found.');
+        }
+
+        $derivedGroupId = $topic->GroupID ?? null;
         $groupId = $request->input('group_id');
 
-        if (!empty($groupId)) {
+        if (!empty($groupId) && (string)$derivedGroupId !== (string)$groupId) {
+            // If client provided group_id doesn't match topic's group, trust topic and ignore client.
+            $groupId = null;
+        }
+
+        // Enforce membership when we know which group the topic belongs to.
+        if (!empty($derivedGroupId)) {
             $userId = Auth::id();
-            $isMember = GroupStudent::where('GroupID', $groupId)
+            $isMember = GroupStudent::where('GroupID', $derivedGroupId)
                 ->where('UserID', $userId)
                 ->exists();
 
             if (!$isMember) {
-                abort(403, 'You are not a member of the selected group.');
-            }
-
-            $topic = Topic::query()->where('TopicID', $request->topic_id)->first();
-            if (!$topic || (string)($topic->GroupID ?? '') !== (string)$groupId) {
-                abort(403, 'Selected topic does not belong to the selected group.');
+                abort(403, 'You are not a member of this group.');
             }
         }
+
+        $effectiveGroupId = !empty($derivedGroupId) ? $derivedGroupId : $groupId;
 
         // newer_than is PostID
         $posts = Post::with(['author'])
             ->where('TopicID', $request->topic_id)
-            ->when(!empty($groupId), function ($q) use ($groupId) {
-                $q->whereHas('topic', function ($t) use ($groupId) {
-                    $t->where('GroupID', $groupId);
+            ->when(!empty($effectiveGroupId), function ($q) use ($effectiveGroupId) {
+                $q->whereHas('topic', function ($t) use ($effectiveGroupId) {
+                    $t->where('GroupID', $effectiveGroupId);
                 });
             })
             ->where('PostID', '>', $request->input('newer_than'))
