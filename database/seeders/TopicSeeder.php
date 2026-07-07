@@ -11,13 +11,13 @@ class TopicSeeder extends Seeder
 {
     public function run(): void
     {
-        // Define the mapping of groups to their specific topics
+        // Define one topic per group - topic name matches group name
         $groupTopics = [
             'Algorithms' => 'Algorithms',
             'Networks' => 'Networks',
             'Databases' => 'Databases',
             'Software Engineering' => 'Programming',
-            'Software Eng.' => 'Programming', // Handle variant
+            
         ];
 
         // Get or create a system user for seeding
@@ -37,17 +37,18 @@ class TopicSeeder extends Seeder
             $group = Group::where('GroupName', $groupName)->first();
             
             if ($group) {
-                // Create or update the topic for this group
+                // Create or update the single topic for this group
                 Topic::updateOrCreate(
-    [
-        'GroupID' => $group->GroupID,
-        'Title' => $topicTitle,
-    ],
-    [
-        'CreatedBy' => $systemUser->UserID,
-        'Category' => $topicTitle,
-    ]
-);
+                    [
+                        'GroupID' => $group->GroupID,
+                        'Title' => $topicTitle,
+                    ],
+                    [
+                        'CreatedBy' => $systemUser->UserID,
+                        'Category' => $groupName,
+                        'is_resolved' => false,
+                    ]
+                );
             }
         }
     }

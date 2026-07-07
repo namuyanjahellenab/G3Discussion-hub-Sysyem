@@ -10,6 +10,7 @@ use App\Models\Recommendation;
 use App\Models\Topic;
 use App\Models\User;
 use App\Models\Group;
+use App\Models\Participation;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
@@ -21,6 +22,34 @@ use Illuminate\Support\Facades\Log;
 
 class DiscussionHubPageController extends Controller
 {
+    /**
+     * Update participation score for a user based on their activity
+     */
+    private function updateParticipationScore(int $userId, ?int $parentPostId): void
+    {
+        $participation = Participation::where('UserID', $userId)->first();
+        
+        if (!$participation) {
+            $participation = new Participation();
+            $participation->UserID = $userId;
+            $participation->PostCount = 0;
+            $participation->ReplyCount = 0;
+            $participation->ParticipationScore = 0;
+        }
+        
+        if ($parentPostId) {
+            // This is a reply
+            $participation->ReplyCount++;
+        } else {
+            // This is a new post
+            $participation->PostCount++;
+        }
+        
+        // Calculate participation score: 2 points per post, 1 point per reply
+        $participation->ParticipationScore = ($participation->PostCount * 2) + ($participation->ReplyCount * 1);
+        $participation->save();
+    }
+
     public function forum()
     {
         $user = Auth::user();
@@ -32,7 +61,8 @@ class DiscussionHubPageController extends Controller
         $groupIds = $joinedGroups->pluck('GroupID');
         $memberIds = GroupStudent::whereIn('GroupID', $groupIds)->pluck('UserID')->unique();
 
-        $topics = Topic::whereIn('CreatedBy', $memberIds)
+        // Get topics for joined groups (including system-created topics)
+        $topics = Topic::whereIn('GroupID', $groupIds)
             ->with('creator')
             ->latest('CreatedAt')
             ->get();
@@ -85,8 +115,8 @@ class DiscussionHubPageController extends Controller
         $memberIds = GroupStudent::whereIn('GroupID', $groupIds)->pluck('UserID')->unique();
 
         $query = Post::with(['author', 'topic', 'parent.author', 'replies.author'])
-            ->whereHas('topic', function ($topicQuery) use ($memberIds) {
-                $topicQuery->whereIn('CreatedBy', $memberIds);
+            ->whereHas('topic', function ($topicQuery) use ($groupIds) {
+                $topicQuery->whereIn('GroupID', $groupIds);
             })
             ->orderBy('CreatedAt');
 
@@ -105,9 +135,10 @@ class DiscussionHubPageController extends Controller
         });
 
         // Get topics filtered by selected group, or all topics if no group selected
-        $topics = Topic::whereIn('CreatedBy', $memberIds)
-            ->when($groupId, function ($topicQuery) use ($groupId) {
+        $topics = Topic::when($groupId, function ($topicQuery) use ($groupId) {
                 $topicQuery->where('GroupID', $groupId);
+            }, function ($topicQuery) use ($groupIds) {
+                $topicQuery->whereIn('GroupID', $groupIds);
             })
             ->latest('CreatedAt')
             ->get();
@@ -256,6 +287,9 @@ class DiscussionHubPageController extends Controller
             'AttachmentType' => $attachmentType,
         ]);
 
+        // Update participation points
+        $this->updateParticipationScore(Auth::id(), $request->input('parent_post_id'));
+
         // For AJAX: return rendered bubble HTML (same structure as existing @foreach loop)
         if ($request->wantsJson() || $request->header('Accept') === 'application/json') {
             $post->load('author');
@@ -282,7 +316,7 @@ class DiscussionHubPageController extends Controller
             $attachmentHtml = !empty($post->Attachment)
                 ? "<div style=\"margin-top: 8px; padding: 6px 10px; background: rgba(0,0,0,0.04); border-radius: 6px; display: flex; align-items: center; gap: 8px; font-size: 0.8rem;\">"
                     . "<i class=\"fa-solid fa-paperclip\" style=\"color: var(--text-muted);\"></i>"
-                    . "<a href=\"" . asset('storage/' . $post->Attachment) . "\" target=\"_blank\" style=\"color: var(--primary-color); text-decoration: none; font-weight: 500;\">View Attached Document</a>"
+                    . "<a href=\"" . route('messages.attachment', $post->PostID) . "\" target=\"_blank\" style=\"color: var(--primary-color); text-decoration: none; font-weight: 500;\">View Attached Document</a>"
                     . "</div>"
                 : '';
 
@@ -394,7 +428,7 @@ class DiscussionHubPageController extends Controller
                 : '';
 
             $attachmentHtml = !empty($post->Attachment)
-                ? "<div style=\"margin-top: 8px; padding: 6px 10px; background: rgba(0,0,0,0.04); border-radius: 6px; display: flex; align-items: center; gap: 8px; font-size: 0.8rem;\"><i class=\"fa-solid fa-paperclip\" style=\"color: var(--text-muted);\"></i><a href=\"" . asset('storage/' . $post->Attachment) . "\" target=\"_blank\" style=\"color: var(--primary-color); text-decoration: none; font-weight: 500;\">View Attached Document</a></div>"
+                ? "<div style=\"margin-top: 8px; padding: 6px 10px; background: rgba(0,0,0,0.04); border-radius: 6px; display: flex; align-items: center; gap: 8px; font-size: 0.8rem;\"><i class=\"fa-solid fa-paperclip\" style=\"color: var(--text-muted);\"></i><a href=\"" . route('messages.attachment', $post->PostID) . "\" target=\"_blank\" style=\"color: var(--primary-color); text-decoration: none; font-weight: 500;\">View Attached Document</a></div>"
                 : '';
 
             $wrapperClass = $isMine ? 'mine-wrapper' : 'theirs-wrapper';
@@ -488,14 +522,14 @@ class DiscussionHubPageController extends Controller
 
     public function marks()
 {
-    if (auth()->user()->Role === 'Lecturer') {
+    if (Auth::user()->Role === 'Lecturer') {
         return redirect()->route('dashboard');
     }
 
     $user = Auth::user();
     
     // Get participation data
-    $participation = \App\Models\Participation::where('UserID', $user->UserID)->first();
+    $participation = Participation::where('UserID', $user->UserID)->first();
     $participationScore = $participation ? $participation->ParticipationScore : 0;
     $participationMarks = min(10, $participationScore); // Cap at 10 marks
     
@@ -535,7 +569,8 @@ class DiscussionHubPageController extends Controller
         $groupIds = $joinedGroups->pluck('GroupID');
         $memberIds = GroupStudent::whereIn('GroupID', $groupIds)->pluck('UserID')->unique();
 
-        $recommendedTopics = Topic::whereIn('CreatedBy', $memberIds)
+        // Get recommended topics from joined groups
+        $recommendedTopics = Topic::whereIn('GroupID', $groupIds)
             ->with('creator')
             ->latest('CreatedAt')
             ->take(4)

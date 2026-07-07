@@ -74,6 +74,7 @@
     
     .mine-wrapper { align-self: flex-end; flex-direction: row-reverse; }
     .mine-wrapper .reply-action-btn { left: -75px; }
+    .mine-wrapper .delete-action-btn { visibility: visible; opacity: 1; left: -150px; }
     .theirs-wrapper { align-self: flex-start; }
     .theirs-wrapper .reply-action-btn { right: -75px; }
 
@@ -150,7 +151,7 @@
                         $bgColor = $isMine ? '#d9fdd3' : '#ffffff';
                     @endphp
 
-                    <div class="msg-bubble-wrapper {{ $isMine ? 'mine-wrapper' : 'theirs-wrapper' }}" data-sender="{{ $senderName }}" data-role="Verified Contributor" data-email="{{ $post->author?->email ?? 'unspecified@domain.edu' }}">
+                    <div class="msg-bubble-wrapper {{ $isMine ? 'mine-wrapper' : 'theirs-wrapper' }}" data-post-id="{{ $post->PostID }}" data-sender="{{ $senderName }}" data-role="Verified Contributor" data-email="{{ $post->author?->email ?? 'unspecified@domain.edu' }}">
                         @if(!$isMine)
                             <div class="avatar-circle-ui avatar-green view-sender-profile" style="cursor: pointer;">{{ $loopInitials ?: 'ST' }}</div>
                         @endif
@@ -179,10 +180,10 @@
 
                             <div class="message-actual-body" style="color: #344054; line-height: 1.4; font-size: 0.92rem; word-break: break-word; white-space: pre-wrap;">{{ $post->Content }}</div>
                             
-                            @if(!empty($post->attachment_path))
+                            @if(!empty($post->Attachment))
                                 <div style="margin-top: 8px; padding: 6px 10px; background: rgba(0,0,0,0.04); border-radius: 6px; display: flex; align-items: center; gap: 8px; font-size: 0.8rem;">
                                     <i class="fa-solid fa-paperclip" style="color: var(--text-muted);"></i>
-                                    <a href="{{ asset('storage/' . $post->attachment_path) }}" target="_blank" style="color: var(--primary-color); text-decoration: none; font-weight: 500;">View Attached Document</a>
+                                    <a href="{{ route('messages.attachment', $post->PostID) }}" target="_blank" style="color: var(--primary-color); text-decoration: none; font-weight: 500;">View Attached Document</a>
                                 </div>
                             @endif
                         </div>
@@ -274,7 +275,7 @@
 <div class="profile-modal-overlay" id="global-profile-modal">
     <div class="profile-modal-box">
         <div style="background: var(--primary-color); padding: 32px 24px; text-align: center; position: relative;">
-            <i class="fa-solid fa-xmark" id="close-profile-modal" style="position: absolute; top: 16px; right: 16px; color: rgba(255,255,255,0.7); cursor: pointer; font-size: 1.2rem;"></i>
+   t         <i class="fa-solid fa-xmark" id="close-profile-modal" style="position: absolute; top: 16px; right: 16px; color: rgba(255,255,255,0.7); cursor: pointer; font-size: 1.2rem;"></i>
             <div id="modal-avatar-placeholder" style="width: 72px; height: 72px; background: #fff; color: var(--primary-color); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 12px auto; font-size: 1.8rem; font-weight: 700; box-shadow: 0 4px 12px rgba(0,0,0,0.1); text-transform: uppercase;"></div>
             <h3 id="modal-profile-name" style="color: #fff; margin: 0; font-size: 1.25rem; font-weight: 600;">Sender Profile</h3>
             <p id="modal-profile-role" style="color: rgba(255,255,255,0.8); margin: 4px 0 0 0; font-size: 0.85rem; font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px;"></p>
