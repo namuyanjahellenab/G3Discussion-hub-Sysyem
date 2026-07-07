@@ -213,23 +213,14 @@ class DiscussionHubPageController extends Controller
         // Merge the topic_id into request
         $request->merge(['topic_id' => $topicId]);
         
-        if ($request->wantsJson() || $request->header('Accept') === 'application/json') {
-            $request->validate([
-                'topic_id' => ['required', 'exists:Topic,TopicID'],
-                'group_id' => ['nullable', 'exists:Group,GroupID'],
-                'content' => ['nullable', 'string'],
-                'attachment' => ['nullable', 'file', 'mimes:pdf,doc,docx,ppt,pptx,png,jpg,jpeg,zip', 'max:20480'],
-                'parent_post_id' => ['nullable', 'exists:Post,PostID'],
-            ]);
-        } else {
-            $request->validate([
-                //'topic_id' => ['required', 'exists:Topic,TopicID'],
-                'group_id' => ['nullable', 'exists:Group,GroupID'],
-                'content' => ['nullable', 'string'],
-                'attachment' => ['nullable', 'file', 'mimes:pdf,doc,docx,ppt,pptx,png,jpg,jpeg,zip', 'max:20480'],
-                'parent_post_id' => ['nullable', 'exists:Post,PostID'],
-            ]);
-        }
+        // Validate request - topic_id will be auto-created if not provided
+        $request->validate([
+            'topic_id' => ['nullable', 'exists:Topic,TopicID'],
+            'group_id' => ['nullable', 'exists:Group,GroupID'],
+            'content' => ['nullable', 'string'],
+            'attachment' => ['nullable', 'file', 'mimes:pdf,doc,docx,ppt,pptx,png,jpg,jpeg,zip', 'max:20480'],
+            'parent_post_id' => ['nullable', 'exists:Post,PostID'],
+        ]);
 
 
         // Enforce membership scoping at message creation time when group_id is provided.
@@ -488,6 +479,44 @@ class DiscussionHubPageController extends Controller
         $dompdf->render();
 
         $filename = Str::slug($topic->Title ?: 'discussion') . '-discussion.pdf';
+        $path = 'discussions/' . $filename;
+        Storage::disk('public')->put($path, $dompdf->output());
+
+        return response()->download(Storage::disk('public')->path($path), $filename, [
+            'Content-Type' => 'application/pdf',
+        ]);
+    }
+
+    public function exportGroup(Request $request, Group $group)
+    {
+        $userId = Auth::id();
+        
+        // Verify user is a member of this group
+        $isMember = GroupStudent::where('GroupID', $group->GroupID)
+            ->where('UserID', $userId)
+            ->exists();
+
+        if (!$isMember) {
+            abort(403, 'You are not a member of this group.');
+        }
+
+        // Get all topics for this group
+        $topics = Topic::where('GroupID', $group->GroupID)->get();
+        $topicIds = $topics->pluck('TopicID');
+
+        // Get all posts from all topics in this group
+        $posts = Post::with(['author', 'parent.author', 'replies.author'])
+            ->whereIn('TopicID', $topicIds)
+            ->orderBy('CreatedAt')
+            ->get();
+
+        $html = view('messages.export_pdf', compact('group', 'posts'))->render();
+        $dompdf = new Dompdf();
+        $dompdf->loadHtml($html);
+        $dompdf->setPaper('A4', 'portrait');
+        $dompdf->render();
+
+        $filename = Str::slug($group->GroupName ?: 'group') . '-discussion.pdf';
         $path = 'discussions/' . $filename;
         Storage::disk('public')->put($path, $dompdf->output());
 

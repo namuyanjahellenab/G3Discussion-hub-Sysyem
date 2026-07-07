@@ -9,6 +9,9 @@ import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
 import javafx.util.Duration;
 
+import org.json.JSONArray;
+import org.json.JSONObject;
+
 import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.URI;
@@ -29,20 +32,27 @@ public class QuizModalController {
     @FXML private Button prevButton;
     @FXML private Button nextButton;
 
+    private static final String BASE_URL = "http://localhost:8000";
+
     private String quizId;
     private List<String> questions = new ArrayList<>();
     private List<String[]> options = new ArrayList<>();
-    private Map<Integer, Integer> selectedAnswers = new HashMap<>();
+    private List<Integer> questionIds = new ArrayList<>();
+
+    // key = question index (position in the list), value = selected answer TEXT (not option index)
+    private Map<Integer, String> selectedAnswers = new HashMap<>();
+
     private int currentQuestionIndex = 0;
     private int remainingSeconds;
     private Timeline countdownTimeline;
-    private boolean isAutoSubmit = false;
 
-    public void setQuizData(String quizId, String title, List<String> questions, List<String[]> options, int durationMinutes) {
+    public void setQuizData(String quizId, String title, List<String> questions,
+                             List<String[]> options, List<Integer> questionIds, int durationMinutes) {
         this.quizId = quizId;
         this.quizTitleLabel.setText(title);
         this.questions = questions;
         this.options = options;
+        this.questionIds = questionIds;
         this.remainingSeconds = durationMinutes * 60;
 
         startCountdown();
@@ -77,26 +87,29 @@ public class QuizModalController {
 
         ToggleGroup group = new ToggleGroup();
         String[] opts = options.get(index);
+        String currentSelection = selectedAnswers.get(index); // previously selected TEXT, if any
+
         for (int i = 0; i < opts.length; i++) {
             RadioButton rb = new RadioButton(opts[i]);
             rb.setToggleGroup(group);
             rb.setWrapText(true);
             rb.setStyle("-fx-font-size: 13; -fx-padding: 8; -fx-background-color: white;");
-            
-            final int optionIndex = i;
-            if (selectedAnswers.getOrDefault(index, -1) == optionIndex) {
+
+            final String optionText = opts[i];
+            if (optionText.equals(currentSelection)) {
                 rb.setSelected(true);
+                rb.setStyle("-fx-font-size: 13; -fx-padding: 8; -fx-background-color: #e8eef7; -fx-border-color: #1a73e8; -fx-border-radius: 4;");
             }
 
             rb.selectedProperty().addListener((obs, oldVal, newVal) -> {
                 if (newVal) {
-                    selectedAnswers.put(currentQuestionIndex, optionIndex);
+                    selectedAnswers.put(currentQuestionIndex, optionText);
                     rb.setStyle("-fx-font-size: 13; -fx-padding: 8; -fx-background-color: #e8eef7; -fx-border-color: #1a73e8; -fx-border-radius: 4;");
                 } else {
                     rb.setStyle("-fx-font-size: 13; -fx-padding: 8; -fx-background-color: white;");
                 }
             });
-            
+
             answersContainer.getChildren().add(rb);
         }
 
@@ -120,27 +133,34 @@ public class QuizModalController {
     }
 
     private void autoSubmit() {
-        isAutoSubmit = true;
         submitQuiz(true);
     }
 
     private void submitQuiz(boolean auto) {
         stopCountdown();
-        
-        // Build JSON manually
-        StringBuilder answersJson = new StringBuilder("{");
-        for (Map.Entry<Integer, Integer> entry : selectedAnswers.entrySet()) {
-            if (answersJson.length() > 1) answersJson.append(",");
-            answersJson.append("\"").append(entry.getKey()).append("\":").append(entry.getValue());
-        }
-        answersJson.append("}");
 
-        String payload = String.format("{\"quizId\":\"%s\",\"answers\":%s,\"isAutoSubmit\":%b}", 
-                                       quizId, answersJson.toString(), auto);
+        JSONObject payloadObj = new JSONObject();
+        payloadObj.put("QuizID", Integer.parseInt(quizId));
+
+        JSONArray answersArray = new JSONArray();
+        for (Map.Entry<Integer, String> entry : selectedAnswers.entrySet()) {
+            int questionIndex = entry.getKey();
+            String responseText = entry.getValue();
+            int questionId = questionIds.get(questionIndex);
+
+            JSONObject answerObj = new JSONObject();
+            answerObj.put("QuestionID", questionId);
+            answerObj.put("ResponseText", responseText);
+            answersArray.put(answerObj);
+        }
+        payloadObj.put("Answers", answersArray);
+
+        String payload = payloadObj.toString();
+        String endpoint = auto ? "/api/quiz/auto-submit" : "/api/quiz/submit";
 
         new Thread(() -> {
             try {
-                URL url = URI.create("http://localhost:8000/api/quiz/submit").toURL();
+                URL url = URI.create(BASE_URL + endpoint).toURL();
                 HttpURLConnection conn = (HttpURLConnection) url.openConnection();
                 conn.setRequestMethod("POST");
                 conn.setRequestProperty("Authorization", "Bearer " + SessionManager.token);

@@ -3,6 +3,7 @@ module com.discussionhub.client {
     requires javafx.fxml;
     requires transitive javafx.graphics;
     requires transitive java.sql;
+    requires org.json;
     requires java.desktop;
     requires org.xerial.sqlitejdbc;
 

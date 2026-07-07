@@ -22,6 +22,9 @@ class DashboardController extends Controller
             return $this->lecturer();
         }
 
+        if ($user->Role === 'Administrator') {
+    return redirect()->route('admin.groups.index');
+}
         if (!$user->groupMemberships()->exists()) {
             return redirect()->route('groups.select');
         }

@@ -198,6 +198,7 @@
                     <input type="hidden" name="topic_id" id="message-topic-id" value="{{ $topic_id ?? request('topic_id') }}">
                     <input type="hidden" name="group_id" id="message-group-id" value="{{ $group_id ?? request('group_id') }}">
                     <input type="hidden" name="search" value="{{ request('search') }}">
+                    <input type="hidden" name="parent_post_id" id="parent-post-id-input" value="">
                     
                     <!-- Nested Reply Metadata Trackers -->
                     <input type="hidden" name="parent_reply_text" id="parent-reply-text-input" value="">

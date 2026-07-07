@@ -119,35 +119,37 @@ public class DashboardController {
     }
 
     @FXML
-    protected void onTestQuiz() {
-        try {
-            FXMLLoader loader = new FXMLLoader(getClass().getResource("quiz-modal.fxml"));
-            Scene scene = new Scene(loader.load(), 620, 520);
-            QuizModalController controller = loader.getController();
+protected void onTestQuiz() {
+    try {
+        FXMLLoader loader = new FXMLLoader(getClass().getResource("quiz-modal.fxml"));
+        Scene scene = new Scene(loader.load(), 620, 520);
+        QuizModalController controller = loader.getController();
 
-            java.util.List<String> questions = java.util.List.of(
-                "What does SQL stand for?",
-                "Which Java keyword creates a new object?",
-                "What does HTTP stand for?"
-            );
-            java.util.List<String[]> options = java.util.List.of(
-                new String[]{"Structured Query Language","Simple Query Logic","Standard Query List","Structured Question Language"},
-                new String[]{"create","new","build","make"},
-                new String[]{"HyperText Transfer Protocol","High Transfer Text Protocol","Hyperlink Text Protocol","HyperText Transport Process"}
-            );
-            controller.setQuizData("test-001", "Sample Quiz - Week 2 Topics", questions, options, 2);
+        java.util.List<String> questions = java.util.List.of(
+            "What does SQL stand for?",
+            "Which Java keyword creates a new object?",
+            "What does HTTP stand for?"
+        );
+        java.util.List<String[]> options = java.util.List.of(
+            new String[]{"Structured Query Language","Simple Query Logic","Standard Query List","Structured Question Language"},
+            new String[]{"create","new","build","make"},
+            new String[]{"HyperText Transfer Protocol","High Transfer Text Protocol","Hyperlink Text Protocol","HyperText Transport Process"}
+        );
+        // Dummy IDs only — this is a UI preview, not a real quiz. Do NOT submit from here.
+        java.util.List<Integer> questionIds = java.util.List.of(-1, -2, -3);
+        controller.setQuizData("-1", "Sample Quiz - Week 2 Topics (PREVIEW)", questions, options, questionIds, 2);
 
-            Stage modalStage = new Stage();
-            modalStage.initModality(javafx.stage.Modality.APPLICATION_MODAL);
-            modalStage.initStyle(javafx.stage.StageStyle.UNDECORATED);
-            modalStage.initOwner(syncStatusLabel.getScene().getWindow());
-            modalStage.setScene(scene);
-            modalStage.show();
-        } catch (Exception e) {
-            System.err.println("[Dashboard] Error opening quiz: " + e.getMessage());
-            e.printStackTrace();
-        }
+        Stage modalStage = new Stage();
+        modalStage.initModality(javafx.stage.Modality.APPLICATION_MODAL);
+        modalStage.initStyle(javafx.stage.StageStyle.UNDECORATED);
+        modalStage.initOwner(syncStatusLabel.getScene().getWindow());
+        modalStage.setScene(scene);
+        modalStage.show();
+    } catch (Exception e) {
+        System.err.println("[Dashboard] Error opening quiz: " + e.getMessage());
+        e.printStackTrace();
     }
+}
 
     private void addLogEntry(String message) {
         syncLogList.getItems().add(0, nowString() + "  " + message);
