@@ -34,69 +34,70 @@ public class LoginController {
         this.dbManager = dbManager;
         this.syncService = syncService;
     }
-
     @FXML
     public void onLogin() {
-    String email = emailField.getText();
-    String password = passwordField.isVisible() ? passwordField.getText() : passwordVisible.getText();
+        String email = emailField.getText();
+        String password = passwordField.isVisible() ? passwordField.getText() : passwordVisible.getText();
 
-    if (email.isEmpty() || password.isEmpty()) {
-        errorLabel.setText("Please fill all fields.");
-        errorLabel.setVisible(true);
-        return;
-    }
+        if (email.isEmpty() || password.isEmpty()) {
+            errorLabel.setText("Please fill all fields.");
+            errorLabel.setVisible(true);
+            return;
+        }
 
-    new Thread(() -> {
-        try {
-            URL url = URI.create("http://localhost:8000/api/login").toURL();
-            HttpURLConnection conn = (HttpURLConnection) url.openConnection();
-            conn.setRequestMethod("POST");
-            conn.setRequestProperty("Content-Type", "application/json");
-            conn.setDoOutput(true);
+        new Thread(() -> {
+            try {
+                URL url = URI.create("http://localhost:8000/api/login").toURL();
+                HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+                conn.setRequestMethod("POST");
+                conn.setRequestProperty("Content-Type", "application/json");
+                conn.setDoOutput(true);
 
-            String jsonInputString = String.format("{\"email\": \"%s\", \"password\": \"%s\"}", email, password);
+                String jsonInputString = String.format("{\"email\": \"%s\", \"password\": \"%s\"}", email, password);
 
-            try (OutputStream os = conn.getOutputStream()) {
-                byte[] input = jsonInputString.getBytes(StandardCharsets.UTF_8);
-                os.write(input, 0, input.length);
-            }
-
-            int code = conn.getResponseCode();
-            if (code == 200) {
-                try (Scanner s = new Scanner(conn.getInputStream()).useDelimiter("\\A")) {
-                    String result = s.hasNext() ? s.next() : "";
-
-                    // Simple JSON parsing (actual response shape: {"token":"...","user":{"id":5,...}})
-                    String token = extractJsonValue(result, "token");
-                    String userIdStr = extractJsonValue(result, "id");
-                    int userId = userIdStr.isEmpty() ? 1 : Integer.parseInt(userIdStr);
-
-                    SessionManager.token = token;
-                    SessionManager.userId = userId;
-                    SessionManager.userEmail = email;
-
-                    Platform.runLater(this::loadGroupSelection);
+                try (OutputStream os = conn.getOutputStream()) {
+                    byte[] input = jsonInputString.getBytes(StandardCharsets.UTF_8);
+                    os.write(input, 0, input.length);
                 }
-            } else {
+
+                int code = conn.getResponseCode();
+                if (code == 200) {
+                    try (Scanner s = new Scanner(conn.getInputStream()).useDelimiter("\\A")) {
+                        String result = s.hasNext() ? s.next() : "";
+
+                        // Simple JSON parsing (actual response shape: {"token":"...","user":{"id":5,...}})
+                        String token = extractJsonValue(result, "token");
+                        String userIdStr = extractJsonValue(result, "id");
+                        int userId = userIdStr.isEmpty() ? 1 : Integer.parseInt(userIdStr);
+                        String name = extractJsonValue(result, "name");   // <-- NEW LINE
+
+                        SessionManager.token = token;
+                        SessionManager.userId = userId;
+                        SessionManager.userEmail = email;
+                        SessionManager.fullName = name;                  // <-- NEW LINE
+
+                        Platform.runLater(this::loadGroupSelection);
+                    }
+                } else {
+                    Platform.runLater(() -> {
+                        errorLabel.setText("Invalid credentials.");
+                        errorLabel.setVisible(true);
+                    });
+                }
+            } catch (Exception e) {
                 Platform.runLater(() -> {
-                    errorLabel.setText("Invalid credentials.");
+                    errorLabel.setText("Server error: " + e.getMessage());
                     errorLabel.setVisible(true);
                 });
             }
-        } catch (Exception e) {
-            Platform.runLater(() -> {
-                errorLabel.setText("Server error: " + e.getMessage());
-                errorLabel.setVisible(true);
-            });
-        }
-    }).start();
-}
+        }).start();
+    }
 
     private void loadGroupSelection() {
         try {
             // Re-initialize services with the logged-in user ID
             dbManager.ensureDeviceState(SessionManager.userId);
-            
+
             FXMLLoader loader = new FXMLLoader(getClass().getResource("group-selection-view.fxml"));
             Scene scene = new Scene(loader.load(), 800, 650);
             GroupSelectionController controller = loader.getController();

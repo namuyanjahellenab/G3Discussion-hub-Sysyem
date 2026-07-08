@@ -35,7 +35,7 @@ Route::middleware('auth:sanctum')->post('/topics', function (Request $request) {
 // 2. Fetch all messages belonging to ONE specific topic (Solves Requirement 2)
 Route::middleware('auth:sanctum')->get('/topics/{id}/messages', function ($id) {
     $topic = Topic::with('messages.user')->findOrFail($id);
-    
+
     return response()->json([
         'topic' => $topic->title,
         'messages' => $topic->messages
@@ -101,8 +101,10 @@ Route::middleware('auth:sanctum')->get('/topics', function (Request $request) {
 Route::middleware('auth:sanctum')->group(function () {
     Route::get('/groups', [App\Http\Controllers\Api\GroupApiController::class, 'index']);
     Route::post('/groups/{group}/join', [App\Http\Controllers\Api\GroupApiController::class, 'join']);
+    Route::post('/groups/{group}/mark-viewed', [App\Http\Controllers\Api\GroupApiController::class, 'markViewed']);
+    Route::get('/sync/pull', [App\Http\Controllers\Api\SyncController::class, 'pull']);
+    Route::post('/sync/push', [App\Http\Controllers\Api\SyncController::class, 'push']);
 });
-
 
 // Route::middleware('auth')->group(function () {
 //     Route::post('/quiz/schedule',    [QuizController::class,       'scheduleAssessment']);

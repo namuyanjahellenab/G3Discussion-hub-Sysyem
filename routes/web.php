@@ -51,6 +51,24 @@ Route::middleware('auth')->group(function () {
         ->middleware('verified')
         ->name('groups.forum');
 
+        Route::get('/groups/{group}/topics', [DiscussionHubPageController::class, 'groupTopics'])
+    ->middleware('verified')->name('groups.topics');
+
+Route::get('/topics/create/{group}', [DiscussionHubPageController::class, 'createTopic'])
+    ->middleware('verified')->name('topics.create');
+
+Route::post('/topics', [DiscussionHubPageController::class, 'storeTopic'])
+    ->middleware('verified')->name('topics.store');
+
+Route::get('/topics/{topic}', [DiscussionHubPageController::class, 'showTopic'])
+    ->middleware('verified')->name('topics.show');
+
+Route::post('/posts/{post}/reply', [DiscussionHubPageController::class, 'storeReply'])
+    ->middleware('verified')->name('posts.reply');
+
+Route::post('/replies/{reply}/accept', [DiscussionHubPageController::class, 'acceptAnswer'])
+    ->middleware('verified')->name('replies.accept');
+
     Route::get('/dashboard', [DashboardController::class, 'index'])
         ->middleware('verified')
         ->name('dashboard');

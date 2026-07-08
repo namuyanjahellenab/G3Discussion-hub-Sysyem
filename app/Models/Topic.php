@@ -6,11 +6,13 @@ use Illuminate\Database\Eloquent\Model;
 
 class Topic extends Model
 {
-    protected $table = 'Topic'; 
+    protected $table = 'Topic';
     protected $primaryKey = 'TopicID';
     const CREATED_AT = 'CreatedAt';
     const UPDATED_AT = 'UpdatedAt';
-protected $fillable = ['Title', 'GroupID', 'CreatedBy'];
+
+    protected $fillable = ['Title', 'GroupID', 'CreatedBy', 'Status', 'IsPinned', 'Category'];
+
     public function creator()
     {
         return $this->belongsTo(User::class, 'CreatedBy', 'UserID');
@@ -25,6 +27,4 @@ protected $fillable = ['Title', 'GroupID', 'CreatedBy'];
     {
         return $this->belongsTo(Group::class, 'GroupID', 'GroupID');
     }
-
-
 }

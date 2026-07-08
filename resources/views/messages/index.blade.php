@@ -459,7 +459,7 @@
                 const formData = new FormData(chatForm);
 
                 const submitBtn = chatForm.querySelector('button[type="submit"]');
-                if (submitBtn) submitBtn.disabled = true;
+if (submitBtn) submitBtn.disabled = true;
 
                 try {
                     const res = await fetch(chatForm.action, {

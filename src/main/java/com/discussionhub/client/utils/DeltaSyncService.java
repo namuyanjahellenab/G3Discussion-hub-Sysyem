@@ -63,7 +63,7 @@ public class DeltaSyncService {
         }
 
         for (SyncQueueItem item : pendingChanges) {
-            boolean success = sendPayloadToServer(item.getPayload());
+            boolean success = sendPayloadToServer(item);
 
             if (success) {
                 dbManager.markSyncQueueItemAsSynced(item.getSyncQueueId());
@@ -75,9 +75,9 @@ public class DeltaSyncService {
         return true;
     }
 
-    private boolean sendPayloadToServer(String jsonPayload) {
+    private boolean sendPayloadToServer(SyncQueueItem item) {
         try {
-            URL url =URI.create(BASE_URL + PUSH_PATH).toURL();
+            URL url = URI.create(BASE_URL + PUSH_PATH).toURL();
             HttpURLConnection conn = (HttpURLConnection) url.openConnection();
 
             conn.setRequestMethod("POST");
@@ -87,14 +87,21 @@ public class DeltaSyncService {
             conn.setConnectTimeout(CONNECT_TIMEOUT_MS);
             conn.setReadTimeout(READ_TIMEOUT_MS);
 
+            String envelope = "{"
+                + "\"entityType\":\"" + item.getEntityType() + "\","
+                + "\"operation\":\"" + item.getOperation() + "\","
+                + "\"deviceId\":" + item.getDeviceId() + ","
+                + "\"payload\":" + item.getPayload()
+                + "}";
+
             try (OutputStream os = conn.getOutputStream()) {
-                byte[] input = jsonPayload.getBytes(StandardCharsets.UTF_8);
+                byte[] input = envelope.getBytes(StandardCharsets.UTF_8);
                 os.write(input, 0, input.length);
             }
 
             int responseCode = conn.getResponseCode();
             return (responseCode == HttpURLConnection.HTTP_OK
-                    || responseCode == HttpURLConnection.HTTP_CREATED);
+                || responseCode == HttpURLConnection.HTTP_CREATED);
 
         } catch (Exception e) {
             System.err.println("[Sync] Network error while pushing payload: " + e.getMessage());
