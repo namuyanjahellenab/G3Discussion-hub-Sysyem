@@ -34,12 +34,29 @@ public class ForumController {
     private int currentPage = 1;
     private static final int PAGE_SIZE = 15;
 
+    // 0 = "no specific group" (old behaviour — shows every locally cached topic).
+    // Set to a real GroupID via setGroupContext() when opened from a specific
+    // group card on the Dashboard.
+    private int currentGroupId = 0;
+    private String currentGroupName = "";
+
     public void setServices(DatabaseManager dbManager, DeltaSyncService syncService) {
         this.dbManager = dbManager;
         this.syncService = syncService;
         setupTopicCells();
         setupStatusFilter();
         updateSyncStatusLabel();
+        loadTopics();
+    }
+
+    /**
+     * Call this right after setServices() when opening the Forum for one
+     * specific group (e.g. from clicking a group card on the Dashboard).
+     * Re-runs loadTopics() so the list is filtered immediately.
+     */
+    public void setGroupContext(int groupId, String groupName) {
+        this.currentGroupId = groupId;
+        this.currentGroupName = groupName;
         loadTopics();
     }
 
@@ -67,7 +84,7 @@ public class ForumController {
                 // will be updated to "Answered"/"Pinned" once synced from server
                 Label statusBadge = new Label("Open");
                 statusBadge.setStyle("-fx-background-color: #e3f2fd; -fx-text-fill: #1565c0;" +
-                        "-fx-padding: 2 8; -fx-background-radius: 10; -fx-font-size: 11;");
+                    "-fx-padding: 2 8; -fx-background-radius: 10; -fx-font-size: 11;");
 
                 // Author — shows the UserID as a number for now;
                 // replace with a name lookup once a User table is cached locally
@@ -76,14 +93,11 @@ public class ForumController {
 
                 // Real reply count from the LEFT JOIN query in DatabaseManager
                 Label replyLabel = new Label(item.getReplyCount() + " "
-                        + (item.getReplyCount() == 1 ? "reply" : "replies"));
+                    + (item.getReplyCount() == 1 ? "reply" : "replies"));
                 replyLabel.setStyle("-fx-text-fill: #888; -fx-font-size: 11;");
 
-                // CreatedAt — trim to just date+time without milliseconds
-                String time = item.getCreatedAt();
-                if (time != null && time.length() > 16) time = time.substring(0, 16);
-                Label timeLabel = new Label(time != null ? time : "");
-                timeLabel.setStyle("-fx-text-fill: #aaa; -fx-font-size: 11;");
+                Label timeLabel = new Label(item.getCreatedAt());
+                timeLabel.setStyle("-fx-text-fill: #aaa; -fx-font-size: 10.5;");
 
                 row.getChildren().addAll(titleLabel, statusBadge, authorLabel, replyLabel, timeLabel);
                 setGraphic(row);
@@ -92,8 +106,7 @@ public class ForumController {
     }
 
     private void setupStatusFilter() {
-        // Exact options per SDD Section 6.3 Discussion Forum Interface table
-        statusFilter.getItems().addAll("All", "Open", "Answered", "Pinned", "My Posts");
+        statusFilter.getItems().setAll("All", "My Posts");
         statusFilter.getSelectionModel().selectFirst();
     }
 
@@ -113,7 +126,16 @@ public class ForumController {
     }
 
     private void loadTopics() {
-        allTopics = dbManager.getAllTopicsWithDetails();
+        List<TopicItem> fetched = dbManager.getAllTopicsWithDetails();
+
+        if (currentGroupId != 0) {
+            allTopics = fetched.stream()
+                .filter(t -> t.getGroupId() == currentGroupId)
+                .collect(Collectors.toList());
+        } else {
+            allTopics = fetched;
+        }
+
         applyFilterAndSearch();
     }
 
@@ -122,12 +144,12 @@ public class ForumController {
         String selectedFilter = statusFilter.getSelectionModel().getSelectedItem();
 
         List<TopicItem> filtered = allTopics.stream()
-                .filter(t -> search.isEmpty() || t.getTitle().toLowerCase().contains(search))
-                // "My Posts" filter — show only topics created by the current user (UserID 1 for now)
-                .filter(t -> selectedFilter == null || selectedFilter.equals("All") ||
-                        (selectedFilter.equals("My Posts") && t.getCreatedBy() == 1) ||
-                        (!selectedFilter.equals("My Posts")))
-                .collect(Collectors.toList());
+            .filter(t -> search.isEmpty() || t.getTitle().toLowerCase().contains(search))
+            // "My Posts" filter — show only topics created by the current user (UserID 1 for now)
+            .filter(t -> selectedFilter == null || selectedFilter.equals("All") ||
+                (selectedFilter.equals("My Posts") && t.getCreatedBy() == 1) ||
+                (!selectedFilter.equals("My Posts")))
+            .collect(Collectors.toList());
 
         int totalPages = Math.max(1, (int) Math.ceil((double) filtered.size() / PAGE_SIZE));
         if (currentPage > totalPages) currentPage = totalPages;
@@ -185,13 +207,13 @@ public class ForumController {
         categoryField.setPromptText("Category (e.g. Academic)");
 
         javafx.scene.layout.VBox content = new javafx.scene.layout.VBox(10,
-                new Label("Title:"), titleField,
-                new Label("Category:"), categoryField);
+            new Label("Title:"), titleField,
+            new Label("Category:"), categoryField);
         content.setPadding(new javafx.geometry.Insets(16));
         dialog.getDialogPane().setContent(content);
 
         dialog.setResultConverter(btn ->
-                btn == createButton ? new String[]{titleField.getText(), categoryField.getText()} : null);
+            btn == createButton ? new String[]{titleField.getText(), categoryField.getText()} : null);
 
         dialog.showAndWait().ifPresent(result -> {
             String title = result[0].trim();
@@ -200,7 +222,7 @@ public class ForumController {
 
             boolean isOnline = NetworkUtil.isNetworkAvailable();
             // TODO: replace 1 with real logged-in UserID once auth exists
-            dbManager.handleTopicSubmission(title, category, 1, isOnline);
+            dbManager.handleTopicSubmission(title, category, 1, currentGroupId, isOnline);
             loadTopics();
         });
     }

@@ -109,13 +109,14 @@ public function apiLogin(Request $request)
 
     $token = $user->createToken('javafx-desktop')->plainTextToken;
 
-    return response()->json([
-        'token' => $token,
-        'user'  => [
-            'id'    => $user->UserID,
-            'email' => $user->Email,
-        ],
-    ]);
+  return response()->json([
+      'token' => $token,
+      'user'  => [
+          'id'    => $user->UserID,
+          'email' => $user->Email,
+          'name'  => $user->UserName,
+      ],
+  ]);
 }
 
     /**
