@@ -140,7 +140,7 @@
                 
                 @foreach($threadedPosts as $post)
                     @php
-                        $isMine = ($post->author?->id === auth()->id() || $post->AuthorID === auth()->id());
+                       $isMine = ($post->UserID === auth()->id());
                         $senderName = $post->author?->UserName ?? $post->author?->name ?? 'Student';
                         
                         // Parse sender initials safely
@@ -156,8 +156,8 @@
                             <div class="avatar-circle-ui avatar-green view-sender-profile" style="cursor: pointer;">{{ $loopInitials ?: 'ST' }}</div>
                         @endif
                         
-                        <span class="reply-action-btn" onclick="setReplyContext('{{ $isMine ? 'You' : $senderName }}', '{{ Str::limit(addslashes($post->Content), 50) }}')"><i class="fa-solid fa-reply"></i> Reply</span>
-                        
+                        <span class="reply-action-btn" onclick="setReplyContext({{ $post->PostID }}, '{{ $isMine ? 'You' : $senderName }}', '{{ Str::limit(addslashes($post->Content), 50) }}')"><i class="fa-solid fa-reply"></i> Reply</span>
+
                         @if($isMine)
                             <span class="reply-action-btn delete-action-btn" onclick="deleteMessage({{ $post->PostID }})" style="left: -150px;">
                                 <i class="fa-solid fa-trash"></i> Delete
@@ -317,7 +317,8 @@
         });
     }
 
-    function setReplyContext(sender, textSnippet) {
+    function setReplyContext(postId, sender, textSnippet) {
+        document.getElementById('parent-post-id-input').value = postId;
         document.getElementById('parent-reply-text-input').value = `${sender}: "${textSnippet}"`;
         document.getElementById('reply-banner-sender').textContent = sender;
         document.getElementById('reply-banner-body').textContent = textSnippet;
@@ -326,6 +327,7 @@
     }
 
     function clearReplyContext() {
+        document.getElementById('parent-post-id-input').value = '';
         document.getElementById('parent-reply-text-input').value = '';
         document.getElementById('reply-context-banner').style.display = 'none';
     }
@@ -459,21 +461,7 @@
                 const submitBtn = chatForm.querySelector('button[type="submit"]');
 if (submitBtn) submitBtn.disabled = true;
 
-try {
-    const res = await fetch(chatForm.action, {
-        method: 'POST',
-        headers: {
-            'X-CSRF-TOKEN': csrfToken,
-            'Accept': 'application/json',
-        },
-        body: formData,
-    });
-    ...
-} catch (err) {
-    console.error('Fetch error', err);
-} finally {
-    if (submitBtn) submitBtn.disabled = false;
-}
+                try {
                     const res = await fetch(chatForm.action, {
                         method: 'POST',
                         headers: {
@@ -644,5 +632,3 @@ try {
     });
 </script>
 @endsection
-
-
