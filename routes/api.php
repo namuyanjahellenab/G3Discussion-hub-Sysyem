@@ -106,7 +106,6 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/sync/push', [App\Http\Controllers\Api\SyncController::class, 'push']);
 });
 
-
 // Route::middleware('auth')->group(function () {
 //     Route::post('/quiz/schedule',    [QuizController::class,       'scheduleAssessment']);
 //     // Route::post('/quiz/join',        [QuizEngineController::class, 'join']);
