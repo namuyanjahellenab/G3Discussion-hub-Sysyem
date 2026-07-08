@@ -1,6 +1,7 @@
 package com.discussionhub.client;
 
 import com.discussionhub.client.database.DatabaseManager;
+import com.discussionhub.client.database.NotificationItem;
 import com.discussionhub.client.utils.DeltaSyncService;
 import com.discussionhub.client.utils.NetworkUtil;
 import javafx.application.Platform;
@@ -8,9 +9,10 @@ import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
+import javafx.scene.control.Button;
 import javafx.scene.control.Label;
-import javafx.scene.control.ListCell;
 import javafx.scene.control.ListView;
+import javafx.scene.layout.FlowPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
@@ -31,7 +33,8 @@ public class DashboardController {
     @FXML private Label userInitialsLabel;
     @FXML private Label userNameLabel;
     @FXML private Label userRoleLabel;
-    @FXML private ListView<GroupSummary> groupsListView;
+    @FXML private FlowPane groupsFlowPane;
+    @FXML private VBox recentNotificationsBox;
     @FXML private HBox syncCompleteBanner;
     @FXML private Label syncDetailLabel;
     @FXML private VBox pendingUploadsCard;
@@ -48,40 +51,9 @@ public class DashboardController {
 
     @FXML
     public void initialize() {
-        groupsListView.setCellFactory(lv -> new ListCell<>() {
-            @Override
-            protected void updateItem(GroupSummary item, boolean empty) {
-                super.updateItem(item, empty);
-                if (empty || item == null) {
-                    setGraphic(null);
-                    setText(null);
-                    return;
-                }
-                HBox row = new HBox(12);
-                row.setAlignment(Pos.CENTER_LEFT);
-                row.setStyle("-fx-padding: 12; -fx-background-color: #f7f8fc; -fx-background-radius: 8;");
-
-                Label icon = new Label("👥");
-                icon.setStyle("-fx-background-color: #eaf1ff; -fx-text-fill: #2f5bea; " +
-                    "-fx-padding: 8 10; -fx-background-radius: 8; -fx-font-size: 13;");
-
-                VBox textBox = new VBox(2);
-                Label nameLabel = new Label(item.name);
-                nameLabel.setStyle("-fx-font-weight: bold; -fx-font-size: 13; -fx-text-fill: #1a1f36;");
-                Label subLabel = new Label(item.memberCount + (item.memberCount == 1 ? " member" : " members"));
-                subLabel.setStyle("-fx-text-fill: #8a90a0; -fx-font-size: 11.5;");
-                textBox.getChildren().addAll(nameLabel, subLabel);
-
-                Region spacer = new Region();
-                HBox.setHgrow(spacer, Priority.ALWAYS);
-
-                row.getChildren().addAll(icon, textBox, spacer);
-                setGraphic(row);
-                setText(null);
-                setStyle("-fx-background-color: transparent; -fx-padding: 3 0;");
-                row.setOnMouseClicked(e -> openForumForGroup(item));
-            }
-        });
+        // Group cards and notifications are built in Java (createGroupCard(),
+        // createNotificationRow()) once real data arrives from loadMyGroups()/
+        // loadRecentNotifications() — nothing to wire up here at load time.
     }
 
     public void setServices(DatabaseManager dbManager, DeltaSyncService syncService) {
@@ -90,6 +62,7 @@ public class DashboardController {
         refreshStatus();
         loadUserProfile();
         loadMyGroups();
+        loadRecentNotifications();
     }
 
     private void refreshStatus() {
@@ -163,7 +136,8 @@ public class DashboardController {
                                 int groupId = Integer.parseInt(extractGroupValue(cleaned, "id"));
                                 String name = extractGroupValue(cleaned, "name");
                                 int memberCount = Integer.parseInt(extractGroupValue(cleaned, "member_count"));
-                                myGroups.add(new GroupSummary(groupId, name, memberCount));
+                                boolean hasNew = Boolean.parseBoolean(extractGroupValue(cleaned, "has_new"));
+                                myGroups.add(new GroupSummary(groupId, name, memberCount, hasNew));
                             }
                         }
                     }
@@ -171,8 +145,54 @@ public class DashboardController {
             } catch (Exception e) {
                 System.err.println("[Dashboard] Error loading groups: " + e.getMessage());
             }
-            Platform.runLater(() -> groupsListView.getItems().setAll(myGroups));
+            Platform.runLater(() -> {
+                groupsFlowPane.getChildren().clear();
+                for (GroupSummary group : myGroups) {
+                    groupsFlowPane.getChildren().add(createGroupCard(group));
+                }
+            });
         }).start();
+    }
+
+    /**
+     * Builds one group card matching the web dashboard's style: centered icon,
+     * bold group name, member count, optional "new messages" pill, and a
+     * blue "VIEW FORUM →" button that does the actual navigation.
+     */
+    private VBox createGroupCard(GroupSummary group) {
+        VBox card = new VBox(10);
+        card.setAlignment(Pos.CENTER);
+        card.setPrefWidth(210);
+        card.setStyle("-fx-background-color: #fbfbfd; -fx-background-radius: 10; -fx-padding: 20 16; " +
+            "-fx-border-color: #eceef3; -fx-border-radius: 10;");
+
+        Label icon = new Label("👥");
+        icon.setStyle("-fx-background-color: #eaf1ff; -fx-text-fill: #2f5bea; " +
+            "-fx-padding: 10 14; -fx-background-radius: 10; -fx-font-size: 16;");
+
+        Label nameLabel = new Label(group.name);
+        nameLabel.setStyle("-fx-font-weight: bold; -fx-font-size: 15; -fx-text-fill: #1a1f36;");
+
+        Label memberLabel = new Label(group.memberCount + (group.memberCount == 1 ? " member" : " members"));
+        memberLabel.setStyle("-fx-text-fill: #8a90a0; -fx-font-size: 12;");
+
+        card.getChildren().addAll(icon, nameLabel, memberLabel);
+
+        if (group.hasNew) {
+            Label newPill = new Label("● new messages");
+            newPill.setStyle("-fx-background-color: #ffe6e6; -fx-text-fill: #d32f2f; " +
+                "-fx-padding: 3 8; -fx-background-radius: 10; -fx-font-size: 10.5; -fx-font-weight: bold;");
+            card.getChildren().add(newPill);
+        }
+
+        Button viewForumBtn = new Button("VIEW FORUM  →");
+        viewForumBtn.setMaxWidth(Double.MAX_VALUE);
+        viewForumBtn.setStyle("-fx-background-color: #2f5bea; -fx-text-fill: white; -fx-font-weight: bold; " +
+            "-fx-background-radius: 6; -fx-padding: 9 16; -fx-font-size: 12;");
+        viewForumBtn.setOnAction(e -> openForumForGroup(group));
+        card.getChildren().add(viewForumBtn);
+
+        return card;
     }
 
     private String extractGroupValue(String json, String key) {
@@ -191,6 +211,57 @@ public class DashboardController {
         return json.substring(start, end).replace("\"", "");
     }
 
+    /**
+     * Reads the local Notification table (already-built dbManager.getAllNotifications())
+     * and shows the 3 most recent as a small list, matching the web dashboard's
+     * "Recent Notifications" card. No new backend calls — purely front-end display
+     * of data your app already fetches during sync.
+     */
+    private void loadRecentNotifications() {
+        recentNotificationsBox.getChildren().clear();
+        List<NotificationItem> notifications = dbManager.getAllNotifications(SessionManager.userId);
+
+        if (notifications.isEmpty()) {
+            Label empty = new Label("No notifications yet.");
+            empty.setStyle("-fx-text-fill: #9aa0ab; -fx-font-size: 12;");
+            recentNotificationsBox.getChildren().add(empty);
+            return;
+        }
+
+        int shown = 0;
+        for (NotificationItem n : notifications) {
+            if (shown >= 3) break;
+            recentNotificationsBox.getChildren().add(createNotificationRow(n));
+            shown++;
+        }
+    }
+
+    private VBox createNotificationRow(NotificationItem n) {
+        VBox row = new VBox(4);
+        row.setStyle("-fx-padding: 0 0 10 0; -fx-border-color: transparent transparent #eceef3 transparent; " +
+            "-fx-border-width: 0 0 1 0;");
+
+        HBox topRow = new HBox(8);
+        topRow.setAlignment(Pos.CENTER_LEFT);
+
+        Label dot = new Label("●");
+        dot.setStyle("-fx-text-fill: #2f5bea; -fx-font-size: 11;");
+
+        Label message = new Label(n.getMessage());
+        message.setWrapText(true);
+        message.setStyle("-fx-font-weight: bold; -fx-font-size: 13; -fx-text-fill: #1a1f36;");
+
+        Region spacer = new Region();
+        HBox.setHgrow(spacer, Priority.ALWAYS);
+
+        Label time = new Label(n.getCreatedAt());
+        time.setStyle("-fx-text-fill: #b0b5c0; -fx-font-size: 11;");
+
+        topRow.getChildren().addAll(dot, message, spacer, time);
+        row.getChildren().add(topRow);
+        return row;
+    }
+
     @FXML
     protected void onSyncNow() {
         if (!NetworkUtil.isNetworkAvailable()) {
@@ -204,6 +275,8 @@ public class DashboardController {
             syncService.synchronizeLocalChanges();
             Platform.runLater(() -> {
                 refreshStatus();
+                loadMyGroups();
+                loadRecentNotifications();
                 addLogEntry("Sync completed at " + nowString());
             });
         }).start();
@@ -302,10 +375,12 @@ public class DashboardController {
         final int id;
         final String name;
         final int memberCount;
-        GroupSummary(int id, String name, int memberCount) {
+        final boolean hasNew;
+        GroupSummary(int id, String name, int memberCount, boolean hasNew) {
             this.id = id;
             this.name = name;
             this.memberCount = memberCount;
+            this.hasNew = hasNew;
         }
     }
 }

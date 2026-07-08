@@ -58,8 +58,26 @@ public class ForumController {
         this.currentGroupId = groupId;
         this.currentGroupName = groupName;
         loadTopics();
+        markGroupAsViewed(groupId);
     }
 
+    private void markGroupAsViewed(int groupId) {
+        new Thread(() -> {
+            try {
+                java.net.URL url = java.net.URI.create(
+                    "http://127.0.0.1:8000/api/groups/" + groupId + "/mark-viewed").toURL();
+                java.net.HttpURLConnection conn = (java.net.HttpURLConnection) url.openConnection();
+                conn.setRequestMethod("POST");
+                conn.setRequestProperty("Authorization", "Bearer " + SessionManager.token);
+                conn.setRequestProperty("Accept", "application/json");
+                conn.setDoOutput(true);
+                conn.getOutputStream().write(new byte[0]);
+                conn.getResponseCode(); // actually sends the request
+            } catch (Exception e) {
+                System.err.println("[Forum] Error marking group as viewed: " + e.getMessage());
+            }
+        }).start();
+    }
     /**
      * Custom cell showing all five fields per SDD figure 6.7:
      * title | status badge | author (UserID) | reply count | time
