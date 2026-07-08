@@ -711,12 +711,14 @@ return view('recommend.index', compact('joinedGroups', 'recommendedTopics', 'rec
         ->paginate(5)
         ->withQueryString();
 
-    return view('forum.group', compact('group', 'topics', 'search', 'filter'));
+    return view('forum.group', compact('group', 'topics', 'search', 'filter'))->with('showSidebar', false);
+
+
 }
 
 public function createTopic(Group $group)
 {
-    return view('topics.create', compact('group'));
+    return view('topics.create', compact('group'))->with('showSidebar', false);
 }
 
 public function storeTopic(Request $request)
@@ -771,7 +773,8 @@ public function showTopic(Topic $topic)
         ->take(3)
         ->get();
 
-    return view('topics.show', compact('topic', 'mainPost', 'participants', 'lastActivity', 'recommended'));
+    return view('topics.show', compact('topic', 'mainPost'))->with('showSidebar', false);
+
 }
 
 public function storeReply(Request $request, Post $post)
