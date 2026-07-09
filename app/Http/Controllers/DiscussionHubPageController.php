@@ -1,7 +1,7 @@
 <?php
 
 namespace App\Http\Controllers;
-
+use App\Models\Notification;
 use App\Models\GroupStudent;
 use App\Models\Post;
 use App\Models\Quiz;
@@ -298,7 +298,22 @@ class DiscussionHubPageController extends Controller
             'Attachment' => $attachmentPath,
             'AttachmentType' => $attachmentType,
         ]);
+// Requirement #2: notify the original post's author when someone replies
+if ($request->filled('parent_post_id')) {
+    $parentPost = Post::find($request->input('parent_post_id'));
 
+    if ($parentPost && $parentPost->UserID !== Auth::id()) {
+        $replierName = Auth::user()->UserName ?? Auth::user()->name ?? 'Someone';
+        $snippet = \Illuminate\Support\Str::limit($request->input('content', ''), 60);
+
+        Notification::create([
+            'UserID' => $parentPost->UserID,
+            'Message' => "{$replierName} replied to your post: \"{$snippet}\"",
+            'Status' => false, // unread
+            'Type' => 'Reply',
+        ]);
+    }
+}
         // Update participation points
         $this->updateParticipationScore(Auth::id(), $request->input('parent_post_id'));
 
@@ -807,5 +822,53 @@ public function acceptAnswer(Reply $reply)
 
     return redirect()->route('topics.show', $post->TopicID);
 }
+    
+
+public function pollNotifications(Request $request)
+{
+    $userId = Auth::id();
+
+    $unreadCount = Notification::where('UserID', $userId)
+        ->where('Status', false)
+        ->count();
+
+    $latest = Notification::where('UserID', $userId)
+        ->orderByDesc('CreatedAt')
+        ->take(10)
+        ->get()
+        ->map(function ($n) {
+            return [
+                'id' => $n->NotificationID,
+                'message' => $n->Message,
+                'type' => $n->Type,
+                'status' => $n->Status,
+                'time' => $n->CreatedAt->diffForHumans(),
+            ];
+        });
+
+    return response()->json([
+        'success' => true,
+        'unread_count' => $unreadCount,
+        'notifications' => $latest,
+    ]);
+}
+
+public function markNotificationRead(Notification $notification)
+{
+    if ($notification->UserID !== Auth::id()) {
+        abort(403);
     }
 
+    $notification->update(['Status' => true]);
+
+    return response()->json(['success' => true]);
+}
+
+public function markAllNotificationsRead()
+{
+    Notification::where('UserID', Auth::id())
+        ->where('Status', false)
+        ->update(['Status' => true]);
+
+    return response()->json(['success' => true]);
+    } }

@@ -69,19 +69,28 @@
 
     /* Custom Message Thread / Reply Actions Layout Structure */
     .msg-bubble-wrapper { position: relative; max-width: 75%; display: flex; gap: 10px; align-items: flex-start; width: fit-content; }
-    .msg-bubble-wrapper .reply-action-btn { visibility: hidden; opacity: 0; position: absolute; top: 50%; transform: translateY(-50%); color: var(--text-muted); cursor: pointer; padding: 6px 8px; background: #fff; border: 1px solid var(--border-color); border-radius: 20px; box-shadow: 0 2px 6px rgba(0,0,0,0.08); z-index: 10; font-size: 0.75rem; font-weight: 600; display: inline-flex; align-items: center; gap: 4px; transition: opacity 0.15s ease, visibility 0.15s ease; }
+    .msg-bubble-wrapper .reply-action-btn { visibility: hidden; opacity: 0; position: absolute; top: 50%; transform: translateY(-50%); color: var(--text-muted); cursor: pointer; padding: 6px 8px; background: #fff; border: 1px solid var(--border-color); border-radius: 20px; box-shadow: 0 2px 6px rgba(0,0,0,0.08); z-index: 10; font-size: 0.75rem; font-weight: 600; display: inline-flex; align-items: center; gap: 4px; transition: opacity 0.15s ease, visibility 0.15s ease; white-space: nowrap; }
     .msg-bubble-wrapper:hover .reply-action-btn { visibility: visible; opacity: 1; }
     
     .mine-wrapper { align-self: flex-end; flex-direction: row-reverse; }
     .mine-wrapper .reply-action-btn { left: -75px; }
     .mine-wrapper .delete-action-btn { visibility: visible; opacity: 1; left: -150px; }
+    .mine-wrapper .forward-action-btn { left: -225px; }
     .theirs-wrapper { align-self: flex-start; }
     .theirs-wrapper .reply-action-btn { right: -75px; }
+    .theirs-wrapper .forward-action-btn { right: -150px; }
 
     /* Profile Modal Backplates */
     .profile-modal-overlay { display: none; position: fixed; top:0; left:0; width:100%; height:100%; background: rgba(16, 24, 40, 0.4); z-index: 9999; justify-content: center; align-items: center; backdrop-filter: blur(4px); }
     .profile-modal-box { background: #fff; width: 100%; max-width: 400px; border-radius: var(--radius-lg); box-shadow: 0 10px 32px rgba(16,24,40,0.15); overflow: hidden; animation: slideUpModal 0.25s ease-out; }
     @keyframes slideUpModal { from { transform: translateY(20px); opacity:0; } to { transform: translateY(0); opacity:1; } }
+
+    /* Post highlight when jumped to via a forwarded link */
+    .msg-bubble-wrapper.post-highlighted > div:not(.avatar-circle-ui) {
+        outline: 2px solid var(--primary-color);
+        outline-offset: 2px;
+        transition: outline 0.3s ease;
+    }
 </style>
 
 <div class="dashboard-grid-container" id="clean-dashboard-root">
@@ -106,10 +115,11 @@
                     <option value="" disabled>No groups joined</option>
                 @endif
             </select>
-            
-            <!-- Topic filter is hidden - topics are auto-managed per group -->
-            <input type="hidden" name="topic_id" value="{{ $topic_id ?? request('topic_id') }}">
-            
+
+            <!-- topic_id intentionally NOT passed here — the controller derives the
+                 correct topic fresh from group_id. Passing a stale topic_id caused
+                 export/messages to stick to the wrong group after switching. -->
+
             <div class="search-wrapper">
                 <i class="fa-solid fa-magnifying-glass"></i>
                 <input type="text" name="search" class="form-control search-input" placeholder="Search conversation..." value="{{ request('search') }}">
@@ -140,7 +150,9 @@
                 
                 @foreach($threadedPosts as $post)
                     @php
-                       $isMine = ($post->UserID === auth()->id());
+                        // Ownership must be checked against the actual FK column (UserID),
+                        // not a non-existent AuthorID column.
+                        $isMine = ((int) $post->UserID === (int) auth()->id());
                         $senderName = $post->author?->UserName ?? $post->author?->name ?? 'Student';
                         
                         // Parse sender initials safely
@@ -151,12 +163,16 @@
                         $bgColor = $isMine ? '#d9fdd3' : '#ffffff';
                     @endphp
 
-                    <div class="msg-bubble-wrapper {{ $isMine ? 'mine-wrapper' : 'theirs-wrapper' }}" data-post-id="{{ $post->PostID }}" data-sender="{{ $senderName }}" data-role="Verified Contributor" data-email="{{ $post->author?->email ?? 'unspecified@domain.edu' }}">
+                    <div class="msg-bubble-wrapper {{ $isMine ? 'mine-wrapper' : 'theirs-wrapper' }}" id="post-{{ $post->PostID }}" data-post-id="{{ $post->PostID }}" data-sender="{{ $senderName }}" data-role="Verified Contributor" data-email="{{ $post->author?->email ?? 'unspecified@domain.edu' }}">
                         @if(!$isMine)
                             <div class="avatar-circle-ui avatar-green view-sender-profile" style="cursor: pointer;">{{ $loopInitials ?: 'ST' }}</div>
                         @endif
                         
                         <span class="reply-action-btn" onclick="setReplyContext({{ $post->PostID }}, '{{ $isMine ? 'You' : $senderName }}', '{{ Str::limit(addslashes($post->Content), 50) }}')"><i class="fa-solid fa-reply"></i> Reply</span>
+
+                        <span class="reply-action-btn forward-action-btn" onclick="openShareModal({{ $post->PostID }}, '{{ addslashes($senderName) }}', '{{ Str::limit(addslashes($post->Content), 150) }}')">
+                            <i class="fa-solid fa-share-nodes"></i> Forward
+                        </span>
 
                         @if($isMine)
                             <span class="reply-action-btn delete-action-btn" onclick="deleteMessage({{ $post->PostID }})" style="left: -150px;">
@@ -296,6 +312,33 @@
     </div>
 </div>
 
+<!-- FORWARD / SHARE-TO-SOCIAL MODAL (Requirement #12) -->
+<div class="profile-modal-overlay" id="share-modal-overlay">
+    <div class="profile-modal-box" style="max-width: 340px;">
+        <div style="padding: 20px 24px; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center;">
+            <h3 style="margin: 0; font-size: 1.05rem; color: var(--text-main);">Forward message</h3>
+            <i class="fa-solid fa-xmark" id="close-share-modal" style="cursor: pointer; color: var(--text-muted); font-size: 1.1rem;"></i>
+        </div>
+        <div style="padding: 20px 24px; display: flex; flex-direction: column; gap: 10px;">
+            <a href="#" id="share-whatsapp" target="_blank" rel="noopener" class="btn-share" style="justify-content: flex-start; color: #25D366;">
+                <i class="fa-brands fa-whatsapp"></i> WhatsApp
+            </a>
+            <a href="#" id="share-twitter" target="_blank" rel="noopener" class="btn-share" style="justify-content: flex-start; color: #1DA1F2;">
+                <i class="fa-brands fa-x-twitter"></i> X (Twitter)
+            </a>
+            <a href="#" id="share-facebook" target="_blank" rel="noopener" class="btn-share" style="justify-content: flex-start; color: #1877F2;">
+                <i class="fa-brands fa-facebook"></i> Facebook
+            </a>
+            <a href="#" id="share-email" class="btn-share" style="justify-content: flex-start; color: var(--text-muted);">
+                <i class="fa-regular fa-envelope"></i> Email
+            </a>
+            <button type="button" id="share-copy-link" class="btn-share" style="justify-content: flex-start; cursor: pointer; width: 100%;">
+                <i class="fa-solid fa-link"></i> Copy Link
+            </button>
+        </div>
+    </div>
+</div>
+
 <script>
     // Global orchestration loop to build dynamic humanized timestamps
     function updateTimestamps() {
@@ -357,7 +400,6 @@
                 return;
             }
 
-            // Remove the message element from DOM with animation
             if (messageElement) {
                 messageElement.style.transition = 'opacity 0.3s ease, transform 0.3s ease';
                 messageElement.style.opacity = '0';
@@ -373,6 +415,44 @@
         }
     }
 
+    // --- Requirement #12: Forward a post to social media platforms of choice ---
+    function openShareModal(postId, sender, contentSnippet) {
+        const baseUrl = window.location.origin + window.location.pathname + window.location.search;
+        const postUrl = baseUrl + '#post-' + postId;
+        const shareText = sender + ' shared: "' + contentSnippet + '"';
+
+        document.getElementById('share-whatsapp').href =
+            'https://wa.me/?text=' + encodeURIComponent(shareText + ' ' + postUrl);
+
+        document.getElementById('share-twitter').href =
+            'https://twitter.com/intent/tweet?text=' + encodeURIComponent(shareText) + '&url=' + encodeURIComponent(postUrl);
+
+        document.getElementById('share-facebook').href =
+            'https://www.facebook.com/sharer/sharer.php?u=' + encodeURIComponent(postUrl);
+
+        document.getElementById('share-email').href =
+            'mailto:?subject=' + encodeURIComponent('Shared from SmartTalk') +
+            '&body=' + encodeURIComponent(shareText + '\n\n' + postUrl);
+
+        const copyBtn = document.getElementById('share-copy-link');
+        copyBtn.onclick = function () {
+            navigator.clipboard.writeText(postUrl).then(function () {
+                copyBtn.innerHTML = '<i class="fa-solid fa-check"></i> Link copied!';
+                setTimeout(function () {
+                    copyBtn.innerHTML = '<i class="fa-solid fa-link"></i> Copy Link';
+                }, 1500);
+            }).catch(function () {
+                alert('Could not copy link. You can copy it manually: ' + postUrl);
+            });
+        };
+
+        document.getElementById('share-modal-overlay').style.display = 'flex';
+    }
+
+    function closeShareModal() {
+        document.getElementById('share-modal-overlay').style.display = 'none';
+    }
+
     document.addEventListener('DOMContentLoaded', function () {
         const chatForm = document.getElementById('whatsapp-form');
         const chatTextArea = document.getElementById('composer-textarea');
@@ -385,7 +465,9 @@
         const profileModal = document.getElementById('global-profile-modal');
         const closeProfileBtn = document.getElementById('close-profile-modal');
 
-        // Fire & initialize continuous calculation loop
+        const shareModal = document.getElementById('share-modal-overlay');
+        const closeShareBtn = document.getElementById('close-share-modal');
+
         updateTimestamps();
         setInterval(updateTimestamps, 60000);
 
@@ -393,7 +475,18 @@
             messagesContainer.scrollTop = messagesContainer.scrollHeight;
         }
 
-        // Delegate Profile View Interactions securely
+        // If we arrived via a forwarded link (#post-123), scroll to and highlight it
+        if (window.location.hash && window.location.hash.startsWith('#post-')) {
+            const target = document.querySelector(window.location.hash);
+            if (target) {
+                setTimeout(() => {
+                    target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    target.classList.add('post-highlighted');
+                    setTimeout(() => target.classList.remove('post-highlighted'), 2500);
+                }, 200);
+            }
+        }
+
         if (messagesContainer) {
             messagesContainer.addEventListener('click', function(e) {
                 if (e.target.classList.contains('view-sender-profile')) {
@@ -422,8 +515,16 @@
             });
         }
 
-        // (Replaced by renderPendingAttachmentPreview() below)
-        // Keep the X in file-preview-status as the canonical clear behavior.
+        if (closeShareBtn) {
+            closeShareBtn.addEventListener('click', closeShareModal);
+        }
+
+        if (shareModal) {
+            shareModal.addEventListener('click', function (e) {
+                if (e.target === shareModal) closeShareModal();
+            });
+        }
+
         if (clearFileBtn) {
             clearFileBtn.addEventListener('click', function() {
                 fileInputField.value = '';
@@ -459,7 +560,7 @@
                 const formData = new FormData(chatForm);
 
                 const submitBtn = chatForm.querySelector('button[type="submit"]');
-if (submitBtn) submitBtn.disabled = true;
+                if (submitBtn) submitBtn.disabled = true;
 
                 try {
                     const res = await fetch(chatForm.action, {
@@ -471,7 +572,6 @@ if (submitBtn) submitBtn.disabled = true;
                         body: formData,
                     });
 
-                    // Debug: log status + body when response isn't JSON
                     const contentType = res.headers.get('content-type') || '';
                     if (!contentType.includes('application/json')) {
                         const txt = await res.text().catch(() => '');
@@ -496,13 +596,11 @@ if (submitBtn) submitBtn.disabled = true;
                         return;
                     }
 
-                    // Append server-confirmed message only
                     messagesContainer.insertAdjacentHTML('beforeend', data.html);
 
                     updateTimestamps();
                     messagesContainer.scrollTop = messagesContainer.scrollHeight;
 
-                    // Clear form
                     chatTextArea.value = '';
                     clearReplyContext();
                     fileInputField.value = '';
@@ -515,7 +613,6 @@ if (submitBtn) submitBtn.disabled = true;
             });
         }
 
-        // Local (pre-send) attachment preview rendering (REPLACED with safe version)
         function renderPendingAttachmentPreview(file) {
             const old = document.getElementById('pending-attachment-preview');
             if (old) old.remove();
@@ -538,7 +635,6 @@ if (submitBtn) submitBtn.disabled = true;
             inner.style.fontFamily = "'Inter', sans-serif";
             inner.style.flexGrow = '1';
 
-            // Avoid template literals to prevent JS parse issues
             const fileNameEscaped = String(file.name);
             inner.innerHTML =
                 '<div style="display:flex; align-items:center; gap:10px; margin-bottom:6px;">' +
@@ -571,15 +667,10 @@ if (submitBtn) submitBtn.disabled = true;
             });
         }
 
-
-
-
-        // Automatic polling every 3 seconds for new messages
         const pollUrl = '{{ route('messages.poll') }}';
         let topicId = document.getElementById('message-topic-id')?.value || null;
         let groupId = document.getElementById('message-group-id')?.value || null;
 
-        // Backend uses PostID for dedupe; expose latest PostID from DOM when possible.
         let pollingLatestPostId = (() => {
             let maxId = 0;
             messagesContainer.querySelectorAll('[data-post-id]').forEach(el => {
@@ -591,8 +682,6 @@ if (submitBtn) submitBtn.disabled = true;
 
         const pollMessages = async () => {
             if (!topicId) return;
-
-            // Ensure we don't spam concurrent requests
             if (pollMessages._busy) return;
             pollMessages._busy = true;
 
@@ -600,9 +689,7 @@ if (submitBtn) submitBtn.disabled = true;
                 const pollUrlWithParams = pollUrl + '?topic_id=' + encodeURIComponent(topicId) + '&group_id=' + encodeURIComponent(groupId || '') + '&newer_than=' + encodeURIComponent(pollingLatestPostId);
                 const res = await fetch(pollUrlWithParams, {
                     method: 'GET',
-                    headers: {
-                        'Accept': 'application/json'
-                    }
+                    headers: { 'Accept': 'application/json' }
                 });
 
                 if (!res.ok) return;
@@ -625,7 +712,6 @@ if (submitBtn) submitBtn.disabled = true;
             }
         };
 
-        // Start polling
         pollMessages();
         setInterval(pollMessages, 3000);
 

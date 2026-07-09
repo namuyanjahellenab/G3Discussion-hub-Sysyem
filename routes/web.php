@@ -185,3 +185,11 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
     Route::put('/groups/{group}', [AdminGroupController::class, 'update'])->name('groups.update');
 });
 
+Route::get('/notifications/poll', [DiscussionHubPageController::class, 'pollNotifications'])
+    ->middleware('verified')->name('notifications.poll');
+
+Route::patch('/notifications/{notification}/read', [DiscussionHubPageController::class, 'markNotificationRead'])
+    ->middleware('verified')->name('notifications.read');
+
+Route::patch('/notifications/read-all', [DiscussionHubPageController::class, 'markAllNotificationsRead'])
+    ->middleware('verified')->name('notifications.read.all');
