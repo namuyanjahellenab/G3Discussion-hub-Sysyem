@@ -42,7 +42,7 @@
                 style="-fx-background-color: transparent; -fx-text-fill: #5b6272; -fx-padding: 9 20; -fx-font-size: 13;">
             <VBox.margin><Insets left="10" right="10"/></VBox.margin>
         </Button>
-        <Button text="⚙  Settings" maxWidth="Infinity" alignment="CENTER_LEFT"
+        <Button text="⚙  Settings" onAction="#onOpenSettings" maxWidth="Infinity" alignment="CENTER_LEFT"
                 style="-fx-background-color: transparent; -fx-text-fill: #5b6272; -fx-padding: 9 20; -fx-font-size: 13;">
             <VBox.margin><Insets left="10" right="10"/></VBox.margin>
         </Button>
@@ -112,7 +112,7 @@
                     <!-- Group Management footer -->
                     <VBox spacing="6" style="-fx-padding: 4 0 4 2;">
                         <Label text="GROUP MANAGEMENT" style="-fx-font-weight: bold; -fx-font-size: 11; -fx-text-fill: #9aa0ab;"/>
-                        <Hyperlink text="See All Groups →" onAction="#onOpenForum"
+                        <Hyperlink text="See All Groups →" onAction="#onOpenGroupSelection"
                                    style="-fx-text-fill: #2f5bea; -fx-font-size: 13; -fx-font-weight: bold; -fx-padding: 0;"/>
                     </VBox>
 

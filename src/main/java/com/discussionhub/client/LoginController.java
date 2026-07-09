@@ -10,6 +10,8 @@ import javafx.scene.Scene;
 import javafx.scene.control.*;
 import javafx.stage.Stage;
 
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.URI;
@@ -65,18 +67,19 @@ public class LoginController {
                     try (Scanner s = new Scanner(conn.getInputStream()).useDelimiter("\\A")) {
                         String result = s.hasNext() ? s.next() : "";
 
-                        // Simple JSON parsing (actual response shape: {"token":"...","user":{"id":5,...}})
                         String token = extractJsonValue(result, "token");
                         String userIdStr = extractJsonValue(result, "id");
                         int userId = userIdStr.isEmpty() ? 1 : Integer.parseInt(userIdStr);
-                        String name = extractJsonValue(result, "name");   // <-- NEW LINE
+                        String name = extractJsonValue(result, "name");
 
                         SessionManager.token = token;
                         SessionManager.userId = userId;
                         SessionManager.userEmail = email;
-                        SessionManager.fullName = name;                  // <-- NEW LINE
+                        SessionManager.fullName = name;
 
-                        Platform.runLater(this::loadGroupSelection);
+                        dbManager.ensureDeviceState(SessionManager.userId);
+
+                        checkGroupsAndNavigate();
                     }
                 } else {
                     Platform.runLater(() -> {
@@ -93,11 +96,64 @@ public class LoginController {
         }).start();
     }
 
+    /**
+     * Decides where to send the student right after login:
+     * - Belongs to at least one group already -> straight to Dashboard.
+     * - Belongs to zero groups (brand-new account) -> Group Selection screen first.
+     * Runs on a background thread since it's a network call; navigation itself
+     * happens back on the JavaFX thread via Platform.runLater().
+     */
+    private void checkGroupsAndNavigate() {
+        boolean hasAtLeastOneGroup = false;
+        try {
+            URL url = URI.create("http://localhost:8000/api/groups").toURL();
+            HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+            conn.setRequestMethod("GET");
+            conn.setRequestProperty("Authorization", "Bearer " + SessionManager.token);
+            conn.setRequestProperty("Accept", "application/json");
+
+            if (conn.getResponseCode() == 200) {
+                BufferedReader in = new BufferedReader(new InputStreamReader(conn.getInputStream()));
+                StringBuilder response = new StringBuilder();
+                String line;
+                while ((line = in.readLine()) != null) response.append(line);
+                in.close();
+
+                hasAtLeastOneGroup = response.toString().contains("\"is_member\":true");
+            }
+        } catch (Exception e) {
+            System.err.println("[Login] Error checking group membership: " + e.getMessage());
+        }
+
+        boolean finalHasGroup = hasAtLeastOneGroup;
+        Platform.runLater(() -> {
+            if (finalHasGroup) {
+                loadDashboard();
+            } else {
+                loadGroupSelection();
+            }
+        });
+    }
+
+    private void loadDashboard() {
+        try {
+            FXMLLoader loader = new FXMLLoader(getClass().getResource("dashboard-view.fxml"));
+            Scene scene = new Scene(loader.load(), 900, 650);
+            DashboardController controller = loader.getController();
+            controller.setServices(dbManager, syncService);
+
+            Stage stage = (Stage) emailField.getScene().getWindow();
+            stage.setScene(scene);
+            stage.setTitle("DiscussionHub — Dashboard");
+
+            QuizPopupService.start(stage, SessionManager.token);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
     private void loadGroupSelection() {
         try {
-            // Re-initialize services with the logged-in user ID
-            dbManager.ensureDeviceState(SessionManager.userId);
-
             FXMLLoader loader = new FXMLLoader(getClass().getResource("group-selection-view.fxml"));
             Scene scene = new Scene(loader.load(), 800, 650);
             GroupSelectionController controller = loader.getController();
@@ -107,8 +163,7 @@ public class LoginController {
             stage.setScene(scene);
             stage.setTitle("DiscussionHub — Select Group");
 
-        // Start polling for active quizzes using this session's real auth token
-        QuizPopupService.start(stage, SessionManager.token);
+            QuizPopupService.start(stage, SessionManager.token);
         } catch (Exception e) {
             e.printStackTrace();
         }

@@ -298,6 +298,22 @@ public class DashboardController {
         }
     }
 
+    @FXML
+    protected void onOpenGroupSelection() {
+        try {
+            FXMLLoader loader = new FXMLLoader(getClass().getResource("group-selection-view.fxml"));
+            Scene scene = new Scene(loader.load(), 800, 650);
+            GroupSelectionController controller = loader.getController();
+            controller.setServices(dbManager, syncService);
+
+            Stage stage = (Stage) syncStatusLabel.getScene().getWindow();
+            stage.setScene(scene);
+            stage.setTitle("DiscussionHub — Select Group");
+        } catch (Exception e) {
+            System.err.println("[Dashboard] Error opening group selection: " + e.getMessage());
+        }
+    }
+
     private void openForumForGroup(GroupSummary group) {
         try {
             FXMLLoader loader = new FXMLLoader(getClass().getResource("forum-view.fxml"));
@@ -328,6 +344,21 @@ public class DashboardController {
         } catch (Exception e) {
             System.err.println("[Dashboard] Error opening notifications: " + e.getMessage());
             e.printStackTrace();
+        }
+    }
+    @FXML
+    protected void onOpenSettings() {
+        try {
+            FXMLLoader loader = new FXMLLoader(getClass().getResource("settings-view.fxml"));
+            Scene scene = new Scene(loader.load(), 800, 600);
+            SettingsController controller = loader.getController();
+            controller.setServices(dbManager, syncService);
+
+            Stage stage = (Stage) syncStatusLabel.getScene().getWindow();
+            stage.setScene(scene);
+            stage.setTitle("DiscussionHub — Settings");
+        } catch (Exception e) {
+            System.err.println("[Dashboard] Error opening settings: " + e.getMessage());
         }
     }
 
