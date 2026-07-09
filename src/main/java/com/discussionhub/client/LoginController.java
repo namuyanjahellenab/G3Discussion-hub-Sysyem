@@ -3,9 +3,11 @@ package com.discussionhub.client;
 import com.discussionhub.client.database.DatabaseManager;
 import com.discussionhub.client.quiz.QuizPopupService;
 import com.discussionhub.client.utils.DeltaSyncService;
+import com.discussionhub.client.utils.NavigationUtil;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
+import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.scene.control.*;
 import javafx.stage.Stage;
@@ -138,12 +140,12 @@ public class LoginController {
     private void loadDashboard() {
         try {
             FXMLLoader loader = new FXMLLoader(getClass().getResource("dashboard-view.fxml"));
-            Scene scene = new Scene(loader.load(), 900, 650);
+            Parent root = loader.load();
             DashboardController controller = loader.getController();
             controller.setServices(dbManager, syncService);
 
             Stage stage = (Stage) emailField.getScene().getWindow();
-            stage.setScene(scene);
+            NavigationUtil.switchScene(stage, root);
             stage.setTitle("DiscussionHub — Dashboard");
 
             QuizPopupService.start(stage, SessionManager.token);
@@ -155,12 +157,12 @@ public class LoginController {
     private void loadGroupSelection() {
         try {
             FXMLLoader loader = new FXMLLoader(getClass().getResource("group-selection-view.fxml"));
-            Scene scene = new Scene(loader.load(), 800, 650);
+            Parent root = loader.load();
             GroupSelectionController controller = loader.getController();
             controller.setServices(dbManager, syncService);
 
             Stage stage = (Stage) emailField.getScene().getWindow();
-            stage.setScene(scene);
+            NavigationUtil.switchScene(stage, root);
             stage.setTitle("DiscussionHub — Select Group");
 
             QuizPopupService.start(stage, SessionManager.token);

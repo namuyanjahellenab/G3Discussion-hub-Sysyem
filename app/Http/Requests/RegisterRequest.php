@@ -7,25 +7,16 @@ use Illuminate\Validation\Rules\Password;
 
 class RegisterRequest extends FormRequest
 {
-    /**
-     * Determine if the user is authorized to make this request.
-     */
     public function authorize(): bool
     {
         return true;
     }
 
-    /**
-     * Get the validation rules that apply to the request.
-     *
-     * @return array<string, \Illuminate\Contracts\Validation\ValidationRule|array|string>
-     */
     public function rules(): array
     {
         return [
             'full_name' => ['required', 'string', 'min:3', 'max:255'],
-            'email' => ['required', 'string', 'email', 'max:255', 'unique:users,email'],
-            'username' => ['required', 'string', 'min:3', 'max:255', 'unique:users,username', 'alpha_dash'],
+            'email' => ['required', 'string', 'email', 'max:255', 'unique:User,Email'],
             'password' => [
                 'required',
                 'string',
@@ -41,9 +32,6 @@ class RegisterRequest extends FormRequest
         ];
     }
 
-    /**
-     * Get custom messages for validator errors.
-     */
     public function messages(): array
     {
         return [
@@ -53,10 +41,6 @@ class RegisterRequest extends FormRequest
             'email.required' => 'Email address is required.',
             'email.email' => 'Please enter a valid email address.',
             'email.unique' => 'This email address is already registered.',
-            'username.required' => 'Username is required.',
-            'username.min' => 'Username must be at least 3 characters.',
-            'username.unique' => 'This username is already taken.',
-            'username.alpha_dash' => 'Username can only contain letters, numbers, dashes, and underscores.',
             'password.required' => 'Password is required.',
             'password.min' => 'Password must be at least 8 characters.',
             'password.mixed_case' => 'Password must contain both uppercase and lowercase letters.',

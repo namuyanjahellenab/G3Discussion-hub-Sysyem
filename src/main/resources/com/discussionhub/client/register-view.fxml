@@ -3,79 +3,98 @@
 <?import javafx.scene.control.*?>
 <?import javafx.scene.layout.*?>
 <?import javafx.geometry.Insets?>
-<?import javafx.scene.text.Text?>
 
-<HBox xmlns:fx="http://javafx.com/fxml" fx:controller="com.discussionhub.client.RegisterController"
-      spacing="0" style="-fx-background-color: #e8eef7;">
+<ScrollPane xmlns:fx="http://javafx.com/fxml" fx:controller="com.discussionhub.client.RegisterController"
+            fitToWidth="true" fitToHeight="true" style="-fx-background-color: #e8eef7;">
+    <StackPane style="-fx-background-color: #e8eef7; -fx-padding: 40;">
+        <HBox maxWidth="1000" spacing="0" alignment="TOP_CENTER"
+              style="-fx-background-color: white; -fx-background-radius: 10;
+                     -fx-effect: dropshadow(gaussian, #d7dce8, 14, 0, 0, 4);">
 
-    <!-- LEFT PANEL -->
-    <VBox HBox.hgrow="ALWAYS" spacing="15" style="-fx-background-color: white; -fx-padding: 30; -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.1), 10, 0, 0, 5);">
-        <Label text="CREATE AN ACCOUNT" style="-fx-text-fill: #1a73e8; -fx-font-size: 24; -fx-font-weight: bold;"/>
-        <Label text="Join the Discussion Hub community today." style="-fx-text-fill: grey;"/>
-        <Label text="Choose a role before continuing." style="-fx-text-fill: #1a73e8;"/>
+            <!-- LEFT PANEL -->
+            <VBox prefWidth="480" minWidth="480" spacing="15" style="-fx-padding: 35;">
+                <Label text="CREATE AN ACCOUNT" style="-fx-text-fill: #1a73e8; -fx-font-size: 22; -fx-font-weight: bold;"/>
+                <Label text="Join the Discussion Hub community today." style="-fx-text-fill: grey; -fx-font-size: 13;"/>
+                <Label text="Choose a role before continuing." style="-fx-text-fill: #1a73e8; -fx-font-size: 12.5;"/>
 
-        <ScrollPane fitToWidth="true" style="-fx-background-color: transparent; -fx-background: white;">
-            <VBox spacing="10">
-                <Label text="Full Name" style="-fx-font-weight: bold;"/>
-                <TextField fx:id="fullNameField" promptText="Nakato Vannesah" style="-fx-padding: 10; -fx-border-radius: 6; -fx-border-color: #ddd;"/>
+                <VBox spacing="10">
+                    <Label text="Full Name" style="-fx-font-weight: bold; -fx-font-size: 12.5;"/>
+                    <TextField fx:id="fullNameField" promptText="Nakato Vannesah"
+                               style="-fx-background-color: #f6f8fb; -fx-padding: 10; -fx-background-radius: 8;
+                                      -fx-border-color: #e3e6ee; -fx-border-radius: 8;"/>
 
-                <Label text="Email Address" style="-fx-font-weight: bold;"/>
-                <TextField fx:id="emailField" style="-fx-padding: 10; -fx-border-radius: 6; -fx-border-color: #ddd;"/>
+                    <Label text="Email Address" style="-fx-font-weight: bold; -fx-font-size: 12.5;"/>
+                    <TextField fx:id="emailField"
+                               style="-fx-background-color: #f6f8fb; -fx-padding: 10; -fx-background-radius: 8;
+                                      -fx-border-color: #e3e6ee; -fx-border-radius: 8;"/>
 
-                <Label text="Username" style="-fx-font-weight: bold;"/>
-                <TextField fx:id="usernameField" style="-fx-padding: 10; -fx-border-radius: 6; -fx-border-color: #ddd;"/>
+                    <Label text="Password" style="-fx-font-weight: bold; -fx-font-size: 12.5;"/>
+                    <HBox spacing="6">
+                        <StackPane HBox.hgrow="ALWAYS">
+                            <PasswordField fx:id="passwordField"
+                                           style="-fx-background-color: #f6f8fb; -fx-padding: 10; -fx-background-radius: 8;
+                                                  -fx-border-color: #e3e6ee; -fx-border-radius: 8;"/>
+                            <TextField fx:id="passwordVisibleField" visible="false" managed="false"
+                                       style="-fx-background-color: #f6f8fb; -fx-padding: 10; -fx-background-radius: 8;
+                                              -fx-border-color: #e3e6ee; -fx-border-radius: 8;"/>
+                        </StackPane>
+                        <Button fx:id="showPasswordBtn" text="👁" onAction="#onTogglePassword"
+                                style="-fx-background-color: #f6f8fb; -fx-padding: 8; -fx-background-radius: 8;"/>
+                    </HBox>
 
-                <Label text="Password" style="-fx-font-weight: bold;"/>
-                <HBox spacing="5">
-                    <PasswordField fx:id="passwordField" HBox.hgrow="ALWAYS" style="-fx-padding: 10; -fx-border-radius: 6; -fx-border-color: #ddd;"/>
-                    <Button fx:id="showPasswordBtn" text="👁" onAction="#onTogglePassword" style="-fx-padding: 8;"/>
-                </HBox>
+                    <VBox fx:id="validationBox" spacing="3" style="-fx-padding: 4 0 0 6;">
+                        <Label fx:id="lenLabel" text="❌ At least 8 characters" style="-fx-font-size: 11;"/>
+                        <Label fx:id="upperLabel" text="❌ Contains uppercase letter" style="-fx-font-size: 11;"/>
+                        <Label fx:id="lowerLabel" text="❌ Contains lowercase letter" style="-fx-font-size: 11;"/>
+                        <Label fx:id="numLabel" text="❌ Contains number" style="-fx-font-size: 11;"/>
+                        <Label fx:id="specLabel" text="❌ Contains special character (!@#$%%^&amp;*)" style="-fx-font-size: 11;"/>
+                    </VBox>
 
-                <VBox fx:id="validationBox" spacing="2" style="-fx-padding: 5 0 0 10;">
-                    <Label fx:id="lenLabel" text="❌ At least 8 characters" style="-fx-font-size: 11;"/>
-                    <Label fx:id="upperLabel" text="❌ Contains uppercase letter" style="-fx-font-size: 11;"/>
-                    <Label fx:id="lowerLabel" text="❌ Contains lowercase letter" style="-fx-font-size: 11;"/>
-                    <Label fx:id="numLabel" text="❌ Contains number" style="-fx-font-size: 11;"/>
-                    <Label fx:id="specLabel" text="❌ Contains special character (!@#$%%^&amp;*)" style="-fx-font-size: 11;"/>
+                    <Label text="Confirm Password" style="-fx-font-weight: bold; -fx-font-size: 12.5;"/>
+                    <PasswordField fx:id="confirmPasswordField"
+                                   style="-fx-background-color: #f6f8fb; -fx-padding: 10; -fx-background-radius: 8;
+                                          -fx-border-color: #e3e6ee; -fx-border-radius: 8;"/>
                 </VBox>
 
-                <Label text="Confirm Password" style="-fx-font-weight: bold;"/>
-                <PasswordField fx:id="confirmPasswordField" style="-fx-padding: 10; -fx-border-radius: 6; -fx-border-color: #ddd;"/>
+                <Label fx:id="statusBar" text="Please review and accept the rules to continue" wrapText="true"
+                       style="-fx-padding: 10; -fx-border-color: #1a73e8; -fx-border-radius: 6; -fx-text-fill: #1a73e8; -fx-font-size: 12;">
+                    <VBox.margin><Insets top="6"/></VBox.margin>
+                </Label>
+
+                <Button fx:id="completeRegistrationButton" text="COMPLETE REGISTRATION" onAction="#onCompleteRegistration"
+                        disable="true" maxWidth="Infinity"
+                        style="-fx-background-color: #1a73e8; -fx-text-fill: white; -fx-font-weight: bold;
+                               -fx-padding: 12; -fx-background-radius: 6;"/>
+
+                <HBox alignment="CENTER" spacing="5">
+                    <Label text="Already have an account?" style="-fx-font-size: 12.5;"/>
+                    <Hyperlink text="Sign in" onAction="#onSignIn" style="-fx-text-fill: #1a73e8; -fx-font-size: 12.5;"/>
+                </HBox>
+                <Label fx:id="errorLabel" text="" wrapText="true" style="-fx-text-fill: red; -fx-font-size: 12;" visible="false"/>
             </VBox>
-        </ScrollPane>
 
-        <Label fx:id="statusBar" text="✓ STATUS: PENDING RULE ACCEPTANCE"
-               style="-fx-padding: 10; -fx-border-color: #1a73e8; -fx-border-radius: 6; -fx-text-fill: #1a73e8;"/>
+            <Separator orientation="VERTICAL"/>
 
-        <Button fx:id="completeRegistrationButton" text="COMPLETE REGISTRATION" onAction="#onCompleteRegistration"
-                disable="true" maxWidth="Infinity"
-                style="-fx-background-color: #1a73e8; -fx-text-fill: white; -fx-font-weight: bold; -fx-padding: 12; -fx-background-radius: 6;"/>
+            <!-- RIGHT PANEL -->
+            <VBox prefWidth="480" minWidth="480" spacing="18" style="-fx-padding: 35;">
+                <Label text="PLATFORM RULES &amp; GUIDELINES" style="-fx-font-weight: bold; -fx-font-size: 16;"/>
 
-        <HBox alignment="CENTER" spacing="5">
-            <Label text="Already have an account?"/>
-            <Hyperlink text="Sign in" onAction="#onSignIn" style="-fx-text-fill: #1a73e8;"/>
+                <VBox spacing="14">
+                    <Label text="1. Be Respectful: Harassment, hate speech, and personal attacks are strictly prohibited. Treat all members with courtesy and maintain a professional tone in all discussions."
+                           wrapText="true" style="-fx-font-size: 12.5;"/>
+                    <Label text="2. No Spam: Do not post promotional content, redundant topics, or malicious links. Keep discussions relevant to the category and contribute meaningful value to the community."
+                           wrapText="true" style="-fx-font-size: 12.5;"/>
+                    <Label text="3. Privacy: Do not share personal information or breach confidentiality."
+                           wrapText="true" style="-fx-font-size: 12.5;"/>
+                </VBox>
+
+                <CheckBox fx:id="rulesCheckBox"
+                          text="I have read and agree to abide by the Platform Rules and guidelines. I understand that Violations may result in account termination."
+                          wrapText="true" onAction="#onRulesChecked" style="-fx-font-size: 12.5;"/>
+
+                <Hyperlink text="DECLINE" onAction="#onDecline" style="-fx-text-fill: #1a73e8; -fx-font-size: 12.5;"/>
+            </VBox>
+
         </HBox>
-        <Label fx:id="errorLabel" text="" style="-fx-text-fill: red;" visible="false"/>
-    </VBox>
-
-    <!-- RIGHT PANEL -->
-    <VBox HBox.hgrow="ALWAYS" spacing="20" style="-fx-padding: 30; -fx-background-color: white; -fx-border-color: #eee; -fx-border-width: 0 0 0 1;">
-        <Label text="PLATFORM RULES &amp; GUIDELINES" style="-fx-font-weight: bold; -fx-font-size: 18;"/>
-
-        <VBox spacing="15">
-            <Label text="1. Be Respectful: Harassment, hate speech, and personal attacks are strictly prohibited. Treat all members with courtesy and maintain a professional tone in all discussions." wrapText="true"/>
-            <Label text="2. No Spam: Do not post promotional content, redundant topics, or malicious links. Keep discussions relevant to the category and contribute meaningful value to the community." wrapText="true"/>
-            <Label text="3. Privacy: Do not share personal information or breach confidentiality." wrapText="true"/>
-        </VBox>
-
-        <CheckBox fx:id="rulesCheckBox" text="I have read and agree to abide by the Platform Rules and guidelines. I understand that Violations may result in account termination."
-                  wrapText="true" onAction="#onRulesChecked"/>
-
-        <Button fx:id="acceptRulesButton" text="ACCEPT RULES" onAction="#onAcceptRules"
-                disable="true" maxWidth="Infinity"
-                style="-fx-background-color: #1a73e8; -fx-text-fill: white; -fx-font-weight: bold; -fx-padding: 12; -fx-background-radius: 6;"/>
-
-        <Hyperlink text="DECLINE" onAction="#onDecline" style="-fx-text-fill: #1a73e8;"/>
-    </VBox>
-
-</HBox>
+    </StackPane>
+</ScrollPane>

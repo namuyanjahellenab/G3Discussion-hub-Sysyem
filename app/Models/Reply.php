@@ -10,7 +10,9 @@ class Reply extends Model
     protected $primaryKey = 'ReplyID';
     const CREATED_AT = 'CreatedAt';
     const UPDATED_AT = 'UpdatedAt';
-    protected $fillable = ['PostID', 'UserID', 'ReplyContent', 'IsAccepted'];
+
+    // added QuotedReplyID
+    protected $fillable = ['PostID', 'UserID', 'ReplyContent', 'IsAccepted', 'QuotedReplyID'];
 
     public function author()
     {
@@ -20,5 +22,11 @@ class Reply extends Model
     public function post()
     {
         return $this->belongsTo(Post::class, 'PostID', 'PostID');
+    }
+
+    // NEW: the reply this one is quoting, if any
+    public function quotedReply()
+    {
+        return $this->belongsTo(Reply::class, 'QuotedReplyID', 'ReplyID');
     }
 }

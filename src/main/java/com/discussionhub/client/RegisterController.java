@@ -8,6 +8,7 @@ import javafx.fxml.FXMLLoader;
 import javafx.scene.Scene;
 import javafx.scene.control.*;
 import javafx.stage.Stage;
+import javafx.scene.control.Button;
 
 import java.io.OutputStream;
 import java.net.HttpURLConnection;
@@ -19,19 +20,18 @@ public class RegisterController {
 
     @FXML private TextField fullNameField;
     @FXML private TextField emailField;
-    @FXML private TextField usernameField;
     @FXML private PasswordField passwordField;
+    @FXML private TextField passwordVisibleField;
+    @FXML private Button showPasswordBtn;
     @FXML private PasswordField confirmPasswordField;
     @FXML private Label lenLabel, upperLabel, lowerLabel, numLabel, specLabel;
     @FXML private Label statusBar;
     @FXML private Button completeRegistrationButton;
-    @FXML private Button acceptRulesButton;
     @FXML private CheckBox rulesCheckBox;
     @FXML private Label errorLabel;
 
     private DatabaseManager dbManager;
     private DeltaSyncService syncService;
-    private boolean rulesAccepted = false;
 
     public void setServices(DatabaseManager dbManager, DeltaSyncService syncService) {
         this.dbManager = dbManager;
@@ -40,6 +40,7 @@ public class RegisterController {
 
     @FXML
     public void initialize() {
+        passwordVisibleField.textProperty().bindBidirectional(passwordField.textProperty());
         passwordField.textProperty().addListener((obs, oldVal, newVal) -> validatePassword(newVal));
     }
 
@@ -69,14 +70,9 @@ public class RegisterController {
 
     @FXML
     public void onRulesChecked() {
-        acceptRulesButton.setDisable(!rulesCheckBox.isSelected());
-    }
-
-    @FXML
-    public void onAcceptRules() {
-        rulesAccepted = true;
-        statusBar.setText("✓ RULES ACCEPTED");
-        completeRegistrationButton.setDisable(false);
+        boolean accepted = rulesCheckBox.isSelected();
+        completeRegistrationButton.setDisable(!accepted);
+        statusBar.setText(accepted ? "✓ Rules accepted" : "Please review and accept the rules to continue");
     }
 
     @FXML
@@ -93,11 +89,10 @@ public class RegisterController {
     public void onCompleteRegistration() {
         String name = fullNameField.getText();
         String email = emailField.getText();
-        String username = usernameField.getText();
         String password = passwordField.getText();
         String confirm = confirmPasswordField.getText();
 
-        if (name.isEmpty() || email.isEmpty() || username.isEmpty() || password.isEmpty()) {
+        if (name.isEmpty() || email.isEmpty() || password.isEmpty()) {
             showError("All fields are required.");
             return;
         }
@@ -116,8 +111,8 @@ public class RegisterController {
                 conn.setDoOutput(true);
 
                 String json = String.format(
-                        "{\"name\":\"%s\",\"email\":\"%s\",\"username\":\"%s\",\"password\":\"%s\",\"role\":\"student\"}",
-                        name, email, username, password
+                    "{\"name\":\"%s\",\"email\":\"%s\",\"password\":\"%s\"}",
+                    escapeJson(name), escapeJson(email), escapeJson(password)
                 );
 
                 try (OutputStream os = conn.getOutputStream()) {
@@ -134,7 +129,7 @@ public class RegisterController {
                         onSignIn();
                     });
                 } else {
-                    Platform.runLater(() -> showError("Server error: " + code));
+                    Platform.runLater(() -> showError("Registration failed (code " + code + "). Email may already be in use."));
                 }
             } catch (Exception e) {
                 Platform.runLater(() -> showError("Network error: " + e.getMessage()));
@@ -160,11 +155,21 @@ public class RegisterController {
 
     @FXML
     public void onTogglePassword() {
-        // Toggle not explicitly required here by visual spec but included for completeness if needed
+        boolean currentlyMasked = passwordField.isVisible();
+        passwordField.setVisible(!currentlyMasked);
+        passwordField.setManaged(!currentlyMasked);
+        passwordVisibleField.setVisible(currentlyMasked);
+        passwordVisibleField.setManaged(currentlyMasked);
+        showPasswordBtn.setText(currentlyMasked ? "🙈" : "👁");
     }
 
     private void showError(String msg) {
         errorLabel.setText(msg);
         errorLabel.setVisible(true);
+    }
+
+    private String escapeJson(String input) {
+        if (input == null) return "";
+        return input.replace("\\", "\\\\").replace("\"", "\\\"");
     }
 }

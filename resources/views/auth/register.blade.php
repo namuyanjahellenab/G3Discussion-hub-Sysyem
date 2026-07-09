@@ -35,10 +35,10 @@
                 <!-- Full Name -->
                 <div class="form-group">
                     <label for="full_name">Full Name:</label>
-                    <input 
-                        type="text" 
-                        id="full_name" 
-                        name="full_name" 
+                    <input
+                        type="text"
+                        id="full_name"
+                        name="full_name"
                         placeholder="Nakato Vannesah"
                         value="{{ old('full_name') }}"
                         required
@@ -51,10 +51,10 @@
                 <!-- Email Address -->
                 <div class="form-group">
                     <label for="email">Email Address:</label>
-                    <input 
-                        type="email" 
-                        id="email" 
-                        name="email" 
+                    <input
+                        type="email"
+                        id="email"
+                        name="email"
                         placeholder="nakatov@gmail.com"
                         value="{{ old('email') }}"
                         required
@@ -64,37 +64,21 @@
                     @enderror
                 </div>
 
-                <!-- Username -->
-                <div class="form-group">
-                    <label for="username">Username:</label>
-                    <input 
-                        type="text" 
-                        id="username" 
-                        name="username" 
-                        placeholder="Nakato V"
-                        value="{{ old('username') }}"
-                        required
-                    >
-                    @error('username')
-                        <div class="field-error">{{ $message }}</div>
-                    @enderror
-                </div>
-
                 <!-- Password -->
                 <div class="form-group">
                     <label for="password">Password:</label>
                     <div class="password-field-wrapper">
-                        <input 
-                            type="password" 
-                            id="password" 
-                            name="password" 
+                        <input
+                            type="password"
+                            id="password"
+                            name="password"
                             placeholder="••••••••"
                             required
                             onkeyup="checkPasswordRequirements()"
                         >
-                        <button 
-                            type="button" 
-                            class="password-toggle" 
+                        <button
+                            type="button"
+                            class="password-toggle"
                             id="passwordToggle"
                             onclick="togglePassword('password', 'passwordToggle')"
                         >
@@ -104,7 +88,7 @@
                     @error('password')
                         <div class="field-error">{{ $message }}</div>
                     @enderror
-                    
+
                     <!-- Password Requirements -->
                     <div class="password-requirements">
                         <div class="requirement unmet" id="req-length">
@@ -134,16 +118,16 @@
                 <div class="form-group">
                     <label for="password_confirmation">Confirm Password:</label>
                     <div class="password-field-wrapper">
-                        <input 
-                            type="password" 
-                            id="password_confirmation" 
-                            name="password_confirmation" 
+                        <input
+                            type="password"
+                            id="password_confirmation"
+                            name="password_confirmation"
                             placeholder="••••••••"
                             required
                         >
-                        <button 
-                            type="button" 
-                            class="password-toggle" 
+                        <button
+                            type="button"
+                            class="password-toggle"
                             id="passwordConfirmToggle"
                             onclick="togglePassword('password_confirmation', 'passwordConfirmToggle')"
                         >
@@ -166,10 +150,10 @@
                 <!-- Include selected role so it's visible on form submit (controller also reads session) -->
                 <input type="hidden" name="role" value="{{ $role ?? '' }}">
 
-                <!-- Accept Rules Button -->
-                <button 
-                    type="submit" 
-                    class="btn btn-primary" 
+                <!-- Submit -->
+                <button
+                    type="submit"
+                    class="btn btn-primary"
                     id="submitBtn"
                     disabled
                     style="background: var(--light-gray); color: var(--text-gray); cursor: not-allowed; margin-top: 15px;"
@@ -198,10 +182,10 @@
 
             <!-- Rules Checkbox -->
             <div class="checkbox-wrapper" style="margin-top: 20px;background-color: light blue ; padding: 15px; border-radius: 6px;">
-    
-                <input 
-                    type="checkbox" 
-                    id="rules_accepted" 
+
+                <input
+                    type="checkbox"
+                    id="rules_accepted"
                     name="rules_agreement"
                     onchange="toggleSubmitButton()"
                 >
@@ -210,18 +194,8 @@
                 </label>
             </div>
 
-            <!-- Action Buttons -->
+            <!-- Action -->
             <div class="button-group" style="margin-top: 30px;">
-                <button 
-                    type="submit" 
-                    class="btn btn-primary" 
-                    id="acceptRulesBtn"
-                    onclick="document.getElementById('rulesHidden').value = '1'; document.getElementById('registerForm').submit();"
-                    disabled
-                    style="background: var(--blue); color: var(--white); cursor: not-allowed;"
-                >
-                    ACCEPT RULES 
-                </button>
                 <a href="{{ route('login') }}" class="btn btn-secondary">
                     DECLINE
                 </a>
@@ -230,11 +204,10 @@
     </div>
 
     <script>
-        // Password visibility toggle
         function togglePassword(fieldId, toggleBtnId) {
             const field = document.getElementById(fieldId);
             const btn = document.getElementById(toggleBtnId);
-            
+
             if (field.type === 'password') {
                 field.type = 'text';
                 btn.textContent = '👁️‍🗨️';
@@ -244,27 +217,21 @@
             }
         }
 
-        // Check password requirements
         function checkPasswordRequirements() {
             const password = document.getElementById('password').value;
-            
-            // Check length
+
             const hasLength = password.length >= 8;
             updateRequirement('req-length', hasLength);
-            
-            // Check uppercase
+
             const hasUppercase = /[A-Z]/.test(password);
             updateRequirement('req-uppercase', hasUppercase);
-            
-            // Check lowercase
+
             const hasLowercase = /[a-z]/.test(password);
             updateRequirement('req-lowercase', hasLowercase);
-            
-            // Check number
+
             const hasNumber = /[0-9]/.test(password);
             updateRequirement('req-number', hasNumber);
-            
-            // Check special character
+
             const hasSpecial = /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password);
             updateRequirement('req-special', hasSpecial);
         }
@@ -280,36 +247,28 @@
             }
         }
 
-        // Toggle submit button based on rules checkbox
+        // Checkbox now directly drives both the hidden rules_accepted field
+        // AND the single submit button — no separate "Accept Rules" button anymore.
         function toggleSubmitButton() {
             const rulesCheckbox = document.getElementById('rules_accepted');
             const submitBtn = document.getElementById('submitBtn');
-            const acceptRulesBtn = document.getElementById('acceptRulesBtn');
-            
+            const rulesHidden = document.getElementById('rulesHidden');
+
+            rulesHidden.value = rulesCheckbox.checked ? '1' : '0';
+
             if (rulesCheckbox.checked) {
                 submitBtn.disabled = false;
                 submitBtn.style.background = 'linear-gradient(135deg, var(--primary-blue) 0%, var(--primary-blue-dark) 100%)';
                 submitBtn.style.color = 'var(--white)';
                 submitBtn.style.cursor = 'pointer';
-                
-                acceptRulesBtn.disabled = false;
-                acceptRulesBtn.style.background = 'linear-gradient(135deg, var(--primary-blue) 0%, var(--primary-blue-dark) 100%)';
-                acceptRulesBtn.style.color = 'var(--white)';
-                acceptRulesBtn.style.cursor = 'pointer';
             } else {
                 submitBtn.disabled = true;
                 submitBtn.style.background = 'var(--primary-blue)';
                 submitBtn.style.color = 'var(--white)';
                 submitBtn.style.cursor = 'not-allowed';
-                
-                acceptRulesBtn.disabled = true;
-                acceptRulesBtn.style.background = 'var(--primary-blue)';
-                acceptRulesBtn.style.color = 'var(--white)';
-                acceptRulesBtn.style.cursor = 'not-allowed';
             }
         }
 
-        // Initialize on page load
         document.addEventListener('DOMContentLoaded', function() {
             const rulesCheckbox = document.getElementById('rules_accepted');
             if (rulesCheckbox && rulesCheckbox.checked) {

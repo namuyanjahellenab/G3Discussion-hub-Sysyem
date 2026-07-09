@@ -51,7 +51,7 @@
         </div>
 
         <div style="margin-top: 2rem; background: #ffffff; border: 1px solid #e4e7ec; border-radius: 16px; padding: 24px; box-shadow: 0px 2px 12px rgba(16, 24, 40, 0.02);">
-            <h3 style="color: #101828; font-size: 1.05rem; font-weight: 700; margin: 0 0 1rem 0;">Latest Topics</h3>
+            <h3 style="color: #101828; font-size: 1.05rem; font-weight: 700; margin: 0 0 1rem 0;">Trending Topics</h3>
             @forelse($topics as $topic)
                 <div style="display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 14px 0; border-bottom: 1px solid #f2f4f7;">
                     <div>

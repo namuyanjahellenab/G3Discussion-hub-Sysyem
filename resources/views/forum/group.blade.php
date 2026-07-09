@@ -94,7 +94,7 @@
                         </div>
                     </a>
                 @empty
-                    <div style="padding: 2rem; text-align:center; color: #667085;">No topics found.</div>
+                    <div style="padding: 2rem; text-align:center; color: #667085;"> No topics found.</div>
                 @endforelse
             </div>
 

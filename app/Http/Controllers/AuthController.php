@@ -118,6 +118,34 @@ public function apiLogin(Request $request)
       ],
   ]);
 }
+public function apiRegister(Request $request)
+    {
+        $validated = $request->validate([
+            'name' => 'required|string|max:100',
+            'email' => 'required|email|unique:User,Email',
+            'password' => 'required|string|min:8',
+        ]);
+
+        $user = User::create([
+            'UserName' => $validated['name'],
+            'Email' => $validated['email'],
+            'PasswordHash' => Hash::make($validated['password']),
+            'Role' => 'Student',
+            'Status' => 'Active',
+        ]);
+
+        $token = $user->createToken('javafx-desktop')->plainTextToken;
+
+        return response()->json([
+            'message' => 'Registration successful.',
+            'token' => $token,
+            'user' => [
+                'id' => $user->UserID,
+                'email' => $user->Email,
+                'name' => $user->UserName,
+            ],
+        ], 201);
+    }
 
     /**
      * Display role selection page.
@@ -161,57 +189,46 @@ public function apiLogin(Request $request)
     /**
      * Handle registration request.
      */
-    public function register(RegisterRequest $request)
-    {
-        // Check if role is stored in session
-        if (!session()->has('registration_role')) {
-            return redirect()->route('register.role')
-                ->with('error', 'Please select a role first.');
-        }
+   public function register(RegisterRequest $request)
+       {
+           if (!session()->has('registration_role')) {
+               return redirect()->route('register.role')
+                   ->with('error', 'Please select a role first.');
+           }
 
-        $validated = $request->validated();
+           $validated = $request->validated();
+           $role = session('registration_role');
 
-        // Get role from session
-        $role = session('registration_role');
+           try {
+               $user = User::create([
+                   'UserName' => $validated['full_name'],
+                   'Email' => $validated['email'],
+                   'PasswordHash' => Hash::make($validated['password']),
+                   'Role' => ucfirst($role),
+                   'Status' => 'Active',
+               ]);
 
-        try {
-            // Create new user
-            $user = User::create([
-                'name' => $validated['full_name'],
-                'full_name' => $validated['full_name'],
-                'email' => $validated['email'],
-                'username' => $validated['username'],
-                'password' => Hash::make($validated['password']),
-                'role' => $role,
-                'status' => 'active',
-                'rules_accepted' => true,
-                'last_active' => now(),
-            ]);
+               Log::info('User registered successfully', [
+                   'user_id' => $user->UserID,
+                   'email' => $user->Email,
+                   'role' => $role,
+               ]);
 
-            Log::info('User registered successfully', [
-                'user_id' => $user->id,
-                'email' => $user->email,
-                'role' => $role,
-            ]);
+               session()->forget('registration_role');
+               session()->flash('success', 'Account created successfully! Please log in to access your account.');
 
-            // Clear registration session
-            session()->forget('registration_role');
+               return redirect()->route('login')->with('message', 'Registration successful! You can now log in.');
+           } catch (\Exception $e) {
+               Log::error('Registration failed', [
+                   'email' => $validated['email'],
+                   'error' => $e->getMessage(),
+               ]);
 
-            // Flash success message
-            session()->flash('success', 'Account created successfully! Please log in to access your account.');
-
-            return redirect()->route('login')->with('message', 'Registration successful! You can now log in.');
-        } catch (\Exception $e) {
-            Log::error('Registration failed', [
-                'email' => $validated['email'],
-                'error' => $e->getMessage(),
-            ]);
-
-            return back()
-                ->withErrors(['email' => 'An error occurred during registration. Please try again.'])
-                ->withInput($request->except('password', 'password_confirmation'));
-        }
-    }
+               return back()
+                   ->withErrors(['email' => 'An error occurred during registration. Please try again.'])
+                   ->withInput($request->except('password', 'password_confirmation'));
+           }
+       }
 
     /**
      * Handle logout.

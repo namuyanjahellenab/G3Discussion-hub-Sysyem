@@ -11,6 +11,7 @@ use App\Http\Controllers\QuizController;
 
 
 Route::post('/login', [AuthController::class, 'apiLogin']);
+Route::post('/register', [AuthController::class, 'apiRegister']);
 Route::middleware('auth:sanctum')->get('/quiz/active-now', [QuizEngineController::class, 'activeNow']);
 Route::middleware('auth:sanctum')->post('/quiz/join', [QuizEngineController::class, 'join']);
 Route::middleware('auth:sanctum')->post('/quiz/submit', [QuizEngineController::class, 'submit']);

@@ -29,7 +29,7 @@ class DiscussionHubPageController extends Controller
     private function updateParticipationScore(int $userId, ?int $parentPostId): void
     {
         $participation = Participation::where('UserID', $userId)->first();
-        
+
         if (!$participation) {
             $participation = new Participation();
             $participation->UserID = $userId;
@@ -37,7 +37,7 @@ class DiscussionHubPageController extends Controller
             $participation->ReplyCount = 0;
             $participation->ParticipationScore = 0;
         }
-        
+
         if ($parentPostId) {
             // This is a reply
             $participation->ReplyCount++;
@@ -45,7 +45,7 @@ class DiscussionHubPageController extends Controller
             // This is a new post
             $participation->PostCount++;
         }
-        
+
         // Calculate participation score: 2 points per post, 1 point per reply
         $participation->ParticipationScore = ($participation->PostCount * 2) + ($participation->ReplyCount * 1);
         $participation->save();
@@ -78,15 +78,15 @@ class DiscussionHubPageController extends Controller
             $user = \App\Models\User::find(Auth::id());
         }
         $joinedGroups = $user->groups()->withCount(['students as member_count'])->get();
-        
+
         // Auto-create topic if group is selected but no topic_id
         $topicId = $request->filled('topic_id') ? $request->topic_id : null;
         $groupId = $request->filled('group_id') ? $request->group_id : null;
-        
+
         if ($groupId && !$topicId) {
             // Get the pre-assigned topic for this group (created by TopicSeeder)
             $topic = Topic::where('GroupID', $groupId)->orderBy('CreatedAt')->first();
-            
+
             if (!$topic) {
                 // Fallback: create a default topic if none exists
                 $topic = Topic::create([
@@ -100,7 +100,7 @@ class DiscussionHubPageController extends Controller
             // If no group selected, use the first group's pre-assigned topic
             $firstGroup = $joinedGroups->first();
             $topic = Topic::where('GroupID', $firstGroup->GroupID)->orderBy('CreatedAt')->first();
-            
+
             if (!$topic) {
                 $topic = Topic::create([
                     'Title' => 'General Discussion',
@@ -111,7 +111,7 @@ class DiscussionHubPageController extends Controller
             $topicId = $topic->TopicID;
             $groupId = $firstGroup->GroupID;
         }
-        
+
         $groupIds = $joinedGroups->pluck('GroupID');
         $memberIds = GroupStudent::whereIn('GroupID', $groupIds)->pluck('UserID')->unique();
 
@@ -151,7 +151,7 @@ class DiscussionHubPageController extends Controller
             })
             ->latest('CreatedAt')
             ->get();
-        
+
         $replyToPost = $request->filled('reply_to') ? Post::find($request->reply_to) : null;
 
        return view('messages.index', compact('joinedGroups', 'threadedPosts', 'topics', 'replyToPost'))->with([
@@ -160,21 +160,42 @@ class DiscussionHubPageController extends Controller
             'group_id' => $groupId,
         ]);
     }
+public function updateReply(Request $request, Reply $reply)
+{
+    abort_unless($reply->UserID === auth()->id(), 403);
+
+    $data = $request->validate([
+        'ReplyContent' => 'required|string|max:2000',
+    ]);
+
+    $reply->update(['ReplyContent' => $data['ReplyContent']]);
+
+    return back()->with('status', 'Reply updated');
+}
+
+public function destroyReply(Reply $reply)
+{
+    abort_unless($reply->UserID === auth()->id(), 403);
+
+    $reply->delete();
+
+    return back()->with('status', 'Reply deleted');
+}
 
     public function storeMessage(Request $request)
     {
         \Log::info('StoreMessage called:', $request->all());
-        
+
         // Auto-create or get topic_id if not provided - make topics completely transparent to users
         $topicId = $request->input('topic_id');
         $groupId = $request->input('group_id');
-        
+
         // If no topic_id provided, get or create a default topic for the group
         if (!$topicId && $groupId) {
             $topic = Topic::where('GroupID', $groupId)
                 ->orderBy('CreatedAt')
                 ->first();
-            
+
             if (!$topic) {
                 // Create a default topic for the group
                 $user = Auth::user();
@@ -186,13 +207,13 @@ class DiscussionHubPageController extends Controller
             }
             $topicId = $topic->TopicID;
         }
-        
+
         // If still no topic_id, try to get any topic from user's groups
         if (!$topicId) {
             $user = Auth::user();
             $userGroups = $user->groups()->pluck('GroupID');
             $topic = Topic::whereIn('GroupID', $userGroups)->orderBy('CreatedAt')->first();
-            
+
             if ($topic) {
                 $topicId = $topic->TopicID;
             } else {
@@ -218,10 +239,10 @@ class DiscussionHubPageController extends Controller
                 $topicId = $topic->TopicID;
             }
         }
-        
+
         // Merge the topic_id into request
         $request->merge(['topic_id' => $topicId]);
-        
+
         // Validate request - topic_id will be auto-created if not provided
         $request->validate([
             'topic_id' => ['nullable', 'exists:Topic,TopicID'],
@@ -523,7 +544,7 @@ class DiscussionHubPageController extends Controller
     public function exportGroup(Request $request, Group $group)
     {
         $userId = Auth::id();
-        
+
         // Verify user is a member of this group
         $isMember = GroupStudent::where('GroupID', $group->GroupID)
             ->where('UserID', $userId)
@@ -561,7 +582,7 @@ class DiscussionHubPageController extends Controller
     public function deleteMessage(Post $post)
     {
         $userId = Auth::id();
-        
+
         // Only allow the author to delete their own message
         if ($post->UserID !== $userId) {
             abort(403, 'You are not authorized to delete this message.');
@@ -589,12 +610,12 @@ class DiscussionHubPageController extends Controller
     }
 
     $user = Auth::user();
-    
+
     // Get participation data
     $participation = Participation::where('UserID', $user->UserID)->first();
     $participationScore = $participation ? $participation->ParticipationScore : 0;
     $participationMarks = min(10, $participationScore); // Cap at 10 marks
-    
+
     $marks = [
         'coursework' => 78,
         'cats' => 84,
@@ -652,7 +673,7 @@ return view('recommend.index', compact('joinedGroups', 'recommendedTopics', 'rec
     'preferences' => session('notification_preferences', ['email' => true, 'push' => true]),
     'darkMode' => session('dark_mode', false),
 ])->with('showSidebar', false);
-        
+
     }
 
     public function updateSettings(Request $request): RedirectResponse

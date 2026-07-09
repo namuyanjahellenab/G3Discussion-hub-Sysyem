@@ -25,7 +25,7 @@ Route::middleware('guest')->group(function () {
     ->name('register.role');
     Route::get('/register', [RegisteredUserController::class, 'create'])
     ->name('register');
-    
+
 });
 
 Route::middleware('auth')->group(function () {
@@ -68,6 +68,12 @@ Route::post('/posts/{post}/reply', [DiscussionHubPageController::class, 'storeRe
 
 Route::post('/replies/{reply}/accept', [DiscussionHubPageController::class, 'acceptAnswer'])
     ->middleware('verified')->name('replies.accept');
+
+Route::put('/replies/{reply}', [DiscussionHubPageController::class, 'updateReply'])
+    ->middleware('verified')->name('replies.update');
+
+Route::delete('/replies/{reply}', [DiscussionHubPageController::class, 'destroyReply'])
+    ->middleware('verified')->name('replies.destroy');
 
     Route::get('/dashboard', [DashboardController::class, 'index'])
         ->middleware('verified')
@@ -184,4 +190,3 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
     Route::post('/groups', [AdminGroupController::class, 'store'])->name('groups.store');
     Route::put('/groups/{group}', [AdminGroupController::class, 'update'])->name('groups.update');
 });
-

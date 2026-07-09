@@ -3,11 +3,13 @@ package com.discussionhub.client;
 import com.discussionhub.client.database.DatabaseManager;
 import com.discussionhub.client.database.NotificationItem;
 import com.discussionhub.client.utils.DeltaSyncService;
+import com.discussionhub.client.utils.NavigationUtil;
 import com.discussionhub.client.utils.NetworkUtil;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
 import javafx.geometry.Pos;
+import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
@@ -286,12 +288,12 @@ public class DashboardController {
     protected void onOpenForum() {
         try {
             FXMLLoader loader = new FXMLLoader(getClass().getResource("forum-view.fxml"));
-            Scene scene = new Scene(loader.load(), 800, 600);
+            Parent root = loader.load();
             ForumController controller = loader.getController();
             controller.setServices(dbManager, syncService);
 
             Stage stage = (Stage) syncStatusLabel.getScene().getWindow();
-            stage.setScene(scene);
+            NavigationUtil.switchScene(stage, root);
             stage.setTitle("DiscussionHub — Forum");
         } catch (Exception e) {
             System.err.println("[Dashboard] Error opening forum: " + e.getMessage());
@@ -302,12 +304,12 @@ public class DashboardController {
     protected void onOpenGroupSelection() {
         try {
             FXMLLoader loader = new FXMLLoader(getClass().getResource("group-selection-view.fxml"));
-            Scene scene = new Scene(loader.load(), 800, 650);
+            Parent root = loader.load();
             GroupSelectionController controller = loader.getController();
             controller.setServices(dbManager, syncService);
 
             Stage stage = (Stage) syncStatusLabel.getScene().getWindow();
-            stage.setScene(scene);
+            NavigationUtil.switchScene(stage, root);
             stage.setTitle("DiscussionHub — Select Group");
         } catch (Exception e) {
             System.err.println("[Dashboard] Error opening group selection: " + e.getMessage());
@@ -317,13 +319,13 @@ public class DashboardController {
     private void openForumForGroup(GroupSummary group) {
         try {
             FXMLLoader loader = new FXMLLoader(getClass().getResource("forum-view.fxml"));
-            Scene scene = new Scene(loader.load(), 800, 600);
+            Parent root = loader.load();
             ForumController controller = loader.getController();
             controller.setServices(dbManager, syncService);
             controller.setGroupContext(group.id, group.name);
 
             Stage stage = (Stage) syncStatusLabel.getScene().getWindow();
-            stage.setScene(scene);
+            NavigationUtil.switchScene(stage, root);
             stage.setTitle("DiscussionHub — " + group.name);
         } catch (Exception e) {
             System.err.println("[Dashboard] Error opening group forum: " + e.getMessage());
@@ -334,28 +336,29 @@ public class DashboardController {
     protected void onOpenNotifications() {
         try {
             FXMLLoader loader = new FXMLLoader(getClass().getResource("notifications-view.fxml"));
-            Scene scene = new Scene(loader.load(), 800, 600);
+            Parent root = loader.load();
             NotificationsController controller = loader.getController();
             controller.setServices(dbManager, syncService);
 
             Stage stage = (Stage) syncStatusLabel.getScene().getWindow();
-            stage.setScene(scene);
+            NavigationUtil.switchScene(stage, root);
             stage.setTitle("DiscussionHub — Notifications");
         } catch (Exception e) {
             System.err.println("[Dashboard] Error opening notifications: " + e.getMessage());
             e.printStackTrace();
         }
     }
+
     @FXML
     protected void onOpenSettings() {
         try {
             FXMLLoader loader = new FXMLLoader(getClass().getResource("settings-view.fxml"));
-            Scene scene = new Scene(loader.load(), 800, 600);
+            Parent root = loader.load();
             SettingsController controller = loader.getController();
             controller.setServices(dbManager, syncService);
 
             Stage stage = (Stage) syncStatusLabel.getScene().getWindow();
-            stage.setScene(scene);
+            NavigationUtil.switchScene(stage, root);
             stage.setTitle("DiscussionHub — Settings");
         } catch (Exception e) {
             System.err.println("[Dashboard] Error opening settings: " + e.getMessage());
