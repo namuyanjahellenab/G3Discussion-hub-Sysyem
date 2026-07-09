@@ -24,7 +24,7 @@ class SyncController extends Controller
         $topics = Topic::whereIn('GroupID', $groupIds)
             ->where('CreatedAt', '>', $since)
             ->orderBy('CreatedAt')
-            ->get(['TopicID', 'Title', 'Category', 'CreatedBy', 'CreatedAt']);
+            ->get(['TopicID', 'Title', 'Category', 'CreatedBy', 'CreatedAt', 'GroupID']);
 
         $topicIds = Topic::whereIn('GroupID', $groupIds)->pluck('TopicID');
 
@@ -44,16 +44,7 @@ class SyncController extends Controller
             'notifications' => $notifications,
         ]);
     }
-/**
-     * POST /sync/push
-     *
-     * Body shape (matches the envelope DeltaSyncService.java now sends):
-     *   { "entityType": "Topic"|"Post", "operation": "Create",
-     *     "deviceId": 1, "payload": { ... } }
-     *
-     * Only handles "Create" for now, since that's the only operation
-     * the client currently ever queues.
-     */
+
     public function push(Request $request)
     {
         $entityType = $request->input('entityType');
@@ -69,6 +60,7 @@ class SyncController extends Controller
                 'Title' => $payload['Title'] ?? null,
                 'Category' => $payload['Category'] ?? null,
                 'CreatedBy' => $payload['CreatedBy'] ?? $request->user()->UserID,
+                'GroupID' => $payload['GroupID'] ?? null,
             ]);
 
             return response()->json(['TopicID' => $topic->TopicID], 201);

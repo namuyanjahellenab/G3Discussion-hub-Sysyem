@@ -3,15 +3,14 @@
 <?import javafx.scene.control.*?>
 <?import javafx.scene.layout.*?>
 <?import javafx.geometry.Insets?>
-<?import javafx.scene.shape.Circle?>
 
 <VBox xmlns:fx="http://javafx.com/fxml"
       fx:controller="com.discussionhub.client.GroupSelectionController"
-      spacing="0" style="-fx-background-color: #e8eef7;">
+      spacing="0" style="-fx-background-color: #fcfcfd;">
 
-    <!-- Header bar -->
+    <!-- App header bar (kept from existing chrome — not part of the web partial itself) -->
     <HBox alignment="CENTER_LEFT" spacing="12"
-          style="-fx-background-color: #1a73e8; -fx-padding: 14;">
+          style="-fx-background-color: #0d52cc; -fx-padding: 14;">
         <Label text="Discussion Hub"
                style="-fx-text-fill: white; -fx-font-size: 18; -fx-font-weight: bold;"/>
         <Region HBox.hgrow="ALWAYS"/>
@@ -22,34 +21,72 @@
                style="-fx-text-fill: white; -fx-font-size: 13;"/>
     </HBox>
 
-    <VBox spacing="16" style="-fx-padding: 20;">
-        <!-- Search bar -->
-        <TextField fx:id="searchField" promptText="Search groups..."
-                   onKeyReleased="#onSearch"
-                   style="-fx-padding: 10; -fx-border-color: #ddd; -fx-border-radius: 6; -fx-background-radius: 6;"/>
+    <ScrollPane fitToWidth="true" VBox.vgrow="ALWAYS"
+                style="-fx-background-color: transparent; -fx-background: transparent;">
+        <VBox spacing="0" style="-fx-padding: 32 48 32 48; -fx-background-color: #fcfcfd;">
 
-        <!-- Status message label -->
-        <Label fx:id="statusLabel" visible="false" managed="false"
-               style="-fx-text-fill: #1a73e8; -fx-font-weight: bold;"/>
+            <!-- Page title / subtitle -->
+            <Label text="Select a Discussion Group"
+                   style="-fx-font-size: 26; -fx-font-weight: bold; -fx-text-fill: #101828;"/>
+            <Label text="Browse available groups below and click Join to enroll in the conversation."
+                   style="-fx-font-size: 14; -fx-text-fill: #667085;">
+                <VBox.margin>
+                    <Insets bottom="24" top="6"/>
+                </VBox.margin>
+            </Label>
 
-        <!-- Main content -->
-        <ScrollPane fitToWidth="true" VBox.vgrow="ALWAYS"
-                    style="-fx-background-color: transparent; -fx-background: transparent;">
-            <FlowPane fx:id="groupCardsContainer" hgap="16" vgap="16" style="-fx-padding: 16;">
-                <!-- Group cards will be added dynamically here -->
-            </FlowPane>
-        </ScrollPane>
-    </VBox>
+            <!-- Search bar -->
+            <HBox alignment="CENTER_LEFT" spacing="10"
+                  style="-fx-background-color: white; -fx-border-color: #d0d5dd; -fx-border-radius: 12; -fx-background-radius: 12; -fx-padding: 8 8 8 18; -fx-effect: dropshadow(gaussian, rgba(16,24,40,0.08), 4, 0, 0, 1);">
+                <Label text="&#128269;" style="-fx-font-size: 14; -fx-text-fill: #667085;"/>
+                <TextField fx:id="searchField" promptText="Search for courses, lecturers or topics..."
+                           onKeyReleased="#onSearch" HBox.hgrow="ALWAYS"
+                           style="-fx-background-color: transparent; -fx-border-color: transparent; -fx-font-size: 13;"/>
+                <Button text="Search  &#8594;" onAction="#onSearch"
+                        style="-fx-background-color: #0d52cc; -fx-text-fill: white; -fx-font-weight: bold; -fx-font-size: 13; -fx-padding: 10 28; -fx-background-radius: 8;"/>
+            </HBox>
 
-    <!-- Bottom bar -->
-    <HBox alignment="CENTER_LEFT" spacing="20"
-          style="-fx-background-color: white; -fx-padding: 16; -fx-effect: dropshadow(gaussian,#cccccc,8,0,0,-3);">
-        <Hyperlink text="Skip for now" onAction="#onSkip"
-                   style="-fx-text-fill: #1a73e8; -fx-font-weight: bold;"/>
-        <Region HBox.hgrow="ALWAYS"/>
-        <Button fx:id="continueButton" text="Continue to Dashboard →" onAction="#onContinue"
-                disable="true"
-                style="-fx-background-color: #1a73e8; -fx-text-fill: white; -fx-font-weight: bold; -fx-padding: 12; -fx-background-radius: 6;"/>
-    </HBox>
+            <!-- Status message -->
+            <Label fx:id="statusLabel" visible="false" managed="false"
+                   style="-fx-text-fill: #0d52cc; -fx-font-weight: bold;">
+                <VBox.margin>
+                    <Insets top="12"/>
+                </VBox.margin>
+            </Label>
+
+            <!-- Forced 2-column grid of group cards -->
+            <GridPane fx:id="groupCardsContainer" hgap="24" vgap="24">
+                <VBox.margin>
+                    <Insets top="28" bottom="28"/>
+                </VBox.margin>
+                <columnConstraints>
+                    <ColumnConstraints percentWidth="50"/>
+                    <ColumnConstraints percentWidth="50"/>
+                </columnConstraints>
+            </GridPane>
+
+            <!-- Proceed button, centered, max width like the web's max-width:400px -->
+            <HBox alignment="CENTER">
+                <Button fx:id="continueButton" text="Proceed to Dashboard  &#8594;" onAction="#onContinue"
+                        maxWidth="400" prefWidth="400" prefHeight="46"
+                        style="-fx-background-color: #0d52cc; -fx-text-fill: white; -fx-font-weight: bold; -fx-font-size: 15; -fx-background-radius: 8;"/>
+            </HBox>
+
+            <!-- Decorative pagination dots -->
+            <HBox alignment="CENTER" spacing="8">
+                <VBox.margin>
+                    <Insets top="28" bottom="12"/>
+                </VBox.margin>
+                <Region style="-fx-background-color: #0d52cc; -fx-background-radius: 4; -fx-min-width: 8; -fx-min-height: 8; -fx-max-width: 8; -fx-max-height: 8;"/>
+                <Region style="-fx-background-color: #d0d5dd; -fx-background-radius: 4; -fx-min-width: 8; -fx-min-height: 8; -fx-max-width: 8; -fx-max-height: 8;"/>
+                <Region style="-fx-background-color: #d0d5dd; -fx-background-radius: 4; -fx-min-width: 8; -fx-min-height: 8; -fx-max-width: 8; -fx-max-height: 8;"/>
+                <Region style="-fx-background-color: #d0d5dd; -fx-background-radius: 4; -fx-min-width: 8; -fx-min-height: 8; -fx-max-width: 8; -fx-max-height: 8;"/>
+            </HBox>
+
+            <Label text="You can join additional groups at any time from your dashboard. Some groups may require administrative approval."
+                   wrapText="true" alignment="CENTER" style="-fx-font-size: 12; -fx-text-fill: #98a2b3; -fx-font-style: italic;"/>
+
+        </VBox>
+    </ScrollPane>
 
 </VBox>

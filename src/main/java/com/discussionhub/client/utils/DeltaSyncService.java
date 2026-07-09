@@ -197,11 +197,12 @@ public class DeltaSyncService {
 
     private void mergeOneTopic(String objectBody) {
         dbManager.mergeTopic(
-                extractInt(objectBody, "TopicID"),
-                extractString(objectBody, "Title"),
-                extractString(objectBody, "Category"),
-                extractInt(objectBody, "CreatedBy"),
-                extractString(objectBody, "CreatedAt")
+            extractInt(objectBody, "TopicID"),
+            extractString(objectBody, "Title"),
+            extractString(objectBody, "Category"),
+            extractInt(objectBody, "CreatedBy"),
+            extractString(objectBody, "CreatedAt"),
+            extractInt(objectBody, "GroupID")
         );
     }
 

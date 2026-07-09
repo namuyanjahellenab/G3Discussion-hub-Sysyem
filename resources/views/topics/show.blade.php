@@ -1,5 +1,3 @@
-<!-- mkdir -p resources/views/topics
-cat > resources/views/topics/show.blade.php << 'EOF' -->
 @extends('layouts.app')
 
 @section('content')
@@ -35,63 +33,95 @@ cat > resources/views/topics/show.blade.php << 'EOF' -->
     .rec-item:last-child { border-bottom: none; }
     .rec-item a { color: #101828; font-weight: 600; text-decoration: none; }
     .rec-item .rec-meta { color: #98a2b3; font-size: 0.75rem; margin-top: 2px; }
+
+    .dashboard-grid-container { display: grid !important; grid-template-columns: 260px 1fr 340px !important; min-height: 100vh !important; width: 100% !important; background-color: #fcfcfd !important; font-family: 'Inter', sans-serif !important; }
+    .sidebar-panel { background: #ffffff !important; border-right: 1px solid #e4e7ec !important; padding-top: 24px !important; }
+    .sidebar-brand { padding: 0 24px 24px 24px !important; display: flex !important; align-items: center !important; gap: 12px !important; border-bottom: 1px solid #f2f4f7 !important; color: #0d52cc !important; font-weight: 700 !important; font-size: 1.2rem !important; letter-spacing: -0.5px !important; }
+    .sidebar-menu { list-style: none !important; padding: 20px 0 !important; margin: 0 !important; }
+    .sidebar-menu li a { padding: 12px 24px !important; font-size: 0.95rem !important; display: flex !important; align-items: center !important; gap: 12px !important; color: #667085 !important; text-decoration: none !important; font-weight: 500 !important; }
+    .sidebar-menu li.active a { color: #0d52cc !important; background: #eef4ff !important; border-radius: 0 24px 24px 0 !important; margin-right: 12px !important; font-weight: 600 !important; }
+    .content-workspace { padding: 3rem 2.5rem !important; background: #fcfcfd !important; }
 </style>
 
-<div class="thread-page-wrap">
-    <div>
-        <a href="{{ route('groups.topics', $topic->group) }}" class="back-link">&larr; Back to Forum</a>
-        <h1 class="thread-title">{{ $topic->Title }}</h1>
+<div class="dashboard-grid-container" id="clean-dashboard-root">
+    @include('layouts.sidebar')
 
-        @if($mainPost)
-            <div class="thread-meta">
-                Posted by {{ $mainPost->author?->UserName ?? $mainPost->author?->name ?? 'a member' }}
-                &bull; {{ $mainPost->CreatedAt->diffForHumans() }}
-            </div>
+    <div class="content-workspace">
+        <div class="thread-page-wrap">
+            <div>
+                <a href="{{ route('groups.topics', $topic->group) }}" class="back-link">&larr; Back to Forum</a>
+                <h1 class="thread-title">{{ $topic->Title }}</h1>
 
-            <div class="post-card">
-                <div class="post-avatar">{{ Str::substr($mainPost->author?->UserName ?? $mainPost->author?->name ?? '?', 0, 1) }}</div>
-                <div style="flex:1;">
-                    <div class="post-author">{{ $mainPost->author?->UserName ?? $mainPost->author?->name ?? 'a member' }}</div>
-                    <div class="post-content">{{ $mainPost->Content }}</div>
-                </div>
-            </div>
-
-            <h6 style="font-weight:700; color:#101828; margin: 24px 0 12px 0;">Replies</h6>
-
-            @forelse($mainPost->replies as $reply)
-                <div class="post-card {{ $reply->IsAccepted ? 'accepted-card' : '' }}">
-                    <div class="post-avatar {{ $reply->author?->Role === 'Lecturer' ? 'lecturer' : '' }}">
-                        {{ Str::substr($reply->author?->UserName ?? $reply->author?->name ?? '?', 0, 1) }}
+                @if($mainPost)
+                    <div class="thread-meta">
+                        Posted by {{ $mainPost->author?->UserName ?? $mainPost->author?->name ?? 'a member' }}
+                        &bull; {{ $mainPost->CreatedAt->diffForHumans() }}
                     </div>
-                    <div style="flex:1;">
-                        @if($reply->IsAccepted)
-                            <div class="accepted-tag"><i class="fa-solid fa-circle-check"></i> Accepted Answer</div>
-                        @endif
-                        <div class="post-author">{{ $reply->author?->UserName ?? $reply->author?->name ?? 'a member' }}</div>
-                        <div class="post-time">{{ $reply->CreatedAt->diffForHumans() }}</div>
-                        <div class="post-content">{{ $reply->ReplyContent }}</div>
 
-                        @if(!$reply->IsAccepted && auth()->user()->Role === 'Lecturer')
-                            <form method="POST" action="{{ route('replies.accept', $reply) }}">
-                                @csrf
-                                <button type="submit" class="accept-btn">Mark as Accepted Answer</button>
-                            </form>
-                        @endif
+                    <div class="post-card">
+                        <div class="post-avatar">{{ Str::substr($mainPost->author?->UserName ?? $mainPost->author?->name ?? '?', 0, 1) }}</div>
+                        <div style="flex:1;">
+                            <div class="post-author">{{ $mainPost->author?->UserName ?? $mainPost->author?->name ?? 'a member' }}</div>
+                            <div class="post-content">{{ $mainPost->Content }}</div>
+                        </div>
                     </div>
-                </div>
-            @empty
-                <p style="color:#667085; font-size:0.88rem;">No replies yet. Be the first to respond.</p>
-            @endforelse
 
-            <form method="POST" action="{{ route('posts.reply', $mainPost->PostID) }}" class="reply-form" style="margin-top: 20px;">
-                @csrf
-                <textarea name="ReplyContent" rows="3" placeholder="Write your reply here..." required></textarea>
-                <button type="submit" class="reply-submit">Post Reply <i class="fa-solid fa-paper-plane"></i></button>
-            </form>
-        @else
-            <p style="color:#667085;">No discussion started in this topic yet.</p>
-        @endif
+                    <h6 style="font-weight:700; color:#101828; margin: 24px 0 12px 0;">Replies</h6>
+
+                    @forelse($mainPost->replies as $reply)
+                        <div class="post-card {{ $reply->IsAccepted ? 'accepted-card' : '' }}">
+                            <div class="post-avatar {{ $reply->author?->Role === 'Lecturer' ? 'lecturer' : '' }}">
+                                {{ Str::substr($reply->author?->UserName ?? $reply->author?->name ?? '?', 0, 1) }}
+                            </div>
+                            <div style="flex:1;">
+                                @if($reply->IsAccepted)
+                                    <div class="accepted-tag"><i class="fa-solid fa-circle-check"></i> Accepted Answer</div>
+                                @endif
+                                <div class="post-author">{{ $reply->author?->UserName ?? $reply->author?->name ?? 'a member' }}</div>
+                                <div class="post-time">{{ $reply->CreatedAt->diffForHumans() }}</div>
+                                <div class="post-content">{{ $reply->ReplyContent }}</div>
+
+                                @if(!$reply->IsAccepted && auth()->user()->Role === 'Lecturer')
+                                    <form method="POST" action="{{ route('replies.accept', $reply) }}">
+                                        @csrf
+                                        <button type="submit" class="accept-btn">Mark as Accepted Answer</button>
+                                    </form>
+                                @endif
+                            </div>
+                        </div>
+                    @empty
+                        <p style="color:#667085; font-size:0.88rem;">No replies yet. Be the first to respond.</p>
+                    @endforelse
+
+                    <form method="POST" action="{{ route('posts.reply', $mainPost->PostID) }}" class="reply-form" style="margin-top: 20px;">
+                        @csrf
+                        <textarea name="ReplyContent" rows="3" placeholder="Write your reply here..." required></textarea>
+                        <button type="submit" class="reply-submit">Post Reply <i class="fa-solid fa-paper-plane"></i></button>
+                    </form>
+                @else
+                    <p style="color:#667085;">No discussion started in this topic yet.</p>
+                @endif
+            </div>
+        </div>
     </div>
 </div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        var rootGrid = document.getElementById('clean-dashboard-root');
+        if (rootGrid) {
+            var parentContainer = rootGrid.parentElement;
+            Array.from(parentContainer.children).forEach(function (element) {
+                if (element !== rootGrid && element.tagName !== 'STYLE' && element.tagName !== 'SCRIPT') {
+                    element.style.setProperty('display', 'none', 'important');
+                }
+            });
+            Array.from(document.body.children).forEach(function (element) {
+                if (!element.contains(rootGrid) && element !== rootGrid && element.tagName !== 'STYLE' && element.tagName !== 'SCRIPT') {
+                    element.style.setProperty('display', 'none', 'important');
+                }
+            });
+        }
+    });
+</script>
 @endsection
-EOF

@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<?import javafx.geometry.Insets?>
+
+<VBox xmlns:fx="http://javafx.com/fxml"
+      fx:controller="com.discussionhub.client.SettingsController"
+      style="-fx-background-color: #f4f6fb; -fx-padding: 28;">
+
+    <HBox alignment="CENTER_LEFT" spacing="12">
+        <Button text="← Back" onAction="#onBack"
+                style="-fx-background-color: transparent; -fx-text-fill: #2f5bea; -fx-font-weight: bold; -fx-font-size: 13;"/>
+        <Label text="Settings" style="-fx-font-size: 20; -fx-font-weight: bold; -fx-text-fill: #1a1f36;">
+            <HBox.margin><Insets left="6"/></HBox.margin>
+        </Label>
+    </HBox>
+
+    <VBox spacing="16" maxWidth="480" style="-fx-background-color: white; -fx-background-radius: 10;
+             -fx-padding: 24; -fx-effect: dropshadow(gaussian, #e3e6ee, 6, 0, 0, 2);">
+        <VBox.margin><Insets top="20"/></VBox.margin>
+
+        <Label fx:id="statusLabel" visible="false" managed="false" wrapText="true"
+               style="-fx-text-fill: #2e7d32; -fx-font-size: 12; -fx-font-weight: bold;"/>
+        <Label fx:id="errorLabel" visible="false" managed="false" wrapText="true"
+               style="-fx-text-fill: #c62828; -fx-font-size: 12; -fx-font-weight: bold;"/>
+
+        <VBox spacing="4">
+            <Label text="Name" style="-fx-font-size: 12; -fx-text-fill: #5b6272;"/>
+            <TextField fx:id="nameField" style="-fx-padding: 8; -fx-background-radius: 6;"/>
+        </VBox>
+
+        <VBox spacing="4">
+            <Label text="Email" style="-fx-font-size: 12; -fx-text-fill: #5b6272;"/>
+            <TextField fx:id="emailField" style="-fx-padding: 8; -fx-background-radius: 6;"/>
+        </VBox>
+
+        <VBox spacing="4">
+            <Label text="Current password" style="-fx-font-size: 12; -fx-text-fill: #5b6272;"/>
+            <PasswordField fx:id="currentPasswordField" style="-fx-padding: 8; -fx-background-radius: 6;"/>
+        </VBox>
+
+        <VBox spacing="4">
+            <Label text="New password" style="-fx-font-size: 12; -fx-text-fill: #5b6272;"/>
+            <PasswordField fx:id="newPasswordField" style="-fx-padding: 8; -fx-background-radius: 6;"/>
+        </VBox>
+
+        <VBox spacing="4">
+            <Label text="Confirm new password" style="-fx-font-size: 12; -fx-text-fill: #5b6272;"/>
+            <PasswordField fx:id="confirmPasswordField" style="-fx-padding: 8; -fx-background-radius: 6;"/>
+        </VBox>
+
+        <Button text="Save" onAction="#onSave" maxWidth="Infinity"
+                style="-fx-background-color: #2f5bea; -fx-text-fill: white; -fx-font-weight: bold;
+                       -fx-background-radius: 6; -fx-padding: 10 0; -fx-font-size: 13;"/>
+
+        <Separator>
+            <VBox.margin><Insets top="8" bottom="8"/></VBox.margin>
+        </Separator>
+
+        <Button text="Logout" onAction="#onLogout" maxWidth="Infinity"
+                style="-fx-background-color: white; -fx-text-fill: #c62828; -fx-font-weight: bold;
+                       -fx-border-color: #c62828; -fx-border-radius: 6; -fx-background-radius: 6;
+                       -fx-padding: 10 0; -fx-font-size: 13;"/>
+    </VBox>
+</VBox>

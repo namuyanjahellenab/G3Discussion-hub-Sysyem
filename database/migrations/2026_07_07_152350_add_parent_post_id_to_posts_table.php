@@ -9,19 +9,23 @@ return new class extends Migration
     /**
      * Run the migrations.
      */
-   public function up(): void
-{
-    Schema::table('Post', function (Blueprint $table) {
-        $table->unsignedBigInteger('ParentPostID')->nullable();
-        $table->foreign('ParentPostID')->references('PostID')->on('Post')->onDelete('cascade');
-    });
-}
+    public function up(): void
+    {
+        if (!Schema::hasColumn('Post', 'ParentPostID')) {
+            Schema::table('Post', function (Blueprint $table) {
+                $table->unsignedBigInteger('ParentPostID')->nullable();
+                $table->foreign('ParentPostID')->references('PostID')->on('Post')->onDelete('cascade');
+            });
+        }
+    }
 
-public function down(): void
-{
-    Schema::table('Post', function (Blueprint $table) {
-        $table->dropForeign(['ParentPostID']);
-        $table->dropColumn('ParentPostID');
-    });
-}
+    public function down(): void
+    {
+        if (Schema::hasColumn('Post', 'ParentPostID')) {
+            Schema::table('Post', function (Blueprint $table) {
+                $table->dropForeign(['ParentPostID']);
+                $table->dropColumn('ParentPostID');
+            });
+        }
+    }
 };

@@ -42,7 +42,7 @@
                 style="-fx-background-color: transparent; -fx-text-fill: #5b6272; -fx-padding: 9 20; -fx-font-size: 13;">
             <VBox.margin><Insets left="10" right="10"/></VBox.margin>
         </Button>
-        <Button text="⚙  Settings" maxWidth="Infinity" alignment="CENTER_LEFT"
+        <Button text="⚙  Settings" onAction="#onOpenSettings" maxWidth="Infinity" alignment="CENTER_LEFT"
                 style="-fx-background-color: transparent; -fx-text-fill: #5b6272; -fx-padding: 9 20; -fx-font-size: 13;">
             <VBox.margin><Insets left="10" right="10"/></VBox.margin>
         </Button>
@@ -62,113 +62,128 @@
     </VBox>
 
     <!-- ================= CONTENT ================= -->
-    <VBox spacing="18" HBox.hgrow="ALWAYS" style="-fx-padding: 20 28 28 28;">
-        <!-- Hidden — kept only because DashboardController references these directly.
-     Do not remove: syncStatusLabel is used to resolve the window Stage,
-     syncLogList backs addLogEntry(). -->
-        <Label fx:id="syncStatusLabel" text="" visible="false" managed="false"/>
-        <ListView fx:id="syncLogList" visible="false" managed="false" prefHeight="0" maxHeight="0"/>
+    <ScrollPane fitToWidth="true" HBox.hgrow="ALWAYS" style="-fx-background-color: transparent;">
+        <VBox spacing="18" style="-fx-padding: 20 28 28 28;">
+            <!-- Hidden — kept only because DashboardController references these directly.
+         Do not remove: syncStatusLabel is used to resolve the window Stage,
+         syncLogList backs addLogEntry(). -->
+            <Label fx:id="syncStatusLabel" text="" visible="false" managed="false"/>
+            <ListView fx:id="syncLogList" visible="false" managed="false" prefHeight="0" maxHeight="0"/>
 
-        <!-- Top strip: sync time + status icons, right aligned -->
-        <HBox alignment="CENTER_RIGHT" spacing="14">
-            <Label fx:id="lastSyncLabel" text="⟳ Last synced: Today at 08:42 AM"
-                   style="-fx-text-fill: #8a90a0; -fx-font-size: 12;"/>
-            <Label text="📶" style="-fx-text-fill: #8a90a0;"/>
-            <Label text="🔔" style="-fx-text-fill: #8a90a0;"/>
-        </HBox>
+            <!-- Top strip: sync time + status icons, right aligned -->
+            <HBox alignment="CENTER_RIGHT" spacing="14">
+                <Label fx:id="lastSyncLabel" text="⟳ Last synced: Today at 08:42 AM"
+                       style="-fx-text-fill: #8a90a0; -fx-font-size: 12;"/>
+                <Label text="📶" style="-fx-text-fill: #8a90a0;"/>
+                <Label text="🔔" style="-fx-text-fill: #8a90a0;"/>
+            </HBox>
 
-        <!-- Welcome heading -->
-        <VBox spacing="2">
-            <Label text="Your learning journey is progressing. Here's your current sync and group status."
-                   style="-fx-text-fill: #7c8291; -fx-font-size: 13;"/>
-        </VBox>
+            <!-- Welcome heading -->
+            <VBox spacing="2">
+                <Label text="Your learning journey is progressing. Here's your current sync and group status."
+                       style="-fx-text-fill: #7c8291; -fx-font-size: 13;"/>
+            </VBox>
 
-        <!-- Two column layout -->
-        <HBox spacing="18" VBox.vgrow="ALWAYS">
+            <!-- Two column layout -->
+            <HBox spacing="18" VBox.vgrow="ALWAYS">
 
-            <!-- LEFT COLUMN -->
-            <VBox spacing="16" HBox.hgrow="ALWAYS" prefWidth="480">
+                <!-- LEFT COLUMN -->
+                <VBox spacing="16" HBox.hgrow="ALWAYS" prefWidth="480">
 
-                <!-- My Groups card -->
-                <VBox spacing="10" style="-fx-background-color: white; -fx-background-radius: 10;
+                    <!-- My Groups card -->
+                    <VBox spacing="14" style="-fx-background-color: white; -fx-background-radius: 10;
                              -fx-padding: 16 18; -fx-effect: dropshadow(gaussian, #e3e6ee, 6, 0, 0, 2);">
-                    <HBox alignment="CENTER_LEFT">
-                        <Label text="MY GROUPS" style="-fx-font-weight: bold; -fx-font-size: 13; -fx-text-fill: #1a1f36;"/>
-                        <Region HBox.hgrow="ALWAYS"/>
-                        <Label text="View All ›" style="-fx-text-fill: #2f5bea; -fx-font-size: 12; -fx-font-weight: bold;"/>
-                    </HBox>
+                        <HBox alignment="CENTER_LEFT">
+                            <Label text="MY GROUPS" style="-fx-font-weight: bold; -fx-font-size: 13; -fx-text-fill: #1a1f36;"/>
+                            <Region HBox.hgrow="ALWAYS"/>
+                            <Label text="View All ›" style="-fx-text-fill: #2f5bea; -fx-font-size: 12; -fx-font-weight: bold;"/>
+                        </HBox>
 
-                    <ListView fx:id="groupsListView" prefHeight="190"
-                              style="-fx-background-color: transparent; -fx-border-color: transparent;"/>
-                </VBox>
+                        <FlowPane fx:id="groupsFlowPane" hgap="16" vgap="16"/>
+                    </VBox>
 
-                <!-- Sync Complete banner -->
-                <HBox fx:id="syncCompleteBanner" spacing="12" alignment="CENTER_LEFT"
-                      style="-fx-background-color: #eaf1ff; -fx-background-radius: 8; -fx-padding: 14 16;">
-                    <Label text="✔" style="-fx-background-color: #2f5bea; -fx-text-fill: white;
+                    <!-- Recent Notifications card -->
+                    <VBox spacing="10" style="-fx-background-color: white; -fx-background-radius: 10;
+                             -fx-padding: 16 18; -fx-effect: dropshadow(gaussian, #e3e6ee, 6, 0, 0, 2);">
+                        <Label text="Recent Notifications" style="-fx-font-weight: bold; -fx-font-size: 15; -fx-text-fill: #1a1f36;"/>
+                        <VBox fx:id="recentNotificationsBox" spacing="10"/>
+                    </VBox>
+
+                    <!-- Group Management footer -->
+                    <VBox spacing="6" style="-fx-padding: 4 0 4 2;">
+                        <Label text="GROUP MANAGEMENT" style="-fx-font-weight: bold; -fx-font-size: 11; -fx-text-fill: #9aa0ab;"/>
+                        <Hyperlink text="See All Groups →" onAction="#onOpenGroupSelection"
+                                   style="-fx-text-fill: #2f5bea; -fx-font-size: 13; -fx-font-weight: bold; -fx-padding: 0;"/>
+                    </VBox>
+
+                    <!-- Sync Complete banner -->
+                    <HBox fx:id="syncCompleteBanner" spacing="12" alignment="CENTER_LEFT"
+                          style="-fx-background-color: #eaf1ff; -fx-background-radius: 8; -fx-padding: 14 16;">
+                        <Label text="✔" style="-fx-background-color: #2f5bea; -fx-text-fill: white;
                                -fx-padding: 6 9; -fx-background-radius: 6;"/>
-                    <VBox spacing="2">
-                        <Label text="Sync Complete" style="-fx-text-fill: #2f5bea; -fx-font-weight: bold; -fx-font-size: 13;"/>
-                        <Label fx:id="syncDetailLabel" wrapText="true" maxWidth="380"
-                               text="Successfully updated your environment: 5 new messages, 2 announcements, and 1 quiz result downloaded. Everything is up to date."
-                               style="-fx-text-fill: #4a5570; -fx-font-size: 12;"/>
-                    </VBox>
-                </HBox>
-            </VBox>
-
-            <!-- RIGHT COLUMN -->
-            <VBox spacing="16" prefWidth="260" minWidth="260">
-
-                <!-- Pending Uploads card -->
-                <VBox fx:id="pendingUploadsCard" spacing="10" alignment="CENTER"
-                      style="-fx-background-color: white; -fx-background-radius: 10; -fx-padding: 18;
-                             -fx-border-color: #b9c8f5; -fx-border-style: segments(4,3); -fx-border-radius: 10;">
-                    <Label text="⤴" style="-fx-background-color: #eaf1ff; -fx-text-fill: #2f5bea;
-                               -fx-padding: 10 14; -fx-background-radius: 8; -fx-font-size: 15;"/>
-                    <Label text="Pending Uploads" style="-fx-font-weight: bold; -fx-font-size: 13;"/>
-                    <Label fx:id="pendingCountLabel" wrapText="true" textAlignment="CENTER"
-                           text="3 posts written offline – will sync automatically when connection is restored."
-                           style="-fx-text-fill: #7c8291; -fx-font-size: 11.5;"/>
-                    <Button fx:id="syncNowButton" text="Retry Sync ⟳" onAction="#onSyncNow" maxWidth="Infinity"
-                            style="-fx-background-color: #2f5bea; -fx-text-fill: white; -fx-font-weight: bold;
-                                   -fx-background-radius: 6; -fx-padding: 9 0;"/>
+                        <VBox spacing="2">
+                            <Label text="Sync Complete" style="-fx-text-fill: #2f5bea; -fx-font-weight: bold; -fx-font-size: 13;"/>
+                            <Label fx:id="syncDetailLabel" wrapText="true" maxWidth="380"
+                                   text="Successfully updated your environment: 5 new messages, 2 announcements, and 1 quiz result downloaded. Everything is up to date."
+                                   style="-fx-text-fill: #4a5570; -fx-font-size: 12;"/>
+                        </VBox>
+                    </HBox>
                 </VBox>
 
-                <!-- Weekly Progress card -->
+                <!-- RIGHT COLUMN -->
+                <VBox spacing="16" prefWidth="260" minWidth="260">
 
-            </VBox>
-        </HBox>
+                    <!-- Pending Uploads card -->
+                    <VBox fx:id="pendingUploadsCard" spacing="10" alignment="CENTER"
+                          style="-fx-background-color: white; -fx-background-radius: 10; -fx-padding: 18;
+                             -fx-border-color: #b9c8f5; -fx-border-style: segments(4,3); -fx-border-radius: 10;">
+                        <Label text="⤴" style="-fx-background-color: #eaf1ff; -fx-text-fill: #2f5bea;
+                               -fx-padding: 10 14; -fx-background-radius: 8; -fx-font-size: 15;"/>
+                        <Label text="Pending Uploads" style="-fx-font-weight: bold; -fx-font-size: 13;"/>
+                        <Label fx:id="pendingCountLabel" wrapText="true" textAlignment="CENTER"
+                               text="3 posts written offline – will sync automatically when connection is restored."
+                               style="-fx-text-fill: #7c8291; -fx-font-size: 11.5;"/>
+                        <Button fx:id="syncNowButton" text="Retry Sync ⟳" onAction="#onSyncNow" maxWidth="Infinity"
+                                style="-fx-background-color: #2f5bea; -fx-text-fill: white; -fx-font-weight: bold;
+                                   -fx-background-radius: 6; -fx-padding: 9 0;"/>
+                    </VBox>
 
-        <!-- Offline Mode hero banner -->
-        <HBox fx:id="offlineBanner" spacing="20" alignment="CENTER_LEFT"
-              style="-fx-background-color: #10162b; -fx-background-radius: 12; -fx-padding: 22 26;">
-            <VBox spacing="10" HBox.hgrow="ALWAYS">
-                <Label fx:id="connectionLabel" text="⌁ Offline Mode Active"
-                       style="-fx-text-fill: #c7cbd6; -fx-background-color: #1c2440; -fx-padding: 3 10;
+                    <!-- Weekly Progress card -->
+
+                </VBox>
+            </HBox>
+
+            <!-- Offline Mode hero banner -->
+            <HBox fx:id="offlineBanner" spacing="20" alignment="CENTER_LEFT"
+                  style="-fx-background-color: #10162b; -fx-background-radius: 12; -fx-padding: 22 26;">
+                <VBox spacing="10" HBox.hgrow="ALWAYS">
+                    <Label fx:id="connectionLabel" text="⌁ Offline Mode Active"
+                           style="-fx-text-fill: #c7cbd6; -fx-background-color: #1c2440; -fx-padding: 3 10;
                               -fx-background-radius: 12; -fx-font-size: 10.5;"/>
-                <Label text="Stay Productive Everywhere"
-                       style="-fx-text-fill: white; -fx-font-size: 18; -fx-font-weight: bold;"/>
-                <HBox spacing="30">
-                    <VBox spacing="8">
-                        <Label text="⏱  Previously synced discussions, messages, and announcements remain accessible."
-                               wrapText="true" maxWidth="260" style="-fx-text-fill: #c7cbd6; -fx-font-size: 11.5;"/>
-                        <Label text="⏰  Quiz results and real-time notifications require an active connection."
-                               wrapText="true" maxWidth="260" style="-fx-text-fill: #c7cbd6; -fx-font-size: 11.5;"/>
-                    </VBox>
-                    <VBox spacing="8">
-                        <Label text="📝  New posts written offline will be queued and uploaded automatically on reconnection."
-                               wrapText="true" maxWidth="260" style="-fx-text-fill: #c7cbd6; -fx-font-size: 11.5;"/>
-                        <Label fx:id="recentSyncLabel"
-                               text="🔄  Desktop app auto-syncs on reconnection. No manual action required."
-                               wrapText="true" maxWidth="260" style="-fx-text-fill: #c7cbd6; -fx-font-size: 11.5;"/>
-                    </VBox>
-                </HBox>
-            </VBox>
-            <Region prefWidth="200" prefHeight="120"
-                    style="-fx-background-color: linear-gradient(to right, #10162b, #1a3a5c);
+                    <Label text="Stay Productive Everywhere"
+                           style="-fx-text-fill: white; -fx-font-size: 18; -fx-font-weight: bold;"/>
+                    <HBox spacing="30">
+                        <VBox spacing="8">
+                            <Label text="⏱  Previously synced discussions, messages, and announcements remain accessible."
+                                   wrapText="true" maxWidth="260" style="-fx-text-fill: #c7cbd6; -fx-font-size: 11.5;"/>
+                            <Label text="⏰  Quiz results and real-time notifications require an active connection."
+                                   wrapText="true" maxWidth="260" style="-fx-text-fill: #c7cbd6; -fx-font-size: 11.5;"/>
+                        </VBox>
+                        <VBox spacing="8">
+                            <Label text="📝  New posts written offline will be queued and uploaded automatically on reconnection."
+                                   wrapText="true" maxWidth="260" style="-fx-text-fill: #c7cbd6; -fx-font-size: 11.5;"/>
+                            <Label fx:id="recentSyncLabel"
+                                   text="🔄  Desktop app auto-syncs on reconnection. No manual action required."
+                                   wrapText="true" maxWidth="260" style="-fx-text-fill: #c7cbd6; -fx-font-size: 11.5;"/>
+                        </VBox>
+                    </HBox>
+                </VBox>
+                <Region prefWidth="200" prefHeight="120"
+                        style="-fx-background-color: linear-gradient(to right, #10162b, #1a3a5c);
                            -fx-background-radius: 8;"/>
-        </HBox>
+            </HBox>
 
-    </VBox>
+        </VBox>
+    </ScrollPane>
 
 </HBox>

@@ -104,6 +104,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/groups/{group}/mark-viewed', [App\Http\Controllers\Api\GroupApiController::class, 'markViewed']);
     Route::get('/sync/pull', [App\Http\Controllers\Api\SyncController::class, 'pull']);
     Route::post('/sync/push', [App\Http\Controllers\Api\SyncController::class, 'push']);
+    Route::put('/settings', [App\Http\Controllers\Api\SettingsController::class, 'update']);
+    Route::post('/logout', [App\Http\Controllers\Api\SettingsController::class, 'logout']);
 });
 
 // Route::middleware('auth')->group(function () {

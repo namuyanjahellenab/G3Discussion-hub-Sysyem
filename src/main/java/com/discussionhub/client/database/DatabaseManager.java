@@ -435,9 +435,9 @@ public class DatabaseManager {
         }
     }
 
-    public void mergeTopic(int topicId, String title, String category, int createdBy, String createdAt) {
-        String sql = "INSERT OR REPLACE INTO Topic (TopicID, Title, Category, CreatedBy, CreatedAt) " +
-            "VALUES (?, ?, ?, ?, ?);";
+    public void mergeTopic(int topicId, String title, String category, int createdBy, String createdAt, int groupId) {
+        String sql = "INSERT OR REPLACE INTO Topic (TopicID, Title, Category, CreatedBy, CreatedAt, GroupID) " +
+            "VALUES (?, ?, ?, ?, ?, ?);";
 
         try (Connection conn = this.connect();
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
@@ -447,13 +447,13 @@ public class DatabaseManager {
             pstmt.setString(3, category);
             pstmt.setInt(4, createdBy);
             pstmt.setString(5, createdAt);
+            pstmt.setInt(6, groupId);
             pstmt.executeUpdate();
 
         } catch (SQLException e) {
             System.err.println("[DB] Error merging Topic " + topicId + " from server: " + e.getMessage());
         }
     }
-
     public void mergePost(int postId, int topicId, int userId, String content, String createdAt) {
         String sql = "INSERT OR REPLACE INTO Post (PostID, TopicID, UserID, Content, CreatedAt) " +
             "VALUES (?, ?, ?, ?, ?);";
