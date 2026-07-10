@@ -73,11 +73,13 @@ public class LoginController {
                         String userIdStr = extractJsonValue(result, "id");
                         int userId = userIdStr.isEmpty() ? 1 : Integer.parseInt(userIdStr);
                         String name = extractJsonValue(result, "name");
+                        String role = extractJsonValue(result, "role");
 
                         SessionManager.token = token;
                         SessionManager.userId = userId;
                         SessionManager.userEmail = email;
                         SessionManager.fullName = name;
+                        SessionManager.role = role.isEmpty() ? "Student" : role;
 
                         dbManager.ensureDeviceState(SessionManager.userId);
 

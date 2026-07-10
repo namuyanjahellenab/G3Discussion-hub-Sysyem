@@ -3,6 +3,7 @@ package com.discussionhub.client;
 import com.discussionhub.client.database.DatabaseManager;
 import com.discussionhub.client.utils.DeltaSyncService;
 import com.discussionhub.client.utils.NetworkUtil;
+import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
 import javafx.geometry.Insets;
@@ -10,9 +11,26 @@ import javafx.scene.Scene;
 import javafx.scene.control.*;
 import javafx.scene.layout.*;
 import javafx.stage.Stage;
+import org.json.JSONArray;
+import org.json.JSONObject;
 
-import java.util.List;
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
+import java.io.OutputStream;
+import java.net.HttpURLConnection;
+import java.net.URI;
+import java.net.URL;
+import java.nio.charset.StandardCharsets;
 
+/**
+ * Topic thread screen: shows the original post plus every reply and lets
+ * the user post a new reply, mirroring topics/show.blade.php exactly
+ * (backed by DiscussionHubPageController::showTopic()/storeReply()/
+ * acceptAnswer()) via GET/POST /api/topics, /api/posts/{post}/reply and
+ * /api/replies/{reply}/accept. This replaces the previous screen, which
+ * only read locally-cached SQLite data and showed placeholder author
+ * names ("Topic Author" / "Student").
+ */
 public class TopicController {
 
     @FXML private Label syncStatusLabel;
@@ -28,8 +46,11 @@ public class TopicController {
     private DatabaseManager dbManager;
     private DeltaSyncService syncService;
 
-    private String currentTopicTitle;
     private int currentTopicId;
+    private int currentMainPostId = -1;
+    private boolean canAccept = false;
+
+    private static final String BASE_URL = "http://localhost:8000/api";
 
     public void setServices(DatabaseManager dbManager, DeltaSyncService syncService) {
         this.dbManager = dbManager;
@@ -37,20 +58,10 @@ public class TopicController {
     }
 
     // Called by ForumController when a topic is selected
-    public void loadTopic(String topicTitle, int topicId) {
-        this.currentTopicTitle = topicTitle;
+    public void loadTopic(int topicId) {
         this.currentTopicId = topicId;
-
-        topicTitleLabel.setText(topicTitle);
         updateSyncStatusLabel();
-
-        // Show the original post as the first card
-        originalAuthorLabel.setText("Topic Author");
-        originalTimeLabel.setText("— synced locally");
-        originalContentLabel.setText(topicTitle);
-
-        // Load replies from local SQLite
-        loadReplies(topicId);
+        fetchTopic();
     }
 
     private void updateSyncStatusLabel() {
@@ -68,99 +79,217 @@ public class TopicController {
         }
     }
 
-    private void loadReplies(int topicId) {
-        // Clear any previously loaded reply cards (keep the original post card)
+    /**
+     * Loads the full thread from GET /api/topics/{id} — same data as
+     * DiscussionHubPageController::showTopic() (main post + all replies,
+     * with author, accepted-answer and quoted-reply info).
+     */
+    private void fetchTopic() {
+        new Thread(() -> {
+            try {
+                URL url = URI.create(BASE_URL + "/topics/" + currentTopicId).toURL();
+                HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+                conn.setRequestMethod("GET");
+                conn.setRequestProperty("Authorization", "Bearer " + SessionManager.token);
+                conn.setRequestProperty("Accept", "application/json");
+                int responseCode = conn.getResponseCode();
+                if (responseCode == 200) {
+                    JSONObject json = new JSONObject(readBody(conn));
+                    Platform.runLater(() -> renderTopic(json));
+                } else {
+                    Platform.runLater(() -> showError("Could not load this topic (server returned " + responseCode + ")."));
+                }
+            } catch (Exception e) {
+                Platform.runLater(() -> showError("Error loading topic: " + e.getMessage()));
+            }
+        }).start();
+    }
+
+    private void renderTopic(JSONObject json) {
+        String title = json.optString("title", "");
+        topicTitleLabel.setText(title);
+        canAccept = json.optBoolean("can_accept", false);
+
         threadContainer.getChildren().clear();
+
+        JSONObject mainPost = json.optJSONObject("main_post");
+        if (mainPost == null) {
+            Label note = new Label("No discussion started in this topic yet.");
+            note.setStyle("-fx-text-fill: #888; -fx-font-size: 12; -fx-padding: 12;");
+            threadContainer.getChildren().add(note);
+            replyInput.setDisable(true);
+            return;
+        }
+
+        currentMainPostId = mainPost.getInt("id");
+
+        originalAuthorLabel.setText(mainPost.optString("author", "a member"));
+        originalTimeLabel.setText(mainPost.optString("created_at_human", ""));
+        originalContentLabel.setText(mainPost.optString("content", ""));
         threadContainer.getChildren().add(originalPostCard);
 
-        if (topicId == -1) {
-            // Topic ID not yet known (created offline without a server ID) —
-            // nothing to load locally yet since posts need a real TopicID FK.
-            Label note = new Label("Replies will appear here after the next sync with the server.");
+        JSONArray replies = mainPost.optJSONArray("replies");
+        if (replies == null || replies.isEmpty()) {
+            Label note = new Label("No replies yet. Be the first to respond.");
             note.setStyle("-fx-text-fill: #888; -fx-font-size: 12; -fx-padding: 12;");
             threadContainer.getChildren().add(note);
             return;
         }
 
-        List<String> posts = dbManager.getPostsForTopic(topicId);
-
-        if (posts.isEmpty()) {
-            Label note = new Label("No replies yet. Be the first to reply below.");
-            note.setStyle("-fx-text-fill: #888; -fx-font-size: 12; -fx-padding: 12;");
-            threadContainer.getChildren().add(note);
-            return;
-        }
-
-        for (String content : posts) {
-            // Per SDD figure 6.8: replies are indented below the original post
-            VBox replyCard = buildReplyCard(content, "Student", "", false);
-            threadContainer.getChildren().add(replyCard);
+        for (int i = 0; i < replies.length(); i++) {
+            threadContainer.getChildren().add(buildReplyCard(replies.getJSONObject(i)));
         }
     }
 
-    // Builds one reply card. isAccepted = green border (per SDD figure 6.8 accepted answer highlight)
-    private VBox buildReplyCard(String content, String author, String time, boolean isAccepted) {
+    /**
+     * Builds one reply card mirroring the .bubble / .bubble-quote /
+     * .accepted-tag markup in topics/show.blade.php: green border + badge
+     * for accepted answers, a quoted-reply preview box, a "Lecturer" tag,
+     * and a lecturer-only "Mark as Accepted" button.
+     */
+    private VBox buildReplyCard(JSONObject reply) {
+        int replyId = reply.getInt("id");
+        String content = reply.optString("content", "");
+        String author = reply.optString("author", "a member");
+        String authorRole = reply.optString("author_role", "");
+        boolean isAccepted = reply.optBoolean("is_accepted", false);
+        String time = reply.optString("created_at_human", "");
+        JSONObject quoted = reply.optJSONObject("quoted");
+
         VBox card = new VBox(6);
         card.setPadding(new Insets(12));
-        card.setMargin(card, new Insets(0, 0, 0, 24)); // left-indent = threading
+        VBox.setMargin(card, new Insets(0, 0, 0, 24)); // left-indent = threading
         card.setStyle("-fx-background-color: white; -fx-background-radius: 6;" +
-                (isAccepted
-                        ? "-fx-border-color: #2e7d32; -fx-border-radius: 6; -fx-border-width: 2;"
-                        : "-fx-border-color: #eee; -fx-border-radius: 6; -fx-border-width: 1;") +
-                "-fx-effect: dropshadow(gaussian, #dddddd, 3, 0, 0, 1);");
+            (isAccepted
+                ? "-fx-border-color: #12b76a; -fx-border-radius: 6; -fx-border-width: 2;"
+                : "-fx-border-color: #eee; -fx-border-radius: 6; -fx-border-width: 1;") +
+            "-fx-effect: dropshadow(gaussian, #dddddd, 3, 0, 0, 1);");
+
+        if (isAccepted) {
+            Label badge = new Label("✔ Accepted Answer");
+            badge.setStyle("-fx-text-fill: #12b76a; -fx-font-weight: bold; -fx-font-size: 11;");
+            card.getChildren().add(badge);
+        }
 
         HBox meta = new HBox(10);
-        Label authorLabel = new Label(author);
-        authorLabel.setStyle("-fx-font-weight: bold; -fx-text-fill: #1a73e8;");
+        Label authorLabel = new Label(author + ("Lecturer".equals(authorRole) ? "  ·  Lecturer" : ""));
+        authorLabel.setStyle("-fx-font-weight: bold; -fx-text-fill: " +
+            ("Lecturer".equals(authorRole) ? "#12b76a" : "#1a73e8") + ";");
         Label timeLabel = new Label(time);
         timeLabel.setStyle("-fx-text-fill: #888; -fx-font-size: 11;");
         Region spacer = new Region();
         HBox.setHgrow(spacer, Priority.ALWAYS);
+        meta.getChildren().addAll(authorLabel, timeLabel, spacer);
 
-        // Per SDD figure 6.8: each post has Filter and Share buttons
-        Button filterBtn = new Button("Filter");
-        filterBtn.setStyle("-fx-padding: 3 8; -fx-background-radius: 4;");
-        Button shareBtn = new Button("Share");
-        shareBtn.setStyle("-fx-padding: 3 8; -fx-background-radius: 4;");
+        if (!isAccepted && canAccept) {
+            Button acceptBtn = new Button("Mark as Accepted");
+            acceptBtn.setStyle("-fx-padding: 3 8; -fx-background-radius: 4; -fx-font-size: 11;" +
+                "-fx-background-color: #ecfdf3; -fx-text-fill: #12b76a; -fx-font-weight: bold;");
+            acceptBtn.setOnAction(e -> onAcceptAnswer(replyId));
+            meta.getChildren().add(acceptBtn);
+        }
 
-        meta.getChildren().addAll(authorLabel, timeLabel, spacer, filterBtn, shareBtn);
+        card.getChildren().add(meta);
+
+        if (quoted != null) {
+            VBox quoteBox = new VBox(2);
+            quoteBox.setStyle("-fx-border-color: transparent transparent transparent #1a73e8;" +
+                "-fx-border-width: 0 0 0 3; -fx-background-color: #eef4ff; -fx-padding: 5 9;" +
+                "-fx-background-radius: 6;");
+            Label quoteText = new Label(quoted.optString("author", "") + ": " + quoted.optString("snippet", ""));
+            quoteText.setWrapText(true);
+            quoteText.setStyle("-fx-font-size: 11; -fx-text-fill: #344054;");
+            quoteBox.getChildren().add(quoteText);
+            card.getChildren().add(quoteBox);
+        }
 
         Label contentLabel = new Label(content);
         contentLabel.setWrapText(true);
         contentLabel.setStyle("-fx-font-size: 13;");
-
-        if (isAccepted) {
-            Label badge = new Label("✔ Accepted Answer");
-            badge.setStyle("-fx-text-fill: #2e7d32; -fx-font-weight: bold; -fx-font-size: 11;");
-            card.getChildren().addAll(badge, meta, contentLabel);
-        } else {
-            card.getChildren().addAll(meta, contentLabel);
-        }
+        card.getChildren().add(contentLabel);
 
         return card;
     }
 
+    /**
+     * Posts a reply via POST /api/posts/{post}/reply — the exact same
+     * logic (including auto-marking the topic "answered" when a lecturer
+     * replies) as DiscussionHubPageController::storeReply().
+     */
     @FXML
     protected void onPostReply() {
-        String content = replyInput.getText().trim();
-        if (content.isEmpty()) return;
+        String content = replyInput.getText() == null ? "" : replyInput.getText().trim();
+        if (content.isEmpty() || currentMainPostId == -1) return;
 
-        boolean isOnline = NetworkUtil.isNetworkAvailable();
-        // TODO: replace 1 with the real logged-in UserID once auth exists
-        // TODO: replace currentTopicId with the server-assigned ID once sync returns it
-        dbManager.handlePostSubmission(currentTopicId, 1, content, isOnline);
+        replyInput.setDisable(true);
+        new Thread(() -> {
+            try {
+                URL url = URI.create(BASE_URL + "/posts/" + currentMainPostId + "/reply").toURL();
+                HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+                conn.setRequestMethod("POST");
+                conn.setRequestProperty("Authorization", "Bearer " + SessionManager.token);
+                conn.setRequestProperty("Accept", "application/json");
+                conn.setRequestProperty("Content-Type", "application/json");
+                conn.setDoOutput(true);
 
-        replyInput.clear();
+                JSONObject payload = new JSONObject();
+                payload.put("ReplyContent", content);
 
-        // Reload replies so the new one appears immediately
-        loadReplies(currentTopicId);
+                try (OutputStream os = conn.getOutputStream()) {
+                    os.write(payload.toString().getBytes(StandardCharsets.UTF_8));
+                }
+
+                int code = conn.getResponseCode();
+                if (code == 201) {
+                    Platform.runLater(() -> {
+                        replyInput.clear();
+                        replyInput.setDisable(false);
+                        fetchTopic(); // reload so the new reply appears immediately
+                    });
+                } else {
+                    Platform.runLater(() -> {
+                        replyInput.setDisable(false);
+                        showError("Could not post reply (server returned " + code + ").");
+                    });
+                }
+            } catch (Exception e) {
+                Platform.runLater(() -> {
+                    replyInput.setDisable(false);
+                    showError("Error posting reply: " + e.getMessage());
+                });
+            }
+        }).start();
+    }
+
+    /**
+     * Lecturer-only "Mark as Accepted" via POST /api/replies/{reply}/accept
+     * — same rule as DiscussionHubPageController::acceptAnswer().
+     */
+    private void onAcceptAnswer(int replyId) {
+        new Thread(() -> {
+            try {
+                URL url = URI.create(BASE_URL + "/replies/" + replyId + "/accept").toURL();
+                HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+                conn.setRequestMethod("POST");
+                conn.setRequestProperty("Authorization", "Bearer " + SessionManager.token);
+                conn.setRequestProperty("Accept", "application/json");
+                conn.setDoOutput(true);
+                conn.getOutputStream().write(new byte[0]);
+
+                int code = conn.getResponseCode();
+                if (code == 200) {
+                    Platform.runLater(this::fetchTopic);
+                } else {
+                    Platform.runLater(() -> showError("Could not accept this reply (server returned " + code + ")."));
+                }
+            } catch (Exception e) {
+                Platform.runLater(() -> showError("Error accepting reply: " + e.getMessage()));
+            }
+        }).start();
     }
 
     @FXML
     protected void onExportPdf() {
-        // PDF export — per SDD figure 6.8.
-        // TODO: implement using iText or Apache PDFBox once the dependency is added to pom.xml.
-        // For now, show a placeholder alert so the button is visible and wired.
         Alert alert = new Alert(Alert.AlertType.INFORMATION);
         alert.setTitle("Export to PDF");
         alert.setHeaderText(null);
@@ -194,5 +323,22 @@ public class TopicController {
         } catch (Exception e) {
             System.err.println("[Topic] Error going back: " + e.getMessage());
         }
+    }
+
+    private void showError(String message) {
+        Alert alert = new Alert(Alert.AlertType.WARNING);
+        alert.setTitle("DiscussionHub");
+        alert.setHeaderText(null);
+        alert.setContentText(message);
+        alert.showAndWait();
+    }
+
+    private static String readBody(HttpURLConnection conn) throws Exception {
+        StringBuilder sb = new StringBuilder();
+        try (BufferedReader in = new BufferedReader(new InputStreamReader(conn.getInputStream()))) {
+            String line;
+            while ((line = in.readLine()) != null) sb.append(line);
+        }
+        return sb.toString();
     }
 }

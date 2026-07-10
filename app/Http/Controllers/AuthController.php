@@ -115,6 +115,7 @@ public function apiLogin(Request $request)
           'id'    => $user->UserID,
           'email' => $user->Email,
           'name'  => $user->UserName,
+          'role'  => $user->Role,
       ],
   ]);
 }

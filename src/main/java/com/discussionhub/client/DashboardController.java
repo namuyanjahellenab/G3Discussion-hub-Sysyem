@@ -27,6 +27,7 @@ import java.net.URI;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.List;
+import javafx.scene.control.Alert;
 
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -50,6 +51,7 @@ public class DashboardController {
 
     private DatabaseManager dbManager;
     private DeltaSyncService syncService;
+    private GroupSummary firstJoinedGroup; // used by the sidebar's generic "Forum" link
 
     @FXML
     public void initialize() {
@@ -149,6 +151,7 @@ public class DashboardController {
             }
             Platform.runLater(() -> {
                 groupsFlowPane.getChildren().clear();
+                firstJoinedGroup = myGroups.isEmpty() ? null : myGroups.get(0);
                 for (GroupSummary group : myGroups) {
                     groupsFlowPane.getChildren().add(createGroupCard(group));
                 }
@@ -286,18 +289,15 @@ public class DashboardController {
 
     @FXML
     protected void onOpenForum() {
-        try {
-            FXMLLoader loader = new FXMLLoader(getClass().getResource("forum-view.fxml"));
-            Parent root = loader.load();
-            ForumController controller = loader.getController();
-            controller.setServices(dbManager, syncService);
-
-            Stage stage = (Stage) syncStatusLabel.getScene().getWindow();
-            NavigationUtil.switchScene(stage, root);
-            stage.setTitle("DiscussionHub — Forum");
-        } catch (Exception e) {
-            System.err.println("[Dashboard] Error opening forum: " + e.getMessage());
+        if (firstJoinedGroup == null) {
+            Alert alert = new Alert(Alert.AlertType.INFORMATION);
+            alert.setTitle("DiscussionHub");
+            alert.setHeaderText(null);
+            alert.setContentText("Join a group first, then open its forum from the group card below.");
+            alert.showAndWait();
+            return;
         }
+        openForumForGroup(firstJoinedGroup);
     }
 
     @FXML

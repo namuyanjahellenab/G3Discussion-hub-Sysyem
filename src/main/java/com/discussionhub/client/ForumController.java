@@ -1,9 +1,9 @@
 package com.discussionhub.client;
 
 import com.discussionhub.client.database.DatabaseManager;
-import com.discussionhub.client.model.TopicItem;
 import com.discussionhub.client.utils.DeltaSyncService;
 import com.discussionhub.client.utils.NetworkUtil;
+import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Scene;
@@ -12,16 +12,35 @@ import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
+import org.json.JSONArray;
+import org.json.JSONObject;
 
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
+import java.io.OutputStream;
+import java.net.HttpURLConnection;
+import java.net.URI;
+import java.net.URL;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.List;
-import java.util.stream.Collectors;
 
+/**
+ * Group forum screen: lists topics for one specific group exactly like the
+ * web app's forum/group.blade.php (backed by DiscussionHubPageController
+ * ::groupTopics()), via GET /api/groups/{group}/topics. Replaces the old
+ * SQLite-only "fake" listing with the real, server-driven behaviour
+ * (search, status filter, pinned/answered/open/discussion badges,
+ * server-side pagination) so topic creation and browsing match the web
+ * app one-to-one.
+ */
 public class ForumController {
 
     @FXML private Label syncStatusLabel;
     @FXML private TextField searchField;
     @FXML private ComboBox<String> statusFilter;
-    @FXML private ListView<TopicItem> topicListView;
+    @FXML private ListView<TopicRow> topicListView;
     @FXML private HBox offlineBanner;
     @FXML private Label pageLabel;
     @FXML private Button prevButton;
@@ -29,16 +48,15 @@ public class ForumController {
 
     private DatabaseManager dbManager;
     private DeltaSyncService syncService;
-    private List<TopicItem> allTopics;
 
     private int currentPage = 1;
-    private static final int PAGE_SIZE = 15;
+    private int lastPage = 1;
 
-    // 0 = "no specific group" (old behaviour — shows every locally cached topic).
-    // Set to a real GroupID via setGroupContext() when opened from a specific
-    // group card on the Dashboard.
+    // Set via setGroupContext() when opened from a group card on the Dashboard.
     private int currentGroupId = 0;
     private String currentGroupName = "";
+
+    private static final String BASE_URL = "http://localhost:8000/api";
 
     public void setServices(DatabaseManager dbManager, DeltaSyncService syncService) {
         this.dbManager = dbManager;
@@ -46,17 +64,16 @@ public class ForumController {
         setupTopicCells();
         setupStatusFilter();
         updateSyncStatusLabel();
-        loadTopics();
     }
 
     /**
      * Call this right after setServices() when opening the Forum for one
      * specific group (e.g. from clicking a group card on the Dashboard).
-     * Re-runs loadTopics() so the list is filtered immediately.
      */
     public void setGroupContext(int groupId, String groupName) {
         this.currentGroupId = groupId;
         this.currentGroupName = groupName;
+        currentPage = 1;
         loadTopics();
         markGroupAsViewed(groupId);
     }
@@ -64,9 +81,8 @@ public class ForumController {
     private void markGroupAsViewed(int groupId) {
         new Thread(() -> {
             try {
-                java.net.URL url = java.net.URI.create(
-                    "http://127.0.0.1:8000/api/groups/" + groupId + "/mark-viewed").toURL();
-                java.net.HttpURLConnection conn = (java.net.HttpURLConnection) url.openConnection();
+                URL url = URI.create(BASE_URL + "/groups/" + groupId + "/mark-viewed").toURL();
+                HttpURLConnection conn = (HttpURLConnection) url.openConnection();
                 conn.setRequestMethod("POST");
                 conn.setRequestProperty("Authorization", "Bearer " + SessionManager.token);
                 conn.setRequestProperty("Accept", "application/json");
@@ -78,14 +94,15 @@ public class ForumController {
             }
         }).start();
     }
+
     /**
-     * Custom cell showing all five fields per SDD figure 6.7:
-     * title | status badge | author (UserID) | reply count | time
+     * Custom cell mirroring forum/group.blade.php's topic row: pinned/status
+     * badge, title, author, reply count, and relative time.
      */
     private void setupTopicCells() {
         topicListView.setCellFactory(listView -> new ListCell<>() {
             @Override
-            protected void updateItem(TopicItem item, boolean empty) {
+            protected void updateItem(TopicRow item, boolean empty) {
                 super.updateItem(item, empty);
                 if (empty || item == null) { setGraphic(null); return; }
 
@@ -93,38 +110,48 @@ public class ForumController {
                 row.setStyle("-fx-padding: 10; -fx-alignment: CENTER_LEFT;");
                 row.setPrefWidth(Double.MAX_VALUE);
 
-                // Title
-                Label titleLabel = new Label(item.getTitle());
+                Label badge = new Label(item.isPinned ? "PINNED" : statusLabelFor(item.status));
+                badge.setStyle(badgeStyleFor(item.isPinned ? "pinned" : item.status));
+
+                Label titleLabel = new Label(item.title);
                 titleLabel.setStyle("-fx-font-weight: bold; -fx-font-size: 13;");
                 HBox.setHgrow(titleLabel, Priority.ALWAYS);
 
-                // Status badge — defaults to "Open" for new local topics;
-                // will be updated to "Answered"/"Pinned" once synced from server
-                Label statusBadge = new Label("Open");
-                statusBadge.setStyle("-fx-background-color: #e3f2fd; -fx-text-fill: #1565c0;" +
-                    "-fx-padding: 2 8; -fx-background-radius: 10; -fx-font-size: 11;");
+                Label metaLabel = new Label("by " + item.author + "  •  "
+                    + item.replyCount + (item.replyCount == 1 ? " reply" : " replies")
+                    + "  •  " + item.createdAtHuman);
+                metaLabel.setStyle("-fx-text-fill: #888; -fx-font-size: 11;");
 
-                // Author — shows the UserID as a number for now;
-                // replace with a name lookup once a User table is cached locally
-                Label authorLabel = new Label("User #" + item.getCreatedBy());
-                authorLabel.setStyle("-fx-text-fill: #555; -fx-font-size: 11;");
-
-                // Real reply count from the LEFT JOIN query in DatabaseManager
-                Label replyLabel = new Label(item.getReplyCount() + " "
-                    + (item.getReplyCount() == 1 ? "reply" : "replies"));
-                replyLabel.setStyle("-fx-text-fill: #888; -fx-font-size: 11;");
-
-                Label timeLabel = new Label(item.getCreatedAt());
-                timeLabel.setStyle("-fx-text-fill: #aaa; -fx-font-size: 10.5;");
-
-                row.getChildren().addAll(titleLabel, statusBadge, authorLabel, replyLabel, timeLabel);
+                row.getChildren().addAll(badge, titleLabel, metaLabel);
                 setGraphic(row);
             }
         });
     }
 
+    private String statusLabelFor(String status) {
+        return switch (status) {
+            case "answered" -> "ANSWERED";
+            case "discussion" -> "DISCUSSION";
+            default -> "OPEN";
+        };
+    }
+
+    // Mirrors the .badge-* CSS classes in forum/group.blade.php
+    private String badgeStyleFor(String kind) {
+        String bg, fg;
+        switch (kind) {
+            case "pinned" -> { bg = "#eef4ff"; fg = "#0d52cc"; }
+            case "answered" -> { bg = "#ecfdf3"; fg = "#12b76a"; }
+            case "discussion" -> { bg = "#fef0ff"; fg = "#9e77ed"; }
+            default -> { bg = "#f2f4f7"; fg = "#667085"; }
+        }
+        return String.format(
+            "-fx-background-color: %s; -fx-text-fill: %s; -fx-font-weight: bold;" +
+                "-fx-font-size: 10; -fx-padding: 3 8; -fx-background-radius: 6;", bg, fg);
+    }
+
     private void setupStatusFilter() {
-        statusFilter.getItems().setAll("All", "My Posts");
+        statusFilter.getItems().setAll("All", "Open", "Answered", "Discussion");
         statusFilter.getSelectionModel().selectFirst();
     }
 
@@ -143,54 +170,75 @@ public class ForumController {
         }
     }
 
+    /**
+     * Fetches this page of topics from GET /api/groups/{group}/topics —
+     * the exact same query (search + filter + pinned-first ordering +
+     * 5-per-page pagination) as DiscussionHubPageController::groupTopics().
+     */
     private void loadTopics() {
-        List<TopicItem> fetched = dbManager.getAllTopicsWithDetails();
+        if (currentGroupId == 0) return;
 
-        if (currentGroupId != 0) {
-            allTopics = fetched.stream()
-                .filter(t -> t.getGroupId() == currentGroupId)
-                .collect(Collectors.toList());
-        } else {
-            allTopics = fetched;
-        }
+        String search = searchField.getText() == null ? "" : searchField.getText().trim();
+        String filter = statusFilter.getSelectionModel().getSelectedItem();
+        String filterParam = (filter == null || filter.equals("All")) ? "all" : filter.toLowerCase();
+        int pageToLoad = currentPage;
 
-        applyFilterAndSearch();
+        new Thread(() -> {
+            try {
+                String query = "?filter=" + URLEncoder.encode(filterParam, StandardCharsets.UTF_8)
+                    + "&page=" + pageToLoad
+                    + (search.isEmpty() ? "" : "&search=" + URLEncoder.encode(search, StandardCharsets.UTF_8));
+
+                URL url = URI.create(BASE_URL + "/groups/" + currentGroupId + "/topics" + query).toURL();
+                HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+                conn.setRequestMethod("GET");
+                conn.setRequestProperty("Authorization", "Bearer " + SessionManager.token);
+                conn.setRequestProperty("Accept", "application/json");
+
+                int responseCode = conn.getResponseCode();
+                if (responseCode == 200) {
+                    String body = readBody(conn);
+                    JSONObject json = new JSONObject(body);
+                    JSONArray topicsJson = json.getJSONArray("topics");
+                    List<TopicRow> rows = new ArrayList<>();
+                    for (int i = 0; i < topicsJson.length(); i++) {
+                        JSONObject t = topicsJson.getJSONObject(i);
+                        rows.add(new TopicRow(
+                            t.getInt("id"),
+                            t.getString("title"),
+                            t.optString("status", "open"),
+                            t.optBoolean("is_pinned", false),
+                            t.optInt("reply_count", 0),
+                            t.optString("author", "a member"),
+                            t.optString("created_at_human", "")
+                        ));
+                    }
+                    int newLastPage = json.optInt("last_page", 1);
+
+                    Platform.runLater(() -> {
+                        lastPage = newLastPage;
+                        topicListView.getItems().setAll(rows);
+                        pageLabel.setText("Page " + pageToLoad + " of " + lastPage);
+                        prevButton.setDisable(pageToLoad <= 1);
+                        nextButton.setDisable(pageToLoad >= lastPage);
+                    });
+                } else {
+                    Platform.runLater(() -> showError("Could not load topics (server returned " + responseCode + ")."));
+                }
+            } catch (Exception e) {
+                Platform.runLater(() -> showError("Error loading topics: " + e.getMessage()));
+            }
+        }).start();
     }
 
-    private void applyFilterAndSearch() {
-        String search = searchField.getText().toLowerCase().trim();
-        String selectedFilter = statusFilter.getSelectionModel().getSelectedItem();
-
-        List<TopicItem> filtered = allTopics.stream()
-            .filter(t -> search.isEmpty() || t.getTitle().toLowerCase().contains(search))
-            // "My Posts" filter — show only topics created by the current user (UserID 1 for now)
-            .filter(t -> selectedFilter == null || selectedFilter.equals("All") ||
-                (selectedFilter.equals("My Posts") && t.getCreatedBy() == 1) ||
-                (!selectedFilter.equals("My Posts")))
-            .collect(Collectors.toList());
-
-        int totalPages = Math.max(1, (int) Math.ceil((double) filtered.size() / PAGE_SIZE));
-        if (currentPage > totalPages) currentPage = totalPages;
-
-        int from = (currentPage - 1) * PAGE_SIZE;
-        int to = Math.min(from + PAGE_SIZE, filtered.size());
-
-        topicListView.getItems().clear();
-        topicListView.getItems().addAll(filtered.subList(from, to));
-
-        pageLabel.setText("Page " + currentPage + " of " + totalPages);
-        prevButton.setDisable(currentPage <= 1);
-        nextButton.setDisable(currentPage >= totalPages);
-    }
-
-    @FXML protected void onSearch() { currentPage = 1; applyFilterAndSearch(); }
-    @FXML protected void onFilterChange() { currentPage = 1; applyFilterAndSearch(); }
-    @FXML protected void onPrevPage() { if (currentPage > 1) { currentPage--; applyFilterAndSearch(); } }
-    @FXML protected void onNextPage() { currentPage++; applyFilterAndSearch(); }
+    @FXML protected void onSearch() { currentPage = 1; loadTopics(); }
+    @FXML protected void onFilterChange() { currentPage = 1; loadTopics(); }
+    @FXML protected void onPrevPage() { if (currentPage > 1) { currentPage--; loadTopics(); } }
+    @FXML protected void onNextPage() { if (currentPage < lastPage) { currentPage++; loadTopics(); } }
 
     @FXML
     protected void onTopicSelected() {
-        TopicItem selected = topicListView.getSelectionModel().getSelectedItem();
+        TopicRow selected = topicListView.getSelectionModel().getSelectedItem();
         if (selected == null) return;
 
         try {
@@ -198,22 +246,31 @@ public class ForumController {
             Scene scene = new Scene(loader.load(), 800, 600);
             TopicController controller = loader.getController();
             controller.setServices(dbManager, syncService);
-            // Pass both title AND the real TopicID so TopicController can load posts
-            controller.loadTopic(selected.getTitle(), selected.getTopicId());
+            controller.loadTopic(selected.id);
 
             Stage stage = (Stage) syncStatusLabel.getScene().getWindow();
             stage.setScene(scene);
-            stage.setTitle("DiscussionHub — " + selected.getTitle());
+            stage.setTitle("DiscussionHub — " + selected.title);
         } catch (Exception e) {
             System.err.println("[Forum] Error opening topic: " + e.getMessage());
         }
     }
 
+    /**
+     * New-topic dialog matching topics/create.blade.php's fields (Title +
+     * Content) and posts to POST /api/topics — the same validation and
+     * create logic as DiscussionHubPageController::storeTopic().
+     */
     @FXML
     protected void onNewTopic() {
+        if (currentGroupId == 0) {
+            showError("Open this screen from a specific group to create a topic.");
+            return;
+        }
+
         Dialog<String[]> dialog = new Dialog<>();
         dialog.setTitle("New Topic");
-        dialog.setHeaderText("Create a new discussion topic");
+        dialog.setHeaderText("Create a new discussion topic in " + currentGroupName);
         dialog.initModality(Modality.APPLICATION_MODAL);
 
         ButtonType createButton = new ButtonType("Create", ButtonBar.ButtonData.OK_DONE);
@@ -221,28 +278,63 @@ public class ForumController {
 
         TextField titleField = new TextField();
         titleField.setPromptText("Topic title");
-        TextField categoryField = new TextField();
-        categoryField.setPromptText("Category (e.g. Academic)");
+        TextArea contentArea = new TextArea();
+        contentArea.setPromptText("What would you like to discuss?");
+        contentArea.setPrefRowCount(5);
+        contentArea.setWrapText(true);
 
         javafx.scene.layout.VBox content = new javafx.scene.layout.VBox(10,
             new Label("Title:"), titleField,
-            new Label("Category:"), categoryField);
+            new Label("Content:"), contentArea);
         content.setPadding(new javafx.geometry.Insets(16));
+        content.setPrefWidth(420);
         dialog.getDialogPane().setContent(content);
 
         dialog.setResultConverter(btn ->
-            btn == createButton ? new String[]{titleField.getText(), categoryField.getText()} : null);
+            btn == createButton ? new String[]{titleField.getText(), contentArea.getText()} : null);
 
         dialog.showAndWait().ifPresent(result -> {
-            String title = result[0].trim();
-            String category = result[1].trim();
-            if (title.isEmpty()) return;
-
-            boolean isOnline = NetworkUtil.isNetworkAvailable();
-            // TODO: replace 1 with real logged-in UserID once auth exists
-            dbManager.handleTopicSubmission(title, category, 1, currentGroupId, isOnline);
-            loadTopics();
+            String title = result[0] == null ? "" : result[0].trim();
+            String contentText = result[1] == null ? "" : result[1].trim();
+            if (title.isEmpty() || contentText.isEmpty()) {
+                showError("Both a title and some content are required.");
+                return;
+            }
+            createTopic(title, contentText);
         });
+    }
+
+    private void createTopic(String title, String contentText) {
+        new Thread(() -> {
+            try {
+                URL url = URI.create(BASE_URL + "/topics").toURL();
+                HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+                conn.setRequestMethod("POST");
+                conn.setRequestProperty("Authorization", "Bearer " + SessionManager.token);
+                conn.setRequestProperty("Accept", "application/json");
+                conn.setRequestProperty("Content-Type", "application/json");
+                conn.setDoOutput(true);
+
+                JSONObject payload = new JSONObject();
+                payload.put("Title", title);
+                payload.put("GroupID", currentGroupId);
+                payload.put("Content", contentText);
+
+                try (OutputStream os = conn.getOutputStream()) {
+                    os.write(payload.toString().getBytes(StandardCharsets.UTF_8));
+                }
+
+                int code = conn.getResponseCode();
+                if (code == 201) {
+                    Platform.runLater(() -> { currentPage = 1; loadTopics(); });
+                } else {
+                    String err = readErrorBody(conn);
+                    Platform.runLater(() -> showError("Could not create topic: " + err));
+                }
+            } catch (Exception e) {
+                Platform.runLater(() -> showError("Error creating topic: " + e.getMessage()));
+            }
+        }).start();
     }
 
     @FXML
@@ -258,6 +350,56 @@ public class ForumController {
             stage.setTitle("DiscussionHub — Desktop Client");
         } catch (Exception e) {
             System.err.println("[Forum] Error going back: " + e.getMessage());
+        }
+    }
+
+    private void showError(String message) {
+        Alert alert = new Alert(Alert.AlertType.WARNING);
+        alert.setTitle("DiscussionHub");
+        alert.setHeaderText(null);
+        alert.setContentText(message);
+        alert.showAndWait();
+    }
+
+    private static String readBody(HttpURLConnection conn) throws Exception {
+        StringBuilder sb = new StringBuilder();
+        try (BufferedReader in = new BufferedReader(new InputStreamReader(conn.getInputStream()))) {
+            String line;
+            while ((line = in.readLine()) != null) sb.append(line);
+        }
+        return sb.toString();
+    }
+
+    private static String readErrorBody(HttpURLConnection conn) {
+        try (BufferedReader in = new BufferedReader(new InputStreamReader(conn.getErrorStream()))) {
+            StringBuilder sb = new StringBuilder();
+            String line;
+            while ((line = in.readLine()) != null) sb.append(line);
+            JSONObject err = new JSONObject(sb.toString());
+            return err.optString("message", "unknown error");
+        } catch (Exception e) {
+            return "unknown error";
+        }
+    }
+
+    private static class TopicRow {
+        final int id;
+        final String title;
+        final String status;
+        final boolean isPinned;
+        final int replyCount;
+        final String author;
+        final String createdAtHuman;
+
+        TopicRow(int id, String title, String status, boolean isPinned,
+                 int replyCount, String author, String createdAtHuman) {
+            this.id = id;
+            this.title = title;
+            this.status = status;
+            this.isPinned = isPinned;
+            this.replyCount = replyCount;
+            this.author = author;
+            this.createdAtHuman = createdAtHuman;
         }
     }
 }
