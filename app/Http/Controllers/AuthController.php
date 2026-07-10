@@ -20,72 +20,124 @@ class AuthController extends Controller
     {
         return view('auth.login');
     }
+    public function login(LoginRequest $request)
+{
+    $credentials = $request->validated();
 
+    Log::info('Login attempt', ['email' => $request->email]);
+
+    $user = User::where('Email', $credentials['email'])->first();
+
+    if (!$user) {
+        Log::warning('Login failed: User not found', ['email' => $request->email]);
+        return back()
+            ->withErrors(['email' => 'No account found with this email address.'])
+            ->withInput($request->only('email'));
+    }
+
+    if ($user->Status === 'Blacklisted') {
+        Log::warning('Login failed: User blacklisted', ['user_id' => $user->UserID]);
+        return back()
+            ->withErrors(['email' => 'This account has been blacklisted. Please contact support.'])
+            ->withInput($request->only('email'));
+    }
+
+    if ($user->Status === 'Suspended') {
+        Log::warning('Login failed: User suspended', ['user_id' => $user->UserID]);
+        return back()
+            ->withErrors(['email' => 'This account has been suspended. Please contact support.'])
+            ->withInput($request->only('email'));
+    }
+
+    if (!Hash::check($credentials['password'], $user->PasswordHash)) {
+        Log::warning('Login failed: Invalid password', ['email' => $request->email]);
+        return back()
+            ->withErrors(['password' => 'The password is incorrect.'])
+            ->withInput($request->only('email'));
+    }
+
+    if (!$user->RulesAccepted) {
+        Log::warning('Login failed: Rules not accepted', ['user_id' => $user->UserID]);
+        return back()
+            ->withErrors(['email' => 'Your account registration is incomplete. Please complete the registration process.'])
+            ->withInput($request->only('email'));
+    }
+
+    $user->update(['LastActive' => now()]);
+
+    Log::info('Login successful', ['user_id' => $user->UserID, 'email' => $user->Email]);
+
+    Auth::login($user, $request->boolean('remember'));
+
+    session()->flash('success', 'Welcome back! You have successfully logged in.');
+
+    return redirect()->route('dashboard');
+}
     /**
      * Handle login request.
      */
-    public function login(LoginRequest $request)
-    {
-        $credentials = $request->validated();
+    // public function login(LoginRequest $request)
+    // {
+    //     $credentials = $request->validated();
 
-        // Log login attempt
-        Log::info('Login attempt', ['email' => $request->email]);
+    //     // Log login attempt
+    //     Log::info('Login attempt', ['email' => $request->email]);
 
-        // Check if user exists
-        $user = User::where('Email', $credentials['email'])->first();
+    //     // Check if user exists
+    //     $user = User::where('Email', $credentials['email'])->first();
 
-        if (!$user) {
-            Log::warning('Login failed: User not found', ['email' => $request->email]);
-            return back()
-                ->withErrors(['email' => 'No account found with this email address.'])
-                ->withInput($request->only('email'));
-        }
+    //     if (!$user) {
+    //         Log::warning('Login failed: User not found', ['email' => $request->email]);
+    //         return back()
+    //             ->withErrors(['email' => 'No account found with this email address.'])
+    //             ->withInput($request->only('email'));
+    //     }
 
-        // Check user status (blacklist check)
-        if ($user->status === 'blacklisted') {
-            Log::warning('Login failed: User blacklisted', ['user_id' => $user->id]);
-            return back()
-                ->withErrors(['email' => 'This account has been blacklisted. Please contact support.'])
-                ->withInput($request->only('email'));
-        }
+    //     // Check user status (blacklist check)
+    //     if ($user->status === 'blacklisted') {
+    //         Log::warning('Login failed: User blacklisted', ['user_id' => $user->id]);
+    //         return back()
+    //             ->withErrors(['email' => 'This account has been blacklisted. Please contact support.'])
+    //             ->withInput($request->only('email'));
+    //     }
 
-        if ($user->status === 'suspended') {
-            Log::warning('Login failed: User suspended', ['user_id' => $user->id]);
-            return back()
-                ->withErrors(['email' => 'This account has been suspended. Please contact support.'])
-                ->withInput($request->only('email'));
-        }
+    //     if ($user->status === 'suspended') {
+    //         Log::warning('Login failed: User suspended', ['user_id' => $user->id]);
+    //         return back()
+    //             ->withErrors(['email' => 'This account has been suspended. Please contact support.'])
+    //             ->withInput($request->only('email'));
+    //     }
 
-        // Verify password
-        if (!Hash::check($credentials['password'], $user->password)) {
-            Log::warning('Login failed: Invalid password', ['email' => $request->email]);
-            return back()
-                ->withErrors(['password' => 'The password is incorrect.'])
-                ->withInput($request->only('email'));
-        }
+    //     // Verify password
+    //     if (!Hash::check($credentials['password'], $user->password)) {
+    //         Log::warning('Login failed: Invalid password', ['email' => $request->email]);
+    //         return back()
+    //             ->withErrors(['password' => 'The password is incorrect.'])
+    //             ->withInput($request->only('email'));
+    //     }
 
-        // Check if rules were accepted
-        if (!$user->rules_accepted) {
-            Log::warning('Login failed: Rules not accepted', ['user_id' => $user->id]);
-            return back()
-                ->withErrors(['email' => 'Your account registration is incomplete. Please complete the registration process.'])
-                ->withInput($request->only('email'));
-        }
+    //     // Check if rules were accepted
+    //     if (!$user->rules_accepted) {
+    //         Log::warning('Login failed: Rules not accepted', ['user_id' => $user->id]);
+    //         return back()
+    //             ->withErrors(['email' => 'Your account registration is incomplete. Please complete the registration process.'])
+    //             ->withInput($request->only('email'));
+    //     }
 
-        // Update last active timestamp
-        $user->update(['last_active' => now()]);
+    //     // Update last active timestamp
+    //     $user->update(['last_active' => now()]);
 
-        // Log successful login
-        Log::info('Login successful', ['user_id' => $user->id, 'email' => $user->email]);
+    //     // Log successful login
+    //     Log::info('Login successful', ['user_id' => $user->id, 'email' => $user->email]);
 
-        // Login the user
-        Auth::login($user, $request->boolean('remember'));
+    //     // Login the user
+    //     Auth::login($user, $request->boolean('remember'));
 
-        // Flash success message
-        session()->flash('success', 'Welcome back! You have successfully logged in.');
+    //     // Flash success message
+    //     session()->flash('success', 'Welcome back! You have successfully logged in.');
 
-        return redirect()->route('dashboard');
-    }
+    //     return redirect()->route('dashboard');
+    // }
     /**
  * API login for non-browser clients (e.g. JavaFX desktop app).
  * Returns a Sanctum token instead of a session cookie.
@@ -122,97 +174,168 @@ public function apiLogin(Request $request)
     /**
      * Display role selection page.
      */
-    public function showRegisterRole()
-    {
-        return view('auth.register-role');
-    }
+     public function showRegisterRole()
+     {
+         return view('auth.register-role');
+     }
 
-    /**
-     * Store selected role in session and redirect to registration details.
-     */
-    public function storeRole(RoleSelectionRequest $request)
-    {
-        $validated = $request->validated();
+     /**
+      * Store selected role in session and redirect to registration details.
+      */
+     public function storeRole(RoleSelectionRequest $request)
+     {
+         $validated = $request->validated();
 
-        // Store role in session
-        session(['registration_role' => $validated['role']]);
+         // Store role in session
+         session(['registration_role' => $validated['role']]);
 
-        Log::info('Role selected for registration', ['role' => $validated['role']]);
+         Log::info('Role selected for registration', ['role' => $validated['role']]);
 
-        return redirect()->route('register.details');
-    }
+         return redirect()->route('register.details');
+     }
 
-    /**
-     * Display registration details form with rules.
-     */
-    public function showRegisterDetails()
-    {
-        // Check if role is stored in session
+     /**
+      * Display registration details form with rules.
+      */
+     public function showRegisterDetails()
+     {
+         // Check if role is stored in session
         if (!session()->has('registration_role')) {
-            return redirect()->route('register.role')
-                ->with('error', 'Please select a role first.');
+             return redirect()->route('register.role')
+                 ->with('error', 'Please select a role first.');
+         }
+
+         return view('auth.register', [
+         'role' => session('registration_role'),
+         ]);
+    }
+
+    // /**
+    //  * Handle registration request.
+    //  */
+    // public function register(RegisterRequest $request)
+    // {
+    //     // Check if role is stored in session
+    //     if (!session()->has('registration_role')) {
+    //         return redirect()->route('register.role')
+    //             ->with('error', 'Please select a role first.');
+    //     }
+
+    //     $validated = $request->validated();
+
+    //     // Get role from session
+    //     $role = session('registration_role');
+
+    //     try {
+    //         // Create new user
+    //         $user = User::create([
+    //             'name' => $validated['full_name'],
+    //             'full_name' => $validated['full_name'],
+    //             'email' => $validated['email'],
+    //             // 'username' => $validated['username'],
+    //             'Handle' => $validated['username'],
+    //             'password' => Hash::make($validated['password']),
+    //             'role' => $role,
+    //             'status' => 'active',
+    //             'rules_accepted' => true,
+    //             'last_active' => now(),
+    //         ]);
+
+    //         Log::info('User registered successfully', [
+    //             'user_id' => $user->id,
+    //             'email' => $user->email,
+    //             'role' => $role,
+    //         ]);
+
+    //         // Clear registration session
+    //         session()->forget('registration_role');
+
+    //         // Flash success message
+    //         session()->flash('success', 'Account created successfully! Please log in to access your account.');
+
+    //         return redirect()->route('login')->with('message', 'Registration successful! You can now log in.');
+    //     } catch (\Exception $e) {
+    //         Log::error('Registration failed', [
+    //             'email' => $validated['email'],
+    //             'error' => $e->getMessage(),
+    //         ]);
+
+    //         return back()
+    //             ->withErrors(['email' => 'An error occurred during registration. Please try again.'])
+    //             ->withInput($request->except('password', 'password_confirmation'));
+    //     }
+    // }
+      public function register(RegisterRequest $request)
+{
+    if (!session()->has('registration_role')) {
+        return redirect()->route('register.role')
+            ->with('error', 'Please select a role first.');
+    }
+
+    $validated = $request->validated();
+    $role = session('registration_role');
+
+    // Extra safety check: role must be one of the two allowed values
+    if (!in_array($role, ['student', 'lecturer'])) {
+        return redirect()->route('register.role')
+            ->with('error', 'Invalid role selected.');
+    }
+
+    try {
+        $staffRecord = null;
+
+        if ($role === 'lecturer') {
+            $staffRecord = \App\Models\LecturerStaffId::where('StaffIDNumber', $request->staff_id_number)
+                ->where('IsUsed', false)
+                ->first();
+
+            if (!$staffRecord) {
+                return back()
+                    ->withErrors(['staff_id_number' => 'This staff ID is invalid or has already been used. Please contact your administrator.'])
+                    ->withInput($request->except('password', 'password_confirmation'));
+            }
         }
 
-        return view('auth.register', [
-            'role' => session('registration_role'),
+        $user = User::create([
+            'UserName' => $validated['full_name'],
+            'Username' => $validated['username'],
+            'Handle' => $validated['username'],
+            'Email' => $validated['email'],
+            'PasswordHash' => Hash::make($validated['password']),
+            'Role' => ucfirst($role),
+            'Status' => 'Active',
+            'RulesAccepted' => true,
+            'LastActive' => now(),
         ]);
-    }
 
-    /**
-     * Handle registration request.
-     */
-    public function register(RegisterRequest $request)
-    {
-        // Check if role is stored in session
-        if (!session()->has('registration_role')) {
-            return redirect()->route('register.role')
-                ->with('error', 'Please select a role first.');
+        if ($staffRecord) {
+            $staffRecord->update([
+                'IsUsed' => true,
+                'LinkedUserID' => $user->UserID,
+            ]);
         }
 
-        $validated = $request->validated();
+        Log::info('User registered successfully', [
+            'user_id' => $user->UserID,
+            'email' => $user->Email,
+            'role' => $role,
+        ]);
 
-        // Get role from session
-        $role = session('registration_role');
+        session()->forget('registration_role');
+        session()->flash('success', 'Account created successfully! Please log in to access your account.');
 
-        try {
-            // Create new user
-            $user = User::create([
-                'name' => $validated['full_name'],
-                'full_name' => $validated['full_name'],
-                'email' => $validated['email'],
-                'username' => $validated['username'],
-                'password' => Hash::make($validated['password']),
-                'role' => $role,
-                'status' => 'active',
-                'rules_accepted' => true,
-                'last_active' => now(),
-            ]);
+        return redirect()->route('login')->with('message', 'Registration successful! You can now log in.');
+    } catch (\Exception $e) {
+        Log::error('Registration failed', [
+            'email' => $validated['email'],
+            'error' => $e->getMessage(),
+        ]);
 
-            Log::info('User registered successfully', [
-                'user_id' => $user->id,
-                'email' => $user->email,
-                'role' => $role,
-            ]);
-
-            // Clear registration session
-            session()->forget('registration_role');
-
-            // Flash success message
-            session()->flash('success', 'Account created successfully! Please log in to access your account.');
-
-            return redirect()->route('login')->with('message', 'Registration successful! You can now log in.');
-        } catch (\Exception $e) {
-            Log::error('Registration failed', [
-                'email' => $validated['email'],
-                'error' => $e->getMessage(),
-            ]);
-
-            return back()
-                ->withErrors(['email' => 'An error occurred during registration. Please try again.'])
-                ->withInput($request->except('password', 'password_confirmation'));
-        }
+        return back()
+            ->withErrors(['email' => 'An error occurred during registration. Please try again.'])
+            ->withInput($request->except('password', 'password_confirmation'));
     }
-
+}
     /**
      * Handle logout.
      */

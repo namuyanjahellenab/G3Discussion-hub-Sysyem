@@ -44,7 +44,7 @@
                 <span class="role-button-checkmark">✓</span>
             </button>
 
-            <button 
+            <!-- <button 
                 type="button" 
                 class="role-button @if(old('role') === 'administrator') active @endif" 
                 onclick="selectRole('administrator', this)"
@@ -53,7 +53,7 @@
                 <span class="role-button-icon">⚙️</span>
                 <span>Administrator</span>
                 <span class="role-button-checkmark">✓</span>
-            </button>
+            </button> -->
 
             <!-- Hidden input for selected role -->
             <input type="hidden" id="selectedRole" name="role" value="{{ old('role', '') }}">

@@ -61,7 +61,7 @@
         </div>
     </div>
    <ul class="sidebar-menu">
-@if(auth()->user()->Role === 'Admin')
+@if(auth()->user()->Role === 'Administrator')
     <li class="{{ request()->routeIs('admin.dashboard') ? 'active' : '' }}">
         <a href="{{ route('dashboard') }}"><i class="fa-solid fa-table-columns"></i> Dashboard</a>
     </li>
@@ -80,6 +80,9 @@
     <li class="{{ request()->routeIs('admin.settings') ? 'active' : '' }}">
         <a href="#"><i class="fa-solid fa-gear"></i> Settings</a>
     </li>
+    <li class="{{ request()->routeIs('admin.lecturer-staff.index') ? 'active' : '' }}">
+    <a href="{{ route('admin.lecturer-staff.index') }}"><i class="fa-solid fa-id-card"></i> Lecturer Staff IDs</a>
+</li>
 @else
     <li class="{{ request()->routeIs('dashboard') ? 'active' : '' }}">
         <a href="{{ route('dashboard') }}"><i class="fa-solid fa-table-columns"></i> Dashboard</a>
@@ -91,12 +94,8 @@
         <a href="{{ route('messages.index') }}"><i class="fa-regular fa-envelope"></i> Messages</a>
     </li>
     <li class="{{ request()->routeIs('marks.index') ? 'active' : '' }}">
-        @if(auth()->user()->Role === 'Lecturer')
-            <a href="{{ route('dashboard') }}"><i class="fa-regular fa-star"></i> Marks</a>
-        @else
-            <a href="{{ route('marks.index') }}"><i class="fa-regular fa-star"></i> Marks</a>
-        @endif
-    </li>
+    <a href="{{ route('marks.index') }}"><i class="fa-regular fa-star"></i> Marks</a>
+</li>
     @if(auth()->user()->Role === 'Lecturer')
         <li class="dropdown {{ request()->routeIs('quiz.schedule') || request()->routeIs('dashboard') ? 'active' : '' }}">
             <a href="#" class="dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">

@@ -19,12 +19,13 @@ class DashboardController extends Controller
         $user = Auth::user();
 
         if ($user->Role === 'Lecturer') {
-            return $this->lecturer();
+            return $this->lecturerDashboard();
         }
 
         if ($user->Role === 'Administrator') {
-    return redirect()->route('admin.groups.index');
-}
+            return redirect()->route('admin.groups.index');
+        }
+
         if (!$user->groupMemberships()->exists()) {
             return redirect()->route('groups.select');
         }
@@ -98,7 +99,40 @@ class DashboardController extends Controller
             ->with('showNavbar', true);
     }
 
-    protected function lecturer()
+    public function marks()
+    {
+        $user = Auth::user();
+
+        if ($user->Role === 'Lecturer') {
+            return $this->lecturerMarks();
+        }
+
+        return view('marks.index');
+    }
+
+    protected function lecturerDashboard()
+    {
+        $lecturerId = Auth::id();
+
+        // TODO: replace these placeholder values with real queries once
+        // course/discussion features are fully built out
+        $activeCoursesCount = Quiz::where('LecturerID', $lecturerId)->distinct('GroupID')->count('GroupID');
+        $totalStudents = 0;
+        $activeDiscussions = 0;
+        $newDiscussionsToday = 0;
+        $unansweredQuestions = 0;
+        $reportedPosts = 0;
+        $reportedPostsChange = 0;
+        $recentDiscussions = collect();
+
+        return view('lecturer.dash', compact(
+            'activeCoursesCount', 'totalStudents', 'activeDiscussions',
+            'newDiscussionsToday', 'unansweredQuestions', 'reportedPosts',
+            'reportedPostsChange', 'recentDiscussions'
+        ));
+    }
+
+    protected function lecturerMarks()
     {
         $lecturerId = Auth::id();
 
@@ -117,12 +151,12 @@ class DashboardController extends Controller
         )->count();
 
         $recentResults = QuizResult::whereIn('QuizID', $quizzes->pluck('QuizID'))
-    ->orderByDesc('SubmissionTime')
-    ->take(10)
-    ->get();
+            ->orderByDesc('SubmissionTime')
+            ->take(10)
+            ->get();
 
-$recentDiscussions = collect(); // TODO: replace with real discussions query once Post/Topic feature is ready
+        $recentDiscussions = collect(); // TODO: replace with real discussions query once Post/Topic feature is ready
 
-return view('lecturer.dashboard', compact('quizzes', 'upcoming', 'active', 'closed', 'recentResults', 'recentDiscussions'));
+        return view('lecturer.dashboard', compact('quizzes', 'upcoming', 'active', 'closed', 'recentResults', 'recentDiscussions'));
     }
 }

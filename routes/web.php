@@ -9,7 +9,8 @@ use App\Http\Controllers\GroupSelectionController;
 use App\Http\Controllers\ProfileController;
 use App\Models\Group;
 use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\Auth\RegisteredUserController;
+use App\Http\Controllers\AdminLecturerStaffController;
+// use App\Http\Controllers\Auth\RegisteredUserController;
 Route::get('/', function () {
     return redirect('/login');
 });
@@ -21,10 +22,10 @@ Route::middleware('guest')->group(function () {
     Route::post('/register/role', [AuthController::class, 'storeRole'])->name('register.role.store');
     Route::get('/register/details', [AuthController::class, 'showRegisterDetails'])->name('register.details');
     Route::post('/register', [AuthController::class, 'register'])->name('register');
-    Route::get('/register/role', [RegisteredUserController::class, 'showRoleSelection'])
-    ->name('register.role');
-    Route::get('/register', [RegisteredUserController::class, 'create'])
-    ->name('register');
+    // Route::get('/register/role', [RegisteredUserController::class, 'showRoleSelection'])
+    // ->name('register.role');
+    // Route::get('/register', [RegisteredUserController::class, 'create'])
+    // ->name('register');
     
 });
 
@@ -101,10 +102,10 @@ Route::post('/messages', [DiscussionHubPageController::class, 'storeMessage'])
         ->middleware('verified')
         ->name('topics.export');
 
-    Route::get('/marks', [DiscussionHubPageController::class, 'marks'])
-        ->middleware('verified')
-        ->name('marks.index');
-
+    Route::get('/marks', [DashboardController::class, 'marks'])
+    ->middleware('verified')
+    ->name('marks.index');
+    
     Route::get('/quizzes', [DiscussionHubPageController::class, 'quizzes'])
         ->middleware('verified')
         ->name('quizzes.index');
@@ -183,6 +184,10 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
     Route::get('/groups', [AdminGroupController::class, 'index'])->name('groups.index');
     Route::post('/groups', [AdminGroupController::class, 'store'])->name('groups.store');
     Route::put('/groups/{group}', [AdminGroupController::class, 'update'])->name('groups.update');
+
+    Route::get('/lecturer-staff', [AdminLecturerStaffController::class, 'index'])->name('lecturer-staff.index');
+    Route::post('/lecturer-staff', [AdminLecturerStaffController::class, 'store'])->name('lecturer-staff.store');
+    Route::delete('/lecturer-staff/{staffId}', [AdminLecturerStaffController::class, 'destroy'])->name('lecturer-staff.destroy');
 });
 
 Route::get('/notifications/poll', [DiscussionHubPageController::class, 'pollNotifications'])

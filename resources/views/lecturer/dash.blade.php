@@ -397,14 +397,11 @@
                 <a href="{{ route('dashboard') }}" class="active">
                     <span class="icon"><i class="fa-solid fa-table-columns"></i></span> Dashboard
                 </a>
-                <a href="{{ url('/forum') }}">
+               <a href="{{ url('/forum') }}">
                     <span class="icon"><i class="fa-solid fa-comment-dots"></i></span> Discussion Forums
                 </a>
-                <a href="{{ url('/categories') }}">
-                    <span class="icon"><i class="fa-solid fa-layer-group"></i></span> Categories
-                </a>
-                <a href="{{ url('/students') }}">
-                    <span class="icon"><i class="fa-solid fa-user-graduate"></i></span> Students
+                <a href="{{ route('groups.select') }}">
+                    <span class="icon"><i class="fa-solid fa-layer-group"></i></span> Groups
                 </a>
                 <a href="{{ url('/announcements') }}">
                     <span class="icon"><i class="fa-solid fa-bullhorn"></i></span> Announcements
@@ -495,9 +492,6 @@
                             <div class="stat-icon pink"><i class="fa-solid fa-comments"></i></div>
                         </div>
                         <div class="value">{{ number_format($activeDiscussions ?? 0) }}</div>
-                        <div class="trend up">
-                            <i class="fa-solid fa-arrow-up"></i> {{ $newDiscussionsToday ?? 0 }} new today
-                        </div>
                     </div>
 
                     <div class="stat-card">
@@ -506,9 +500,6 @@
                             <div class="stat-icon amber"><i class="fa-solid fa-circle-question"></i></div>
                         </div>
                         <div class="value">{{ number_format($unansweredQuestions ?? 0) }}</div>
-                        <div class="trend warn">
-                            <i class="fa-solid fa-triangle-exclamation"></i> Requires attention
-                        </div>
                     </div>
 
                     <div class="stat-card">
@@ -518,13 +509,9 @@
                         </div>
                         <div class="value">{{ number_format($reportedPosts ?? 0) }}</div>
                         @if(($reportedPostsChange ?? 0) < 0)
-                            <div class="trend up">
-                                <i class="fa-solid fa-arrow-down"></i> {{ $reportedPostsChange }} since yesterday
-                            </div>
+                            
                         @else
-                            <div class="trend down">
-                                <i class="fa-solid fa-arrow-up"></i> +{{ $reportedPostsChange ?? 0 }} since yesterday
-                            </div>
+                            
                         @endif
                     </div>
                 </div>

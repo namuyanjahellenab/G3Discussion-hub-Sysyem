@@ -79,9 +79,21 @@
                 <span id="btnLoader" class="loader" style="display: none;"></span>
             </button>
         </form>
+        @if (session('message'))
+    <div class="alert-success" style="background:#e6f7e6; color:#2d7a2d; padding:12px; border-radius:6px; margin-bottom:16px;">
+        {{ session('message') }}
+    </div>
+@endif
+
+@if (session('success'))
+    <div class="alert-success" style="background:#e6f7e6; color:#2d7a2d; padding:12px; border-radius:6px; margin-bottom:16px;">
+        {{ session('success') }}
+    </div>
+@endif
 
         <!-- Register Link -->
         <div class="text-center">
+
             
             Don't have an account? <a href="{{ route('register') }}">Register here</a>
         </div>
