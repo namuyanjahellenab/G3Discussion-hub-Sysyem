@@ -17,6 +17,7 @@
         <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
         @vite(['resources/css/app.css', 'resources/js/app.js'])
         <link rel="stylesheet" href="{{ asset('css/style.css') }}">
+        <link rel="stylesheet" href="{{ asset('css/admin-theme.css') }}">
     </head>
     <body class="bg-light">
         <div class="min-h-screen bg-light">

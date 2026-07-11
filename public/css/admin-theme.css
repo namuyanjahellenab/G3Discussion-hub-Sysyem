@@ -1,0 +1,509 @@
+/* ============================================================
+   G3 Discussion Hub — Shared Theme
+   Base: LUNA palette · Display: Sora · Body: Inter
+   Link this file LAST in <head>, after Bootstrap and style.css,
+   so these rules take final precedence.
+   ============================================================ */
+
+:root {
+  /* --- LUNA base (structure) --- */
+  --luna-lightest: #A7EBF2;
+  --luna-light:    #54ACBF;
+  --luna-mid:      #26658C;
+  --luna-dark:     #023859;
+  --luna-darkest:  #011C40;
+
+  /* --- Semantic accents (status/meaning only) --- */
+  --accent-amber:   #D98E3D;
+  --accent-amber-bg:#FBF0E1;
+  --accent-danger:  #D9483D;
+  --accent-danger-bg:#FBE7E5;
+  --accent-success: #3F9C6B;
+  --accent-success-bg:#E4F4EC;
+
+  /* --- Surfaces --- */
+  --surface-bg:    #F4F8FA;   /* page background, cool tint instead of stark white */
+  --surface-card:  #FFFFFF;
+  --surface-border:#E1E9ED;
+
+  /* --- Text --- */
+  --text-heading: var(--luna-darkest);
+  --text-body:    #33455A;
+  --text-muted:   #6B8094;
+
+  /* --- Shape & shadow --- */
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --shadow-soft: 0 2px 10px rgba(1, 28, 64, 0.06);
+  --shadow-medium: 0 6px 20px rgba(1, 28, 64, 0.10);
+
+  /* --- Type --- */
+  --font-display: 'Sora', 'Figtree', sans-serif;
+  --font-body: 'Inter', 'Figtree', sans-serif;
+}
+
+/* ============================================================
+   Base
+   ============================================================ */
+
+body {
+  background-color: var(--surface-bg) !important;
+  font-family: var(--font-body);
+  color: var(--text-body);
+}
+
+h1, h2, h3, h4, h5, h6,
+.fw-bold {
+  font-family: var(--font-display);
+  color: var(--text-heading);
+  letter-spacing: -0.01em;
+}
+
+.text-muted {
+  color: var(--text-muted) !important;
+}
+
+/* ============================================================
+   Cards
+   ============================================================ */
+
+.card {
+  background-color: var(--surface-card);
+  border: 1px solid var(--surface-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-soft);
+}
+
+.card:hover {
+  box-shadow: var(--shadow-medium);
+  transition: box-shadow 0.2s ease;
+}
+
+/* Signature motif: a quiet 3px accent bar on the top edge of
+   every card, tinted to the section's dominant tone. Keeps the
+   palette present even on data-dense screens without adding noise. */
+.card {
+  border-top: 3px solid var(--luna-mid);
+}
+
+/* ============================================================
+   Buttons
+   ============================================================ */
+
+.btn {
+  border-radius: var(--radius-md);
+  font-family: var(--font-body);
+  font-weight: 500;
+  padding: 0.5rem 1.1rem;
+  transition: transform 0.12s ease, box-shadow 0.12s ease;
+}
+
+.btn:active {
+  transform: scale(0.98);
+}
+
+.btn-primary {
+  background-color: var(--luna-mid);
+  border-color: var(--luna-mid);
+}
+.btn-primary:hover,
+.btn-primary:focus {
+  background-color: var(--luna-dark);
+  border-color: var(--luna-dark);
+}
+
+.btn-outline-primary {
+  color: var(--luna-mid);
+  border-color: var(--luna-mid);
+}
+.btn-outline-primary:hover {
+  background-color: var(--luna-mid);
+  border-color: var(--luna-mid);
+}
+
+.btn-warning {
+  background-color: var(--accent-amber);
+  border-color: var(--accent-amber);
+  color: #fff;
+}
+.btn-warning:hover,
+.btn-warning:focus {
+  background-color: #C17A2B;
+  border-color: #C17A2B;
+  color: #fff;
+}
+
+.btn-outline-warning {
+  color: var(--accent-amber);
+  border-color: var(--accent-amber);
+}
+.btn-outline-warning:hover {
+  background-color: var(--accent-amber);
+  border-color: var(--accent-amber);
+  color: #fff;
+}
+
+.btn-outline-danger,
+.btn-danger {
+  color: var(--accent-danger);
+  border-color: var(--accent-danger);
+}
+.btn-danger {
+  background-color: var(--accent-danger);
+  color: #fff;
+}
+.btn-outline-danger:hover {
+  background-color: var(--accent-danger);
+  color: #fff;
+}
+
+.btn-outline-secondary,
+.btn-secondary {
+  color: var(--text-body);
+  border-color: var(--surface-border);
+}
+.btn-outline-secondary:hover {
+  background-color: var(--surface-bg);
+  color: var(--text-heading);
+}
+
+/* ============================================================
+   Badges — one consistent semantic language across every screen
+   ============================================================ */
+
+.badge {
+  font-family: var(--font-body);
+  font-weight: 500;
+  padding: 0.4em 0.75em;
+  border-radius: 999px; /* pill shape, reads faster in dense tables */
+}
+
+.badge.bg-success,
+.badge.bg-success-subtle {
+  background-color: var(--accent-success-bg) !important;
+  color: var(--accent-success) !important;
+}
+
+.badge.bg-warning,
+.badge.bg-primary-subtle {
+  background-color: var(--accent-amber-bg) !important;
+  color: var(--accent-amber) !important;
+}
+
+.badge.bg-danger {
+  background-color: var(--accent-danger-bg) !important;
+  color: var(--accent-danger) !important;
+}
+
+.badge.bg-secondary,
+.badge.bg-secondary-subtle {
+  background-color: #EAF1F4 !important;
+  color: var(--luna-mid) !important;
+}
+
+.badge.bg-primary {
+  background-color: var(--luna-mid) !important;
+  color: #fff !important;
+}
+
+/* ============================================================
+   Tables
+   ============================================================ */
+
+.table thead tr {
+  font-family: var(--font-body);
+  font-size: 0.72rem;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+  border-bottom: 2px solid var(--surface-border);
+}
+
+.table > :not(caption) > * > * {
+  border-bottom-color: var(--surface-border);
+}
+
+.table-hover > tbody > tr:hover > * {
+  background-color: var(--surface-bg);
+}
+
+/* ============================================================
+   Forms
+   ============================================================ */
+
+.form-control,
+.form-select {
+  border-radius: var(--radius-md);
+  border-color: var(--surface-border);
+  font-family: var(--font-body);
+}
+
+.form-control:focus,
+.form-select:focus {
+  border-color: var(--luna-light);
+  box-shadow: 0 0 0 0.2rem rgba(84, 172, 191, 0.25);
+}
+
+.form-label {
+  font-weight: 500;
+  color: var(--text-heading);
+  font-size: 0.88rem;
+}
+
+/* ============================================================
+   Modals
+   ============================================================ */
+
+.modal-content {
+  border-radius: var(--radius-lg);
+  border: none;
+  box-shadow: var(--shadow-medium);
+}
+
+.modal-header {
+  border-bottom: 1px solid var(--surface-border);
+}
+
+.modal-header .modal-title {
+  font-family: var(--font-display);
+  color: var(--text-heading);
+}
+
+.modal-footer {
+  border-top: 1px solid var(--surface-border);
+}
+
+/* ============================================================
+   Alerts
+   ============================================================ */
+
+.alert-success {
+  background-color: var(--accent-success-bg);
+  border-color: var(--accent-success);
+  color: #285C42;
+  border-radius: var(--radius-md);
+}
+
+.alert-danger {
+  background-color: var(--accent-danger-bg);
+  border-color: var(--accent-danger);
+  color: #8A2B22;
+  border-radius: var(--radius-md);
+}
+
+/* ============================================================
+   Activity log rows (blacklist page) — reuse LUNA instead of
+   the old hardcoded blue
+   ============================================================ */
+
+.activity-row {
+  border-left: 3px solid var(--luna-mid);
+  padding-left: 0.75rem;
+}
+
+/* ============================================================
+   Avatar badges (blacklist page)
+   ============================================================ */
+
+.avatar-badge {
+  background-color: var(--luna-lightest) !important;
+  color: var(--luna-dark) !important;
+}
+
+/* ============================================================
+   Focus visibility (accessibility floor)
+   ============================================================ */
+
+a:focus-visible,
+button:focus-visible,
+.btn:focus-visible {
+  outline: 2px solid var(--luna-light);
+  outline-offset: 2px;
+}
+
+/* ============================================================
+   Sidebar navigation
+   NOTE: .sidebar-panel background is NOT confirmed dark yet —
+   colors below assume a light sidebar background until that's
+   verified. See conversation for the Sources-tab check.
+   ============================================================ */
+
+.sidebar-brand {
+  font-family: var(--font-display);
+  color: var(--text-heading) !important;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  border-bottom: 1px solid var(--surface-border);
+}
+
+.sidebar-brand i {
+  color: var(--luna-mid);
+}
+
+.sidebar-menu li a {
+  font-family: var(--font-body);
+  color: var(--text-body) !important;
+  border-radius: var(--radius-md);
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.sidebar-menu li a:hover {
+  background-color: var(--surface-bg);
+  color: var(--luna-dark) !important;
+}
+
+.sidebar-menu li a i {
+  color: var(--luna-mid) !important;
+}
+
+.sidebar-menu li.active a {
+  background-color: var(--accent-amber) !important;
+  color: #fff !important;
+  font-weight: 500;
+}
+
+.sidebar-menu li.active a i {
+  color: #fff !important;
+}
+
+/* Dropdown submenu (Quizzes, for lecturers) */
+.sidebar-menu .dropdown-menu {
+  background-color: var(--surface-card);
+  border: 1px solid var(--surface-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-medium);
+}
+
+.sidebar-menu .dropdown-item {
+  color: var(--text-body);
+  font-size: 0.9rem;
+}
+
+.sidebar-menu .dropdown-item:hover {
+  background-color: var(--surface-bg);
+  color: var(--luna-dark);
+}
+
+#notification-bell {
+  color: var(--text-body) !important;
+}
+
+#notification-bell:hover {
+  color: var(--luna-mid) !important;
+}
+
+#notification-badge {
+  background-color: var(--accent-danger) !important;
+}
+
+#notification-dropdown {
+  border-radius: var(--radius-lg) !important;
+  box-shadow: var(--shadow-medium) !important;
+}
+
+#notification-dropdown .notif-header {
+  background-color: var(--surface-bg);
+}
+
+#mark-all-read {
+  color: var(--luna-mid) !important;
+}
+
+#sidebar-toggle-btn i {
+  color: var(--luna-mid) !important;
+}
+
+/* ============================================================
+   Reduced motion
+   ============================================================ */
+
+@media (prefers-reduced-motion: reduce) {
+  .card, .btn {
+    transition: none;
+  }
+}
+.chat-layout { display: grid; grid-template-columns: 260px 1fr; gap: 1.25rem; max-width: 1100px; margin: 0 auto; padding: 1.5rem; }
+
+.thread-list { padding: 0.75rem; height: fit-content; }
+.thread-list__header {
+    font-family: var(--font-display); font-weight: 600;
+    color: var(--text-heading); padding: 0.5rem 0.6rem;
+    display: flex; align-items: center; gap: 0.4rem;
+}
+.thread-list__header i { color: var(--luna-mid); }
+
+.thread-list__subheader {
+    font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.06em;
+    color: var(--text-muted); padding: 0.8rem 0.6rem 0.3rem;
+}
+
+.thread-item {
+    display: flex; align-items: center; gap: 0.6rem;
+    padding: 0.55rem 0.6rem; border-radius: var(--radius-md);
+    text-decoration: none; color: var(--text-body);
+    margin-bottom: 0.2rem;
+}
+.thread-item:hover { background: var(--surface-bg); }
+.thread-item--active { background: var(--luna-lightest); }
+.thread-item i { color: var(--luna-mid); width: 18px; text-align: center; }
+.thread-item strong { display: block; font-size: 0.85rem; }
+.thread-item span { display: block; font-size: 0.72rem; color: var(--text-muted); }
+
+.chat-main { min-width: 0; }
+.chat-header h2 { display: flex; align-items: center; gap: 0.5rem; font-size: 1.25rem; }
+.chat-header i { color: var(--luna-mid); }
+
+.chat-window {
+    display: flex; flex-direction: column; gap: 0.9rem;
+    padding: 1.25rem; max-height: 50vh; overflow-y: auto; margin: 1rem 0;
+}
+
+.chat-bubble { display: flex; gap: 0.6rem; max-width: 75%; }
+.chat-bubble--own { align-self: flex-end; flex-direction: row-reverse; margin-left: auto; }
+
+.chat-bubble__avatar {
+    width: 32px; height: 32px; border-radius: 50%;
+    background: var(--luna-mid); color: #fff;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 0.8rem; font-weight: 600; flex-shrink: 0;
+}
+.chat-bubble--own .chat-bubble__avatar { background: var(--accent-amber); }
+
+.chat-bubble__content {
+    background: var(--surface-bg); border: 1px solid var(--surface-border);
+    border-radius: var(--radius-md); padding: 0.6rem 0.9rem;
+}
+.chat-bubble--own .chat-bubble__content { background: var(--luna-lightest); }
+
+.chat-bubble__meta { display: flex; gap: 0.5rem; font-size: 0.72rem; color: var(--text-muted); margin-bottom: 0.2rem; }
+
+.chat-empty { text-align: center; padding: 2rem; color: var(--text-muted); }
+.chat-empty i { font-size: 1.8rem; margin-bottom: 0.5rem; display: block; color: var(--luna-light); }
+
+.chat-composer { padding: 1rem; }
+.chat-composer textarea {
+    width: 100%; min-height: 70px; border: 1px solid var(--surface-border);
+    border-radius: var(--radius-md); padding: 0.6rem; font-family: var(--font-body);
+    resize: vertical; margin-bottom: 0.6rem;
+}
+
+.exclude-toggle {
+    background: none; border: 1px solid var(--surface-border);
+    border-radius: var(--radius-md); padding: 0.4rem 0.8rem;
+    font-size: 0.82rem; color: var(--text-body); cursor: pointer;
+}
+.exclude-toggle:hover { border-color: var(--luna-mid); color: var(--luna-mid); }
+
+.exclude-panel { display: none; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.6rem; padding: 0.75rem; background: var(--surface-bg); border-radius: var(--radius-md); }
+.exclude-panel.open { display: flex; }
+
+.exclude-option {
+    display: flex; align-items: center; gap: 0.3rem; font-size: 0.82rem;
+    background: var(--surface-card); border: 1px solid var(--surface-border);
+    border-radius: 999px; padding: 0.3rem 0.7rem; cursor: pointer;
+}
+
+.exclude-hint { font-size: 0.72rem; color: var(--text-muted); margin-top: 0.5rem; }
+
+@media (max-width: 768px) {
+    .chat-layout { grid-template-columns: 1fr; }
+}

@@ -68,6 +68,56 @@
         </div>
     </div>
 </div>
+<div class="card shadow-sm mt-4">
+    <div class="card-body p-0">
+        <div class="p-3 border-bottom">
+            <h5 class="fw-bold mb-0">Lecturer & Staff Users</h5>
+            <p class="text-muted small mb-0">Promote to Admin, or demote an existing Admin back to their prior role.</p>
+        </div>
+        <table class="table table-hover mb-0">
+            <thead>
+                <tr>
+                    <th class="ps-4">Name</th>
+                    <th>Email</th>
+                    <th>Role</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                @forelse($staffUsers as $user)
+                    <tr>
+                        <td class="ps-4 fw-semibold">{{ $user->UserName }}</td>
+                        <td>{{ $user->Email }}</td>
+                        <td>
+                            <span class="badge {{ $user->Role === 'Admin' ? 'bg-primary' : 'bg-secondary' }}">
+                                {{ $user->Role }}
+                            </span>
+                        </td>
+                        <td>
+                            @if($user->Role === 'Admin')
+                                <form method="POST" action="{{ route('admin.lecturer-staff.demote', $user->UserID) }}"
+                                      onsubmit="return confirm('Demote {{ $user->UserName }} from Admin?');" style="display:inline;">
+                                    @csrf
+                                    <button type="submit" class="btn btn-sm btn-outline-warning">Demote</button>
+                                </form>
+                            @else
+                                <form method="POST" action="{{ route('admin.lecturer-staff.promote', $user->UserID) }}"
+                                      onsubmit="return confirm('Promote {{ $user->UserName }} to Admin?');" style="display:inline;">
+                                    @csrf
+                                    <button type="submit" class="btn btn-sm btn-outline-primary">Promote to Admin</button>
+                                </form>
+                            @endif
+                        </td>
+                    </tr>
+                @empty
+                    <tr>
+                        <td colspan="4" class="text-center text-muted py-4">No lecturer/staff/admin users found.</td>
+                    </tr>
+                @endforelse
+            </tbody>
+        </table>
+    </div>
+</div>
 
 <!-- Add Staff ID Modal -->
 <div class="modal fade" id="addStaffIdModal" tabindex="-1">

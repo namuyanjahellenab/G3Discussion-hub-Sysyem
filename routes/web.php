@@ -179,15 +179,28 @@ Route::get('/quiz-test', function() {
 
 // ->middleware('auth')
 use App\Http\Controllers\AdminGroupController;
+use App\Http\Controllers\AdminDashboardController;
+
 
 Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(function () {
+    Route::get('/dashboard', [AdminDashboardController::class, 'index'])->name('dashboard');
     Route::get('/groups', [AdminGroupController::class, 'index'])->name('groups.index');
     Route::post('/groups', [AdminGroupController::class, 'store'])->name('groups.store');
     Route::put('/groups/{group}', [AdminGroupController::class, 'update'])->name('groups.update');
+    Route::get('/statistics', [\App\Http\Controllers\Admin\AdminStatisticsController::class, 'index'])->name('statistics');
+    Route::get('/statistics/export', [\App\Http\Controllers\Admin\AdminStatisticsController::class, 'export'])->name('statistics.export');
 
     Route::get('/lecturer-staff', [AdminLecturerStaffController::class, 'index'])->name('lecturer-staff.index');
     Route::post('/lecturer-staff', [AdminLecturerStaffController::class, 'store'])->name('lecturer-staff.store');
     Route::delete('/lecturer-staff/{staffId}', [AdminLecturerStaffController::class, 'destroy'])->name('lecturer-staff.destroy');
+    Route::post('/lecturer-staff/{user}/promote', [AdminLecturerStaffController::class, 'promote'])->name('lecturer-staff.promote');
+Route::post('/lecturer-staff/{user}/demote', [AdminLecturerStaffController::class, 'demote'])->name('lecturer-staff.demote');
+    Route::get('/blacklist', [\App\Http\Controllers\Admin\AdminBlacklistController::class, 'index'])->name('blacklist');
+Route::post('/blacklist', [\App\Http\Controllers\Admin\AdminBlacklistController::class, 'store'])->name('blacklist.store');
+Route::delete('/blacklist/{blacklist}', [\App\Http\Controllers\Admin\AdminBlacklistController::class, 'destroy'])->name('blacklist.destroy');
+Route::post('/warning', [\App\Http\Controllers\Admin\AdminWarningController::class, 'store'])->name('warning.store');
+   
+
 });
 
 Route::get('/notifications/poll', [DiscussionHubPageController::class, 'pollNotifications'])
@@ -198,3 +211,7 @@ Route::patch('/notifications/{notification}/read', [DiscussionHubPageController:
 
 Route::patch('/notifications/read-all', [DiscussionHubPageController::class, 'markAllNotificationsRead'])
     ->middleware('verified')->name('notifications.read.all');
+    Route::middleware('auth')->group(function () {
+    Route::get('/groups/{groupId}/messages/{conversationId?}', [GroupChatController::class, 'index'])->name('student.messages');
+    Route::post('/groups/{groupId}/messages', [GroupChatController::class, 'store'])->name('student.messages.store');
+});

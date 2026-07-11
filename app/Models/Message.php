@@ -9,15 +9,10 @@ class Message extends Model
  const CREATED_AT = 'CreatedAt';
     const UPDATED_AT = 'UpdatedAt';
 
-    protected $table = 'Message'; // Specify the table name
-    protected $primaryKey = 'MessageID'; // Specify the primary key
+   protected $table = 'message';
+protected $primaryKey = 'MessageID';
 
-    protected $fillable = [
-        'TopicID',
-        'user_id',
-        'body',
-        'is_spam',
-    ];
+protected $fillable = ['TopicID', 'user_id', 'ConversationID', 'body', 'is_spam'];
 
     public function user()
     {
