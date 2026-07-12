@@ -10,6 +10,7 @@ use App\Http\Controllers\ProfileController;
 use App\Models\Group;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\AdminLecturerStaffController;
+use App\Http\Controllers\GroupChatController;
 // use App\Http\Controllers\Auth\RegisteredUserController;
 Route::get('/', function () {
     return redirect('/login');
@@ -176,6 +177,9 @@ Route::get('/quiz/active-now', [QuizEngineController::class, 'activeNow'])->midd
 Route::get('/quiz-test', function() {
     return view('quizzes.quiz-test');
 })->middleware('auth');
+Route::get('/quiz/{quizID}/my-review', [QuizEngineController::class, 'myReview'])
+    ->middleware('auth')
+    ->name('quiz.my-review');
 
 // ->middleware('auth')
 use App\Http\Controllers\AdminGroupController;

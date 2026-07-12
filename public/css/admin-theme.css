@@ -326,6 +326,9 @@ button:focus-visible,
    colors below assume a light sidebar background until that's
    verified. See conversation for the Sources-tab check.
    ============================================================ */
+.sidebar-panel {
+    padding-top: 64px; /* clears the fixed toggle button, no matter which page includes this sidebar */
+}
 
 .sidebar-brand {
   font-family: var(--font-display);

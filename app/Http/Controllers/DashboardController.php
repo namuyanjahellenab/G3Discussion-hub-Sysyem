@@ -11,6 +11,7 @@ use App\Models\Reply;
 use App\Models\Topic;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 
 class DashboardController extends Controller
 {
@@ -100,15 +101,57 @@ class DashboardController extends Controller
     }
 
     public function marks()
-    {
-        $user = Auth::user();
+{
+    $user = Auth::user();
 
-        if ($user->Role === 'Lecturer') {
-            return $this->lecturerMarks();
-        }
-
-        return view('marks.index');
+    if ($user->Role === 'Lecturer') {
+        return $this->lecturerMarks();
     }
+
+    $userId = $user->UserID;
+
+    $validPosts = DB::table('post')
+        ->where('UserID', $userId)
+        ->where('IsFlagged', 0)
+        ->count();
+
+    $replies = DB::table('reply')
+        ->where('UserID', $userId)
+        ->count();
+
+    $acceptedAnswers = DB::table('reply')
+        ->where('UserID', $userId)
+        ->where('IsAccepted', 1)
+        ->count();
+
+    $participationScore = round(
+        min(10, ($validPosts * 0.5) + ($replies * 0.3) + ($acceptedAnswers * 2)),
+        1
+    );
+
+    $quizResults = DB::table('quizresult')
+        ->where('UserID', $userId)
+        ->orderByDesc('SubmissionTime')
+        ->get();
+
+    $quizAverage = $quizResults->count()
+        ? round($quizResults->avg('Score'), 1)
+        : null;
+
+    $marks = [
+        'participation' => $participationScore,
+        'participation_details' => [
+            'posts' => $validPosts,
+            'replies' => $replies,
+            'accepted_answers' => $acceptedAnswers,
+        ],
+        'quiz_average' => $quizAverage,
+        'quizzes_taken' => $quizResults->count(),
+        'recent_quizzes' => $quizResults->take(5),
+    ];
+
+    return view('marks.index', compact('marks'));
+}
 
     protected function lecturerDashboard()
     {
@@ -157,6 +200,6 @@ class DashboardController extends Controller
 
         $recentDiscussions = collect(); // TODO: replace with real discussions query once Post/Topic feature is ready
 
-        return view('lecturer.dashboard', compact('quizzes', 'upcoming', 'active', 'closed', 'recentResults', 'recentDiscussions'));
+        return view('lecturer.marks', compact('quizzes', 'upcoming', 'active', 'closed', 'recentResults', 'recentDiscussions'));
     }
 }

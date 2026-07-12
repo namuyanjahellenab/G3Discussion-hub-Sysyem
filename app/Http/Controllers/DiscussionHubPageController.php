@@ -623,21 +623,48 @@ if ($request->filled('parent_post_id')) {
         ],
     ];
 
-    return view('marks.index', compact('marks'))->with('showSidebar', false);
+    return view('marks.index', compact('marks'));
 }
 
     public function quizzes()
-    {
-        $quizzes = Quiz::latest('CreatedAt')->get();
-        $completed = QuizResult::where('UserID', Auth::id())->with('quiz')->latest('SubmissionTime')->get();
-        $upcoming = Quiz::where('CreatedAt', '>=', now()->subDays(7))->get();
-        $scores = QuizResult::where('UserID', Auth::id())->get();
+{
+    $userId = Auth::id();
+    $now = now();
 
-        return view('quizzes.index', compact('quizzes', 'completed', 'upcoming', 'scores'))->with('showSidebar', false);
+    $allQuizzes = Quiz::orderByDesc('StartTime')->get();
+
+    $completed = QuizResult::where('UserID', $userId)->with('quiz')->latest('SubmissionTime')->get();
+    $completedQuizIds = $completed->pluck('QuizID')->unique();
+
+    $available = collect();
+    $upcoming = collect();
+    $missed = collect();
+
+    foreach ($allQuizzes as $quiz) {
+        if ($completedQuizIds->contains($quiz->QuizID)) {
+            continue;
+        }
+
+        $end = $quiz->StartTime->copy()->addMinutes($quiz->Duration);
+
+        if ($quiz->StartTime > $now) {
+            $upcoming->push($quiz);
+        } elseif ($now <= $end) {
+            $available->push($quiz);
+        } else {
+            $missed->push($quiz);
+        }
     }
 
+    $scores = QuizResult::where('UserID', $userId)->get();
+
+    return view('quizzes.index', compact('available', 'upcoming', 'missed', 'completed', 'scores'));
+}
     public function recommend()
     {
+         if (Auth::user()->Role === 'Lecturer') {
+        abort(403);
+    }
         $user = Auth::user();
         if (!$user instanceof \App\Models\User) {
             $user = \App\Models\User::find(Auth::id());

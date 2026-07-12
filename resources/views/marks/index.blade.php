@@ -25,7 +25,7 @@
 </style>
 
 <div class="dashboard-grid-container" id="clean-dashboard-root">
-    @include('layouts.sidebar')
+    
 
     <div class="content-workspace">
         <div style="margin-bottom: 2rem;">
@@ -34,24 +34,37 @@
         </div>
 
         <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 20px;">
-            @foreach([['Coursework', $marks['coursework'], 'fa-book-open'], ['CATs', $marks['cats'], 'fa-file-lines'], ['Exams', $marks['exams'], 'fa-pen-to-square'], ['GPA', $marks['gpa'], 'fa-graduation-cap']] as [$label, $value, $icon])
-                <div class="dashboard-group-card">
-                    <div style="width: 44px; height: 44px; background: #eef4ff; color: #0d52cc; border-radius: 10px; display:flex; align-items:center; justify-content:center; margin-bottom: 16px;"><i class="fa-solid {{ $icon }}"></i></div>
-                    <h5 style="color: #101828; font-size: 1.05rem; font-weight: 700; margin: 0 0 8px 0;">{{ $label }}</h5>
-                    <div style="font-size: 1.6rem; font-weight: 700; color: #101828;">{{ $value }}</div>
-                </div>
-            @endforeach
-            
+
             <!-- Participation Card -->
-            <div class="dashboard-group-card" style="border-left: 4px solid #10b981;">
-                <div style="width: 44px; height: 44px; background: #d1fae5; color: #10b981; border-radius: 10px; display:flex; align-items:center; justify-content:center; margin-bottom: 16px;"><i class="fa-solid fa-users"></i></div>
-                <h5 style="color: #101828; font-size: 1.05rem; font-weight: 700; margin: 0 0 8px 0;">Participation</h5>
-                <div style="font-size: 1.6rem; font-weight: 700; color: #101828;">{{ $marks['participation'] }}/10</div>
-                <div style="font-size: 0.85rem; color: #667085; margin-top: 8px;">
+            <div class="card" style="border-top: 3px solid var(--accent-success); padding: 24px;">
+                <div style="width: 44px; height: 44px; background: var(--accent-success-bg); color: var(--accent-success); border-radius: 10px; display:flex; align-items:center; justify-content:center; margin-bottom: 16px;">
+                    <i class="fa-solid fa-users"></i>
+                </div>
+                <h5 style="color: var(--text-heading); font-size: 1.05rem; font-weight: 700; margin: 0 0 8px 0;">Participation</h5>
+                <div style="font-size: 1.6rem; font-weight: 700; color: var(--text-heading);">{{ $marks['participation'] }}/10</div>
+                <div style="font-size: 0.85rem; color: var(--text-muted); margin-top: 8px;">
                     <div>Posts: {{ $marks['participation_details']['posts'] }}</div>
                     <div>Replies: {{ $marks['participation_details']['replies'] }}</div>
+                    <div>Accepted answers: {{ $marks['participation_details']['accepted_answers'] }}</div>
                 </div>
             </div>
+
+            <!-- Quiz Performance Card -->
+            <div class="card" style="border-top: 3px solid var(--luna-mid); padding: 24px;">
+                <div style="width: 44px; height: 44px; background: var(--luna-lightest); color: var(--luna-dark); border-radius: 10px; display:flex; align-items:center; justify-content:center; margin-bottom: 16px;">
+                    <i class="fa-solid fa-file-lines"></i>
+                </div>
+                <h5 style="color: var(--text-heading); font-size: 1.05rem; font-weight: 700; margin: 0 0 8px 0;">Quiz Performance</h5>
+                @if($marks['quiz_average'] !== null)
+                    <div style="font-size: 1.6rem; font-weight: 700; color: var(--text-heading);">{{ $marks['quiz_average'] }}%</div>
+                    <div style="font-size: 0.85rem; color: var(--text-muted); margin-top: 8px;">
+                        Quizzes taken: {{ $marks['quizzes_taken'] }}
+                    </div>
+                @else
+                    <div style="font-size: 1rem; color: var(--text-muted); margin-top: 8px;">No quizzes attempted yet.</div>
+                @endif
+            </div>
+
         </div>
     </div>
 

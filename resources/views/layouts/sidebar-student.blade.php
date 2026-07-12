@@ -66,8 +66,12 @@
             <a href="{{ route('forum.index') }}"><i class="fa-regular fa-comments"></i> Forum</a>
         </li>
         <li class="{{ request()->routeIs('messages.index') ? 'active' : '' }}">
-            <a href="{{ route('student.messages', ['groupId' => $currentGroupId]) }}">
-        </li>
+    @if($currentGroupId)
+        <a href="{{ route('student.messages', ['groupId' => $currentGroupId]) }}"><i class="fa-regular fa-comments"></i> Messages</a>
+    @else
+        <a href="#" class="disabled"><i class="fa-regular fa-comments"></i> Messages</a>
+    @endif
+</li>
         <li class="{{ request()->routeIs('marks.index') ? 'active' : '' }}">
             <a href="{{ route('marks.index') }}"><i class="fa-regular fa-star"></i> Marks</a>
         </li>

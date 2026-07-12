@@ -65,32 +65,28 @@
         <li class="{{ request()->routeIs('forum.index') ? 'active' : '' }}">
             <a href="{{ route('forum.index') }}"><i class="fa-regular fa-comments"></i> Forum</a>
         </li>
-        <li class="{{ request()->routeIs('messages.index') ? 'active' : '' }}">
+        <!-- <li class="{{ request()->routeIs('messages.index') ? 'active' : '' }}">
             <a href="{{ route('student.messages', ['groupId' => $currentGroupId]) }}">
-        </li>
+        </li> -->
+        <li class="{{ request()->routeIs('messages.index') ? 'active' : '' }}">
+    @if($currentGroupId)
+        <a href="{{ route('student.messages', ['groupId' => $currentGroupId]) }}"><i class="fa-regular fa-comments"></i> Messages</a>
+    @else
+        <a href="#" class="disabled"><i class="fa-regular fa-comments"></i> Messages</a>
+    @endif
+</li>
         <li class="{{ request()->routeIs('marks.index') ? 'active' : '' }}">
             <a href="{{ route('marks.index') }}"><i class="fa-regular fa-star"></i> Marks</a>
         </li>
-        <li class="dropdown {{ request()->routeIs('quiz.schedule') || request()->routeIs('dashboard') ? 'active' : '' }}">
-            <a href="#" class="dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
-                <i class="fa-regular fa-file-lines"></i> Quizzes
-            </a>
-            <ul class="dropdown-menu">
-                <li>
-                    <a class="dropdown-item" href="{{ route('quiz.schedule') }}">
-                        <i class="fa-solid fa-plus"></i> Schedule Quiz
-                    </a>
-                </li>
-                <li>
-                    <a class="dropdown-item" href="{{ route('dashboard') }}">
-                        <i class="fa-solid fa-chart-simple"></i> Quiz Results
-                    </a>
-                </li>
-            </ul>
-        </li>
-        <li class="{{ request()->routeIs('recommend.index') ? 'active' : '' }}">
+       <li class="{{ request()->routeIs('quiz.schedule') ? 'active' : '' }}">
+    <a href="{{ route('quiz.schedule') }}"><i class="fa-solid fa-plus"></i> Schedule Quiz</a>
+</li>
+<li class="{{ request()->routeIs('quiz.results') ? 'active' : '' }}">
+    <a href="{{ route('dashboard') }}"><i class="fa-solid fa-chart-simple"></i> Quiz Results</a>
+</li>
+        <!-- <li class="{{ request()->routeIs('recommend.index') ? 'active' : '' }}">
             <a href="{{ route('recommend.index') }}"><i class="fa-regular fa-thumbs-up"></i> Recommend</a>
-        </li>
+        </li> -->
         <li class="{{ request()->routeIs('settings.index') ? 'active' : '' }}">
             <a href="{{ route('settings.index') }}"><i class="fa-solid fa-gear"></i> Settings</a>
         </li>

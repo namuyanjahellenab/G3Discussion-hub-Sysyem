@@ -7,6 +7,7 @@ use App\Models\Question;
 use App\Models\Answer;
 use App\Models\QuizResult;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\DB;
 
 class QuizEngineController extends Controller
 {
@@ -256,6 +257,27 @@ public function results($quizID)
         'Results'    => $results,
     ]);
 }
+public function myReview($quizID)
+{
+    $userId = auth()->id();
+    $quiz = Quiz::findOrFail($quizID);
+
+    $result = QuizResult::where('QuizID', $quizID)
+        ->where('UserID', $userId)
+        ->latest('SubmissionTime')
+        ->firstOrFail();
+
+    $questions = Question::where('QuizID', $quizID)->get();
+
+    $myAnswers = DB::table('answer')
+        ->where('ResultID', $result->ResultID)
+        ->where('UserID', $userId)
+        ->get()
+        ->keyBy('QuestionID');
+
+    return view('quizzes.my-review', compact('quiz', 'result', 'questions', 'myAnswers'));
+}
+
 public function activeNow(Request $request)
 {
     $user = auth()->user();

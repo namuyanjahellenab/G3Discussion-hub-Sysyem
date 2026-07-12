@@ -1,4 +1,4 @@
-@extends('layouts.student') {{-- adjust to your actual layout name --}}
+@extends('layouts.app') {{-- adjust to your actual layout name --}}
 
 @section('content')
 <div class="chat-page">
