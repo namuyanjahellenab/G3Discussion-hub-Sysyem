@@ -14,93 +14,106 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 
 class DashboardController extends Controller
+{public function index()
 {
-    public function index()
-    {
-        $user = Auth::user();
+    $user = Auth::user();
 
-        if ($user->Role === 'Lecturer') {
-            return $this->lecturerDashboard();
-        }
-
-        if ($user->Role === 'Administrator') {
-    return redirect()->route('admin.dashboard');
-}
-
-        if (!$user->groupMemberships()->exists()) {
-            return redirect()->route('groups.select');
-        }
-
-        $joined_groups = $user->groups()
-            ->withCount(['students as member_count'])
-            ->get()
-            ->map(function ($group) {
-                $group->activity_status = 'Active discussion';
-                return $group;
-            });
-
-        $groupIds = $joined_groups->pluck('GroupID');
-
-        $sharedUserIds = GroupStudent::whereIn('GroupID', $groupIds)
-            ->pluck('UserID')
-            ->unique();
-
-        $notifications = Notification::where('UserID', $user->UserID)
-            ->orderBy('Status')
-            ->latest('CreatedAt')
-            ->get();
-
-        $notificationsCount = $notifications->where('Status', false)->count();
-
-        $topics = Topic::with('creator')
-            ->whereIn('CreatedBy', $sharedUserIds)
-            ->latest('CreatedAt')
-            ->get()
-            ->map(function ($topic) {
-                return [
-                    'user_name' => $topic->creator?->UserName ?? $topic->creator?->name,
-                    'action' => "Created topic \"{$topic->Title}\"",
-                    'time' => $topic->CreatedAt->diffForHumans(),
-                    'created_at' => $topic->CreatedAt,
-                ];
-            });
-
-        $posts = Post::with('author', 'topic')
-            ->whereIn('UserID', $sharedUserIds)
-            ->latest('CreatedAt')
-            ->get()
-            ->map(function ($post) {
-                return [
-                    'user_name' => $post->author?->UserName ?? $post->author?->name,
-                    'action' => "Posted in topic \"{$post->topic?->Title}\"",
-                    'time' => $post->CreatedAt->diffForHumans(),
-                    'created_at' => $post->CreatedAt,
-                ];
-            });
-
-        $replies = Reply::with('author', 'post')
-            ->whereIn('UserID', $sharedUserIds)
-            ->latest('CreatedAt')
-            ->get()
-            ->map(function ($reply) {
-                return [
-                    'user_name' => $reply->author?->UserName ?? $reply->author?->name,
-                    'action' => "Replied to post in topic \"{$reply->post?->topic?->Title}\"",
-                    'time' => $reply->CreatedAt->diffForHumans(),
-                    'created_at' => $reply->CreatedAt,
-                ];
-            });
-
-        $recentActivity = $topics->concat($posts)->concat($replies)
-            ->sortByDesc('created_at')
-            ->take(6);
-
-        return view('dashboard.index', compact('joined_groups', 'notifications', 'recentActivity', 'notificationsCount'))
-            ->with('showSidebar', true)
-            ->with('showNavbar', true);
+    if ($user->Role === 'Lecturer') {
+        return $this->lecturerDashboard();
     }
 
-    public function marks()
+    if ($user->Role === 'Administrator') {
+        return redirect()->route('admin.dashboard');
+    }
+
+    if (!$user->groupMemberships()->exists()) {
+        return redirect()->route('groups.select');
+    }
+
+    $joined_groups = $user->groups()
+        ->withCount(['students as member_count'])
+        ->get()
+        ->map(function ($group) {
+            $group->activity_status = 'Active discussion';
+            return $group;
+        });
+
+    $groupIds = $joined_groups->pluck('GroupID');
+
+    $sharedUserIds = GroupStudent::whereIn('GroupID', $groupIds)
+        ->pluck('UserID')
+        ->unique();
+
+    $notifications = Notification::where('UserID', $user->UserID)
+        ->orderBy('Status')
+        ->latest('CreatedAt')
+        ->get();
+
+    $notificationsCount = $notifications->where('Status', false)->count();
+
+    $topics = Topic::with('creator')
+        ->whereIn('CreatedBy', $sharedUserIds)
+        ->latest('CreatedAt')
+        ->get()
+        ->map(function ($topic) {
+            return [
+                'user_name' => $topic->creator?->UserName ?? $topic->creator?->name,
+                'action' => "Created topic \"{$topic->Title}\"",
+                'time' => $topic->CreatedAt->diffForHumans(),
+                'created_at' => $topic->CreatedAt,
+            ];
+        });
+
+    $posts = Post::with('author', 'topic')
+        ->whereIn('UserID', $sharedUserIds)
+        ->latest('CreatedAt')
+        ->get()
+        ->map(function ($post) {
+            return [
+                'user_name' => $post->author?->UserName ?? $post->author?->name,
+                'action' => "Posted in topic \"{$post->topic?->Title}\"",
+                'time' => $post->CreatedAt->diffForHumans(),
+                'created_at' => $post->CreatedAt,
+            ];
+        });
+
+    $replies = Reply::with('author', 'post')
+        ->whereIn('UserID', $sharedUserIds)
+        ->latest('CreatedAt')
+        ->get()
+        ->map(function ($reply) {
+            return [
+                'user_name' => $reply->author?->UserName ?? $reply->author?->name,
+                'action' => "Replied to post in topic \"{$reply->post?->topic?->Title}\"",
+                'time' => $reply->CreatedAt->diffForHumans(),
+                'created_at' => $reply->CreatedAt,
+            ];
+        });
+
+    $recentActivity = $topics->concat($posts)->concat($replies)
+        ->sortByDesc('created_at')
+        ->take(6);
+
+    // NEW: participation + quiz-average snapshot (same formula as marks())
+    $snapshot = $this->participationSnapshot($user->UserID);
+
+    // NEW: nearest upcoming quiz across the student's groups
+    // ASSUMPTION: quiz.GroupID links a quiz to a group — confirm this matches
+    // the logic already used in DiscussionHubPageController::quizzes(); adjust
+    // the whereIn column if quizzes are actually scoped differently there.
+    $upcomingQuiz = Quiz::whereIn('GroupID', $groupIds)
+        ->where('StartTime', '>', now())
+        ->orderBy('StartTime')
+        ->first();
+
+    return view('dashboard.index', compact(
+        'joined_groups', 'notifications', 'recentActivity', 'notificationsCount',
+        'snapshot', 'upcomingQuiz'
+    ))
+        ->with('showSidebar', true)
+        ->with('showNavbar', true);
+}
+public function marks()
 {
     $user = Auth::user();
 
@@ -108,8 +121,31 @@ class DashboardController extends Controller
         return $this->lecturerMarks();
     }
 
-    $userId = $user->UserID;
+    $snapshot = $this->participationSnapshot($user->UserID);
 
+    $quizResults = DB::table('quizresult')
+        ->where('UserID', $user->UserID)
+        ->orderByDesc('SubmissionTime')
+        ->get();
+
+    $marks = [
+        'participation' => $snapshot['participation'],
+        'participation_details' => $snapshot['participation_details'],
+        'quiz_average' => $snapshot['quiz_average'],
+        'quizzes_taken' => $quizResults->count(),
+        'recent_quizzes' => $quizResults->take(5),
+    ];
+
+    return view('marks.index', compact('marks'));
+}
+
+
+/**
+ * Shared participation + quiz-average calculation, used by both
+ * the dashboard snapshot widget and the full Marks page.
+ */
+protected function participationSnapshot($userId)
+{
     $validPosts = DB::table('post')
         ->where('UserID', $userId)
         ->where('IsFlagged', 0)
@@ -129,28 +165,19 @@ class DashboardController extends Controller
         1
     );
 
-    $quizResults = DB::table('quizresult')
+    $quizAverage = DB::table('quizresult')
         ->where('UserID', $userId)
-        ->orderByDesc('SubmissionTime')
-        ->get();
+        ->avg('Score');
 
-    $quizAverage = $quizResults->count()
-        ? round($quizResults->avg('Score'), 1)
-        : null;
-
-    $marks = [
+    return [
         'participation' => $participationScore,
         'participation_details' => [
             'posts' => $validPosts,
             'replies' => $replies,
             'accepted_answers' => $acceptedAnswers,
         ],
-        'quiz_average' => $quizAverage,
-        'quizzes_taken' => $quizResults->count(),
-        'recent_quizzes' => $quizResults->take(5),
+        'quiz_average' => $quizAverage ? round($quizAverage, 1) : null,
     ];
-
-    return view('marks.index', compact('marks'));
 }
 
     protected function lecturerDashboard()

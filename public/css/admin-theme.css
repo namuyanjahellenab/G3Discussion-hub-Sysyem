@@ -25,6 +25,7 @@
   --surface-bg:    #F4F8FA;   /* page background, cool tint instead of stark white */
   --surface-card:  #FFFFFF;
   --surface-border:#E1E9ED;
+  --luna-subtle-bg:#EAF1F4;   /* pale tint of --luna-mid, used behind secondary badges/chips */
 
   /* --- Text --- */
   --text-heading: var(--luna-darkest);
@@ -40,6 +41,34 @@
   /* --- Type --- */
   --font-display: 'Sora', 'Figtree', sans-serif;
   --font-body: 'Inter', 'Figtree', sans-serif;
+}
+
+/* ============================================================
+   Theme swatches — set via data-theme on <body>, from
+   User.ThemeColor. Only the brand accent trio + its subtle
+   tint change; surfaces/semantic accents/text stay put so
+   every existing page keeps reading correctly.
+   ============================================================ */
+
+body[data-theme="black"] {
+  --luna-lightest: #D8D8D8;
+  --luna-mid:      #2B2B2B;
+  --luna-dark:     #171717;
+  --luna-subtle-bg:#E9E9E9;
+}
+
+body[data-theme="brown"] {
+  --luna-lightest: #EAD9C4;
+  --luna-mid:      #8C5A2B;
+  --luna-dark:     #5C3A1A;
+  --luna-subtle-bg:#F3E9DC;
+}
+
+body[data-theme="green"] {
+  --luna-lightest: #CFE8DC;
+  --luna-mid:      #2F7D5E;
+  --luna-dark:     #1B4D33;
+  --luna-subtle-bg:#E1F0E8;
 }
 
 /* ============================================================
@@ -197,7 +226,7 @@ h1, h2, h3, h4, h5, h6,
 
 .badge.bg-secondary,
 .badge.bg-secondary-subtle {
-  background-color: #EAF1F4 !important;
+  background-color: var(--luna-subtle-bg) !important;
   color: var(--luna-mid) !important;
 }
 
@@ -341,10 +370,25 @@ button:focus-visible,
 .sidebar-brand i {
   color: var(--luna-mid);
 }
+.sidebar-menu {
+  list-style: none;
+  margin: 0;
+  padding: 12px 0;
+}
+
+.sidebar-menu li {
+  list-style: none;
+}
 
 .sidebar-menu li a {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 20px;
   font-family: var(--font-body);
   color: var(--text-body) !important;
+  text-decoration: none !important;
+  border-left: 3px solid transparent;
   border-radius: var(--radius-md);
   transition: background-color 0.15s ease, color 0.15s ease;
 }

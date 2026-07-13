@@ -8,10 +8,13 @@ use App\Models\Quiz;
 use App\Models\QuizResult;
 use App\Models\Recommendation;
 use App\Models\Topic;
+use App\Models\TopicClassification;
 use App\Models\User;
 use App\Models\Group;
 use App\Models\Participation;
+use App\Services\MlGatewayClient;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -68,7 +71,7 @@ class DiscussionHubPageController extends Controller
             ->latest('CreatedAt')
             ->get();
 
-        return view('forum.index', compact('joinedGroups', 'topics'))->with('showSidebar', false);
+        return view('forum.index', compact('joinedGroups', 'topics'))->with('showSidebar', true);
     }
 
     public function messages(Request $request)
@@ -662,39 +665,162 @@ if ($request->filled('parent_post_id')) {
 }
     public function recommend()
     {
-         if (Auth::user()->Role === 'Lecturer') {
-        abort(403);
-    }
+        if (Auth::user()->Role === 'Lecturer') {
+            abort(403);
+        }
+
         $user = Auth::user();
         if (!$user instanceof \App\Models\User) {
             $user = \App\Models\User::find(Auth::id());
         }
-        $joinedGroups = $user->groups()->withCount(['students as member_count'])->get();
-        $groupIds = $joinedGroups->pluck('GroupID');
-        $memberIds = GroupStudent::whereIn('GroupID', $groupIds)->pluck('UserID')->unique();
 
-        // Get recommended topics from joined groups
-        $recommendedTopics = Topic::whereIn('GroupID', $groupIds)
-            ->with('creator')
+        $groupIds = $user->groups()->pluck('Group.GroupID');
+
+        $forceRefresh = request()->boolean('refresh');
+        if ($forceRefresh) {
+            session()->forget('recommend_dismissed_at');
+        }
+
+        $hasSavedRecommendations = Recommendation::where('UserID', $user->UserID)->exists();
+        $dismissed = session('recommend_dismissed_at') && !$forceRefresh;
+
+        if ($forceRefresh || (!$hasSavedRecommendations && !$dismissed)) {
+            $this->generateRecommendations($user, $groupIds);
+        }
+
+        $recommendedTopics = Recommendation::where('UserID', $user->UserID)
+            ->orderByDesc('RelevanceScore')
+            ->with(['topic.creator', 'topic.group'])
+            ->get()
+            ->filter(fn ($recommendation) => $recommendation->topic)
+            ->map(function ($recommendation) {
+                $topic = $recommendation->topic;
+                $topic->RelevanceScore = $recommendation->RelevanceScore;
+                return $topic;
+            })
+            ->values();
+
+        $interests = Topic::whereIn('GroupID', $groupIds)
+            ->whereNotNull('Category')
+            ->distinct()
+            ->pluck('Category')
+            ->filter()
+            ->values();
+
+        $mlAvailable = $recommendedTopics->isNotEmpty()
+            && Recommendation::where('UserID', $user->UserID)->where('RelevanceScore', '>', 0)->exists();
+
+        return view('recommend.index', [
+            'recommendedTopics' => $recommendedTopics,
+            'interests' => $interests,
+            'mlAvailable' => $mlAvailable,
+        ])->with('showSidebar', true);
+    }
+
+    public function dismissRecommendations(): RedirectResponse
+    {
+        $user = Auth::user();
+        Recommendation::where('UserID', $user->UserID)->delete();
+        session(['recommend_dismissed_at' => now()]);
+
+        return redirect()->route('recommend.index');
+    }
+
+    /**
+     * Backfill topic classifications, ask the ML gateway to rank categories
+     * for this user, then persist a fresh Recommendation set. Falls back to
+     * the newest topics from joined groups when the gateway is unreachable.
+     */
+    private function generateRecommendations(User $user, $groupIds): void
+    {
+        $gateway = app(MlGatewayClient::class);
+
+        $unclassifiedTopics = Topic::whereIn('GroupID', $groupIds)
+            ->whereDoesntHave('classification')
             ->latest('CreatedAt')
-            ->take(4)
+            ->limit(15)
             ->get();
 
-        $recommendedStudents = User::where('UserID', '!=', $user->UserID)
-            ->whereIn('UserID', $memberIds)
-            ->take(4)
+        foreach ($unclassifiedTopics as $topic) {
+            $result = $gateway->classify($topic->Title, $topic->TopicID);
+            if ($result && !empty($result['PredictedCategory'])) {
+                TopicClassification::updateOrCreate(
+                    ['TopicID' => $topic->TopicID],
+                    [
+                        'PredictedCategory' => $result['PredictedCategory'],
+                        'ConfidenceScore' => $result['ConfidenceScore'] ?? 0,
+                    ]
+                );
+            }
+        }
+
+        $interests = Topic::whereIn('GroupID', $groupIds)
+            ->whereNotNull('Category')
+            ->distinct()
+            ->pluck('Category')
+            ->filter()
+            ->values()
+            ->all();
+
+        $recentMessages = Post::where('UserID', $user->UserID)
+            ->latest('CreatedAt')
+            ->limit(5)
+            ->pluck('Content')
+            ->filter()
+            ->values()
+            ->all();
+
+        if (empty($recentMessages)) {
+            $recentMessages = Topic::whereIn('GroupID', $groupIds)
+                ->latest('CreatedAt')
+                ->limit(5)
+                ->pluck('Title')
+                ->filter()
+                ->values()
+                ->all();
+        }
+
+        $ranked = $gateway->recommend($user->UserID, $interests, $recentMessages);
+        $categoryScores = collect($ranked['Recommendations'] ?? [])
+            ->pluck('RelevanceScore', 'Category');
+
+        $candidateTopics = Topic::whereIn('GroupID', $groupIds)
+            ->where('CreatedBy', '!=', $user->UserID)
             ->get();
-return view('recommend.index', compact('joinedGroups', 'recommendedTopics', 'recommendedStudents'))->with('showSidebar', false);
+
+        if ($categoryScores->isNotEmpty()) {
+            $topics = $candidateTopics
+                ->filter(fn ($topic) => $categoryScores->has($topic->Category))
+                ->sortByDesc(fn ($topic) => $categoryScores->get($topic->Category))
+                ->values();
+        } else {
+            $topics = $candidateTopics->sortByDesc('CreatedAt')->values();
+        }
+
+        $topics = $topics->take(8);
+
+        Recommendation::where('UserID', $user->UserID)->delete();
+
+        foreach ($topics as $topic) {
+            Recommendation::create([
+                'UserID' => $user->UserID,
+                'TopicID' => $topic->TopicID,
+                'RelevanceScore' => round($categoryScores->get($topic->Category, 0) * 100, 2),
+            ]);
+        }
     }
 
     public function settings()
     {
         return view('settings.index', [
-    'user' => Auth::user(),
-    'preferences' => session('notification_preferences', ['email' => true, 'push' => true]),
-    'darkMode' => session('dark_mode', false),
-])->with('showSidebar', false);
-        
+            'user' => Auth::user(),
+            'themeOptions' => [
+                'luna' => 'Blue-Teal (Default)',
+                'black' => 'Black',
+                'brown' => 'Brown',
+                'green' => 'Green',
+            ],
+        ])->with('showSidebar', true);
     }
 
     public function updateSettings(Request $request): RedirectResponse
@@ -724,15 +850,30 @@ return view('recommend.index', compact('joinedGroups', 'recommendedTopics', 'rec
             $user->PasswordHash = Hash::make($request->new_password);
         }
 
+        if ($request->filled('theme_color') && in_array($request->theme_color, ['luna', 'black', 'brown', 'green'], true)) {
+            $user->ThemeColor = $request->theme_color;
+        }
+
+        if ($user->Role === 'Lecturer' && $request->filled('default_quiz_duration')) {
+            $user->DefaultQuizDurationMinutes = max(1, (int) $request->default_quiz_duration);
+        }
+
         $user->save();
 
-        session()->put('notification_preferences', [
-            'email' => $request->boolean('email_notifications'),
-            'push' => $request->boolean('push_notifications'),
-        ]);
-        session()->put('dark_mode', $request->boolean('dark_mode'));
-
         return back()->with('status', 'Settings updated.');
+    }
+
+    public function logoutAllDevices(Request $request): RedirectResponse
+    {
+        $user = Auth::user();
+
+        DB::table('sessions')->where('user_id', $user->UserID)->delete();
+
+        Auth::logout();
+        $request->session()->invalidate();
+        $request->session()->regenerateToken();
+
+        return redirect()->route('login')->with('success', 'You have been logged out of all devices.');
     }
     public function groupTopics(Request $request, Group $group)
 {
@@ -753,7 +894,7 @@ return view('recommend.index', compact('joinedGroups', 'recommendedTopics', 'rec
         ->paginate(5)
         ->withQueryString();
 
-    return view('forum.group', compact('group', 'topics', 'search', 'filter'))->with('showSidebar', false);
+    return view('forum.group', compact('group', 'topics', 'search', 'filter'))->with('showSidebar', true);
 
 
 }

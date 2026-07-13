@@ -19,7 +19,7 @@
         <link rel="stylesheet" href="{{ asset('css/style.css') }}">
         <link rel="stylesheet" href="{{ asset('css/admin-theme.css') }}">
     </head>
-    <body class="bg-light">
+    <body class="bg-light" data-theme="{{ auth()->user()->ThemeColor ?? 'luna' }}">
         <div class="min-h-screen bg-light">
             
             {{-- PERMANENT FIX: Hide navbar completely if showNavbar is set to false --}}

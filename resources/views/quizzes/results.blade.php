@@ -4,239 +4,229 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Quiz Results | Discussion Hub</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="preconnect" href="https://fonts.bunny.net">
+    <link href="https://fonts.bunny.net/css?family=sora:400,500,600,700|inter:400,500,600,700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.3/css/all.min.css" />
+    <link rel="stylesheet" href="{{ asset('css/admin-theme.css') }}">
     <style>
-        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        * { box-sizing: border-box; }
+        body { margin: 0; font-family: var(--font-body); background: var(--surface-bg); color: var(--text-body); }
+        h1 { font-family: var(--font-display); color: var(--text-heading); }
 
-        body {
-            font-family: 'Inter', sans-serif;
-            background: #F0F4FF;
-            min-height: 100vh;
-            padding: 32px 24px;
+        .app-shell { display: flex; min-height: 100vh; }
+        .main { flex: 1; min-width: 0; }
+        .topbar {
+            background: var(--surface-card); border-bottom: 1px solid var(--surface-border);
+            min-height: 72px; padding: 14px 28px; display: flex; align-items: center;
+            justify-content: space-between; gap: 18px; position: sticky; top: 0; z-index: 30;
+            box-shadow: var(--shadow-soft);
         }
+        .topbar-left, .topbar-right { display: flex; align-items: center; gap: 12px; }
+        .topbar-search { flex: 1; max-width: 420px; position: relative; }
+        .topbar-search i { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: var(--text-muted); font-size: 13px; }
+        .topbar-search input {
+            width: 100%; border: 1px solid var(--surface-border); background: var(--surface-bg);
+            border-radius: 999px; padding: 10px 16px 10px 38px; font-family: var(--font-body);
+            font-size: 13px; color: var(--text-heading); outline: none;
+        }
+        .topbar-search input:focus { border-color: var(--luna-light); background: #fff; box-shadow: 0 0 0 0.2rem rgba(84, 172, 191, 0.18); }
+
+        .icon-btn {
+            width: 38px; height: 38px; border-radius: 10px; background: var(--surface-bg);
+            display: flex; align-items: center; justify-content: center; color: var(--text-heading);
+            font-size: 14px; cursor: pointer; position: relative; border: 1px solid transparent;
+        }
+        .icon-btn:hover { background: #EAF1F4; }
+        .icon-btn .dot { position: absolute; top: 8px; right: 8px; width: 7px; height: 7px; border-radius: 50%; background: var(--accent-danger); }
+
+        .user-chip {
+            display: flex; align-items: center; gap: 10px; padding: 6px 12px 6px 6px;
+            border-radius: 999px; background: var(--surface-bg); border: 1px solid var(--surface-border); cursor: pointer;
+        }
+        .user-chip .avatar {
+            width: 32px; height: 32px; border-radius: 50%; background: var(--luna-mid); color: #fff;
+            display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 12px; flex-shrink: 0;
+        }
+        .user-chip .meta { line-height: 1.2; }
+        .user-chip .name { font-size: 13px; font-weight: 600; color: var(--text-heading); }
+        .user-chip .role { font-size: 11px; color: var(--text-muted); }
+        .user-chip .chevron { font-size: 10px; color: var(--text-muted); }
+        .content { padding: 28px; max-width: 1200px; }
 
         .results-card {
-            background: #fff;
-            border-radius: 16px;
-            box-shadow: 0 2px 12px rgba(37,99,235,0.07);
-            max-width: 900px;
-            margin: 0 auto;
+            background: var(--surface-card);
+            border: 1px solid var(--surface-border);
+            border-top: 3px solid var(--luna-mid);
+            border-radius: var(--radius-lg);
+            box-shadow: var(--shadow-soft);
             padding: 36px 40px;
         }
 
-        /* Header */
         .results-header {
             display: flex;
             align-items: flex-start;
             justify-content: space-between;
             margin-bottom: 32px;
+            flex-wrap: wrap;
+            gap: 16px;
         }
 
-        .results-title {
-            font-size: 22px;
-            font-weight: 700;
-            color: #0F172A;
-            margin-bottom: 4px;
-        }
-
-        .results-meta {
-            font-size: 13px;
-            color: #64748B;
-        }
-
+        .results-title { font-size: 22px; font-weight: 700; color: var(--text-heading); margin-bottom: 4px; }
+        .results-meta { font-size: 13px; color: var(--text-muted); }
         .results-meta span { margin-right: 12px; }
 
         .btn-export {
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            background: #2563EB;
-            color: #fff;
-            border: none;
-            border-radius: 8px;
-            padding: 10px 20px;
-            font-size: 14px;
-            font-weight: 600;
-            cursor: pointer;
-            text-decoration: none;
-            transition: background 0.15s;
-            white-space: nowrap;
+            display: inline-flex; align-items: center; gap: 8px;
+            background: var(--luna-mid); color: #fff; border: none;
+            border-radius: var(--radius-md); padding: 10px 20px;
+            font-size: 14px; font-weight: 600; cursor: pointer;
+            text-decoration: none; transition: background 0.15s; white-space: nowrap;
         }
-
-        .btn-export:hover { background: #1D4ED8; }
-
+        .btn-export:hover { background: var(--luna-dark); }
         .btn-export svg { width: 16px; height: 16px; }
 
-        /* Stats */
-        .stats-grid {
-            display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            gap: 16px;
-            margin-bottom: 32px;
-        }
+        .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 32px; }
+        .stat-card { background: var(--luna-lightest); border-radius: var(--radius-md); padding: 20px 16px; text-align: center; }
+        .stat-value { font-size: 28px; font-weight: 700; color: var(--luna-dark); margin-bottom: 4px; line-height: 1; }
+        .stat-label { font-size: 12px; color: var(--text-muted); font-weight: 500; }
 
-        .stat-card {
-            background: #EFF6FF;
-            border-radius: 12px;
-            padding: 20px 16px;
-            text-align: center;
-        }
+        .divider { border: none; border-top: 1px solid var(--surface-border); margin-bottom: 24px; }
 
-        .stat-value {
-            font-size: 28px;
-            font-weight: 700;
-            color: #2563EB;
-            margin-bottom: 4px;
-            line-height: 1;
-        }
+        .results-table { width: 100%; border-collapse: collapse; font-size: 14px; }
+        .results-table thead tr { background: var(--luna-mid); }
+        .results-table thead th { color: #fff; font-weight: 600; padding: 14px 16px; text-align: left; font-size: 13px; }
+        .results-table thead th:first-child { border-radius: var(--radius-md) 0 0 var(--radius-md); }
+        .results-table thead th:last-child { border-radius: 0 var(--radius-md) var(--radius-md) 0; }
+        .results-table tbody tr { border-bottom: 1px solid var(--surface-border); transition: background 0.1s; }
+        .results-table tbody tr:hover { background: var(--surface-bg); }
+        .results-table tbody td { padding: 14px 16px; color: var(--text-heading); vertical-align: middle; }
 
-        .stat-label {
-            font-size: 12px;
-            color: #64748B;
-            font-weight: 500;
-        }
-
-        /* Divider */
-        .divider {
-            border: none;
-            border-top: 1px solid #E2E8F0;
-            margin-bottom: 24px;
-        }
-
-        /* Table */
-        .results-table {
-            width: 100%;
-            border-collapse: collapse;
-            font-size: 14px;
-        }
-
-        .results-table thead tr { background: #2563EB; }
-
-        .results-table thead th {
-            color: #fff;
-            font-weight: 600;
-            padding: 14px 16px;
-            text-align: left;
-            font-size: 13px;
-        }
-
-        .results-table thead th:first-child { border-radius: 8px 0 0 8px; }
-        .results-table thead th:last-child  { border-radius: 0 8px 8px 0; }
-
-        .results-table tbody tr {
-            border-bottom: 1px solid #F1F5F9;
-            transition: background 0.1s;
-        }
-
-        .results-table tbody tr:hover { background: #F8FAFF; }
-
-        .results-table tbody td {
-            padding: 14px 16px;
-            color: #0F172A;
-            vertical-align: middle;
-        }
-
-        .row-num { color: #2563EB; font-weight: 700; font-size: 13px; }
+        .row-num { color: var(--luna-mid); font-weight: 700; font-size: 13px; }
         .score-text { font-weight: 600; }
 
-        .badge {
-            display: inline-block;
-            padding: 3px 12px;
-            border-radius: 20px;
-            font-size: 12px;
-            font-weight: 600;
-            border: 1.5px solid;
-        }
+        .badge { display: inline-block; padding: 3px 12px; border-radius: 999px; font-size: 12px; font-weight: 600; border: 1.5px solid; }
+        .badge-manual { color: var(--accent-success); border-color: var(--accent-success); background: var(--accent-success-bg); }
+        .badge-auto { color: var(--accent-danger); border-color: var(--accent-danger); background: var(--accent-danger-bg); }
 
-        .badge-manual { color: #16A34A; border-color: #16A34A; background: #F0FDF4; }
-        .badge-auto   { color: #DC2626; border-color: #DC2626; background: #FEF2F2; }
-
-        /* States */
-        .state-loading, .state-error, .state-empty {
-            text-align: center;
-            padding: 40px 0;
-            font-size: 14px;
-        }
-
-        .state-loading { color: #64748B; }
-        .state-error   { color: #DC2626; }
-        .state-empty   { color: #94A3B8; }
+        .state-loading, .state-error, .state-empty { text-align: center; padding: 40px 0; font-size: 14px; }
+        .state-loading { color: var(--text-muted); }
+        .state-error { color: var(--accent-danger); }
+        .state-empty { color: var(--text-muted); }
 
         .spinner {
-            width: 28px; height: 28px;
-            border: 3px solid #DBEAFE;
-            border-top-color: #2563EB;
-            border-radius: 50%;
-            animation: spin 0.7s linear infinite;
-            margin: 0 auto 12px;
+            width: 28px; height: 28px; border: 3px solid var(--luna-lightest);
+            border-top-color: var(--luna-mid); border-radius: 50%;
+            animation: spin 0.7s linear infinite; margin: 0 auto 12px;
         }
-
         @keyframes spin { to { transform: rotate(360deg); } }
 
         @media (max-width: 640px) {
             .results-card { padding: 24px 16px; }
             .stats-grid { grid-template-columns: repeat(2, 1fr); }
-            .results-header { flex-direction: column; gap: 16px; }
+            .results-header { flex-direction: column; }
         }
     </style>
 </head>
 <body>
+    <div class="app-shell">
+        @include('layouts.sidebar')
 
-<div class="results-card">
+        <div class="main">
+            <header class="topbar">
+                <div class="topbar-left">
+                    <div class="topbar-search">
+                        <i class="fa-solid fa-magnifying-glass"></i>
+                        <input type="search" placeholder="Search quizzes, groups, students">
+                    </div>
+                </div>
 
-    <div class="results-header">
-        <div>
-            <h1 class="results-title" id="quizTitle">Loading...</h1>
-            <p class="results-meta">
-                <span id="totalMarksLabel"></span>
-                <span id="quizIdLabel"></span>
-            </p>
+                <div class="topbar-right">
+                    <button class="icon-btn" type="button" title="Notifications" aria-label="Notifications">
+                        <i class="fa-regular fa-bell"></i>
+                        <span class="dot"></span>
+                    </button>
+                    <div class="user-chip" aria-label="Account menu">
+                        <div class="avatar">{{ strtoupper(substr(auth()->user()->UserName ?? 'L', 0, 1)) }}</div>
+                        <div class="meta">
+                            <div class="name">{{ auth()->user()->UserName ?? 'Lecturer' }}</div>
+                            <div class="role">Lecturer</div>
+                        </div>
+                        <i class="fa-solid fa-chevron-down chevron"></i>
+                    </div>
+                </div>
+            </header>
+
+            <div class="content">
+                <div class="results-card">
+
+                    <div class="results-header">
+                        <div>
+                            <h1 class="results-title" id="quizTitle">Loading...</h1>
+                            <p class="results-meta">
+                                <span id="totalMarksLabel"></span>
+                                <span id="quizIdLabel"></span>
+                            </p>
+                        </div>
+                        <a href="#" class="btn-export" id="exportBtn">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M12 10v6m0 0l-3-3m3 3l3-3"/>
+                                <rect x="3" y="3" width="18" height="14" rx="2"/>
+                                <path d="M3 17v2a2 2 0 002 2h14a2 2 0 002-2v-2"/>
+                            </svg>
+                            Export PDF
+                        </a>
+                    </div>
+
+                    <div class="stats-grid">
+                        <div class="stat-card">
+                            <div class="stat-value" id="statAttempted">—</div>
+                            <div class="stat-label">Students Attempted</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-value" id="statAvg">—</div>
+                            <div class="stat-label">Average Score</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-value" id="statHighest">—</div>
+                            <div class="stat-label">Highest Score</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-value" id="statAuto">—</div>
+                            <div class="stat-label">Auto-Submitted</div>
+                        </div>
+                    </div>
+
+                    <hr class="divider">
+
+                    <div id="tableContainer">
+                        <div class="state-loading">
+                            <div class="spinner"></div>
+                            <p>Loading results…</p>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
         </div>
-        <a href="#" class="btn-export" id="exportBtn">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M12 10v6m0 0l-3-3m3 3l3-3"/>
-                <rect x="3" y="3" width="18" height="14" rx="2"/>
-                <path d="M3 17v2a2 2 0 002 2h14a2 2 0 002-2v-2"/>
-            </svg>
-            Export PDF
-        </a>
     </div>
-
-    <div class="stats-grid">
-        <div class="stat-card">
-            <div class="stat-value" id="statAttempted">—</div>
-            <div class="stat-label">Students Attempted</div>
-        </div>
-        <div class="stat-card">
-            <div class="stat-value" id="statAvg">—</div>
-            <div class="stat-label">Average Score</div>
-        </div>
-        <div class="stat-card">
-            <div class="stat-value" id="statHighest">—</div>
-            <div class="stat-label">Highest Score</div>
-        </div>
-        <div class="stat-card">
-            <div class="stat-value" id="statAuto">—</div>
-            <div class="stat-label">Auto-Submitted</div>
-        </div>
-    </div>
-
-    <hr class="divider">
-
-    <div id="tableContainer">
-        <div class="state-loading">
-            <div class="spinner"></div>
-            <p>Loading results…</p>
-        </div>
-    </div>
-
-</div>
 
 <script>
     const quizID = {{ $quizID ?? 0 }};
+    const noQuiz = {{ ($noQuiz ?? false) ? 'true' : 'false' }};
+
 
     async function loadResults() {
-        try {
+        if (noQuiz) {
+            document.getElementById('quizTitle').textContent = 'No Quizzes Yet';
+            document.getElementById('totalMarksLabel').textContent = '';
+            document.getElementById('quizIdLabel').textContent = '';
+            document.getElementById('exportBtn').style.display = 'none';
+            document.getElementById('tableContainer').innerHTML =
+                `<div class="state-empty"><p>You haven't scheduled any quizzes yet. Once you do, results will appear here.</p></div>`;
+            document.querySelector('.stats-grid').style.display = 'none';
+            return;
+        }
+          try {
             const res = await fetch(`/web/quiz/${quizID}/results`, {
                 headers: {
                     'Accept': 'application/json',
@@ -319,6 +309,5 @@
 
     loadResults();
 </script>
-
 </body>
 </html>

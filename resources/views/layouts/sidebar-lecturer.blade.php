@@ -62,12 +62,9 @@
         <li class="{{ request()->routeIs('dashboard') ? 'active' : '' }}">
             <a href="{{ route('dashboard') }}"><i class="fa-solid fa-table-columns"></i> Dashboard</a>
         </li>
-        <li class="{{ request()->routeIs('forum.index') ? 'active' : '' }}">
+        <li class="{{ request()->routeIs('forum.index', 'groups.topics', 'topics.*') ? 'active' : '' }}">
             <a href="{{ route('forum.index') }}"><i class="fa-regular fa-comments"></i> Forum</a>
         </li>
-        <!-- <li class="{{ request()->routeIs('messages.index') ? 'active' : '' }}">
-            <a href="{{ route('student.messages', ['groupId' => $currentGroupId]) }}">
-        </li> -->
         <li class="{{ request()->routeIs('messages.index') ? 'active' : '' }}">
     @if($currentGroupId)
         <a href="{{ route('student.messages', ['groupId' => $currentGroupId]) }}"><i class="fa-regular fa-comments"></i> Messages</a>
@@ -81,12 +78,12 @@
        <li class="{{ request()->routeIs('quiz.schedule') ? 'active' : '' }}">
     <a href="{{ route('quiz.schedule') }}"><i class="fa-solid fa-plus"></i> Schedule Quiz</a>
 </li>
-<li class="{{ request()->routeIs('quiz.results') ? 'active' : '' }}">
-    <a href="{{ route('dashboard') }}"><i class="fa-solid fa-chart-simple"></i> Quiz Results</a>
+<li class="{{ request()->routeIs('quiz.results') || request()->routeIs('quiz.latest-results') ? 'active' : '' }}">
+    <a href="{{ route('quiz.latest-results') }}"><i class="fa-solid fa-chart-simple"></i> Quiz Results</a>
 </li>
-        <!-- <li class="{{ request()->routeIs('recommend.index') ? 'active' : '' }}">
-            <a href="{{ route('recommend.index') }}"><i class="fa-regular fa-thumbs-up"></i> Recommend</a>
-        </li> -->
+<li class="{{ request()->routeIs('groups.index') ? 'active' : '' }}">
+    <a href="{{ route('groups.index') }}"><i class="fa-solid fa-people-group"></i> Groups</a>
+</li>  
         <li class="{{ request()->routeIs('settings.index') ? 'active' : '' }}">
             <a href="{{ route('settings.index') }}"><i class="fa-solid fa-gear"></i> Settings</a>
         </li>

@@ -62,7 +62,7 @@
         <li class="{{ request()->routeIs('dashboard') ? 'active' : '' }}">
             <a href="{{ route('dashboard') }}"><i class="fa-solid fa-table-columns"></i> Dashboard</a>
         </li>
-        <li class="{{ request()->routeIs('forum.index') ? 'active' : '' }}">
+        <li class="{{ request()->routeIs('forum.index', 'groups.topics', 'topics.*') ? 'active' : '' }}">
             <a href="{{ route('forum.index') }}"><i class="fa-regular fa-comments"></i> Forum</a>
         </li>
         <li class="{{ request()->routeIs('messages.index') ? 'active' : '' }}">

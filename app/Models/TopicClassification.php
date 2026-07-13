@@ -8,6 +8,7 @@ class TopicClassification extends Model
 {
     protected $table = 'TopicClassification';
     protected $primaryKey = 'ClassificationID';
+    protected $fillable = ['TopicID', 'PredictedCategory', 'ConfidenceScore'];
     const CREATED_AT = 'CreatedAt';
     const UPDATED_AT = 'UpdatedAt';
 }

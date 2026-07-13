@@ -48,25 +48,28 @@
                         @if(!empty($group->Description))
                             <p class="text-muted small mb-4 d-none">{{ $group->Description }}</p>
                         @endif
-
-                        <div class="mt-auto">
-                            @if($group->userJoined)
-                                <form method="POST" action="{{ route('groups.leave', $group->GroupID) }}">
-                                    @csrf
-                                    @method('DELETE')
-                                    <button type="submit" class="btn btn-outline-danger w-100 py-2.5 rounded-3 fw-bold d-flex align-items-center justify-content-center"  style="background-color: #FFF; border-color: #DC3545; font-size: 0.95rem;">">
-                                        Leave Group <i class="bi bi-chevron-right ms-1 small"></i>
-                                    </button>
-                                </form>
-                            @else
-                                <form method="POST" action="{{ route('groups.join', $group->GroupID) }}">
-                                    @csrf
-                                    <button type="submit" class="btn btn-primary w-100 py-2.5 rounded-3 fw-bold d-flex align-items-center justify-content-center" style="background-color: #0052CC; border-color: #0052CC; font-size: 0.95rem;">
-                                        Join Group <i class="bi bi-chevron-right ms-1 small"></i>
-                                    </button>
-                                </form>
-                            @endif
-                        </div>
+                       <div class="mt-auto">
+    @if(auth()->user()->Role === 'Lecturer' || auth()->user()->Role === 'Administrator')
+        <a href="{{ route('groups.forum', $group->GroupID) }}" class="btn btn-primary w-100 py-2.5 rounded-3 fw-bold d-flex align-items-center justify-content-center" style="background-color: #0052CC; border-color: #0052CC; font-size: 0.95rem; text-decoration: none;">
+            View Forum <i class="bi bi-chevron-right ms-1 small"></i>
+        </a>
+    @elseif($group->userJoined)
+        <form method="POST" action="{{ route('groups.leave', $group->GroupID) }}">
+            @csrf
+            @method('DELETE')
+            <button type="submit" class="btn btn-outline-danger w-100 py-2.5 rounded-3 fw-bold d-flex align-items-center justify-content-center" style="background-color: #FFF; border-color: #DC3545; font-size: 0.95rem;">
+                Leave Group <i class="bi bi-chevron-right ms-1 small"></i>
+            </button>
+        </form>
+    @else
+        <form method="POST" action="{{ route('groups.join', $group->GroupID) }}">
+            @csrf
+            <button type="submit" class="btn btn-primary w-100 py-2.5 rounded-3 fw-bold d-flex align-items-center justify-content-center" style="background-color: #0052CC; border-color: #0052CC; font-size: 0.95rem;">
+                Join Group <i class="bi bi-chevron-right ms-1 small"></i>
+            </button>
+        </form>
+    @endif
+</div>
 
                     </div>
                 </div>

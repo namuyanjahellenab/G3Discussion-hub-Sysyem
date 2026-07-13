@@ -60,7 +60,7 @@
         align-items: center;
         justify-content: center;
         font-size: 1rem;
-        background: linear-gradient(135deg, #0d52cc 0%, #7f56d9 100%);
+        background: linear-gradient(135deg, var(--luna-mid) 0%, var(--luna-dark) 100%);
         -webkit-background-clip: text;
         background-clip: text;
         -webkit-text-fill-color: transparent;

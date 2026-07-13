@@ -35,4 +35,10 @@ return [
         ],
     ],
 
+    'ml_gateway' => [
+        'url' => env('ML_GATEWAY_URL', 'http://127.0.0.1:5000'),
+        'token' => env('ML_GATEWAY_TOKEN'),
+        'timeout' => env('ML_GATEWAY_TIMEOUT', 3),
+    ],
+
 ];

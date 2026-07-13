@@ -8,6 +8,7 @@ use App\Models\Answer;
 use App\Models\QuizResult;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Auth;
 
 class QuizEngineController extends Controller
 {
@@ -257,6 +258,22 @@ public function results($quizID)
         'Results'    => $results,
     ]);
 }
+
+public function latestResults()
+{
+    $lecturerId = Auth::id();
+
+    $latestQuiz = Quiz::where('LecturerID', $lecturerId)
+        ->orderByDesc('StartTime')
+        ->first();
+
+    if (!$latestQuiz) {
+        return view('quizzes.results', ['quizID' => null, 'noQuiz' => true]);
+    }
+
+    return redirect()->route('quiz.results', $latestQuiz->QuizID);
+}
+
 public function myReview($quizID)
 {
     $userId = auth()->id();

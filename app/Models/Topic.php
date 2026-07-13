@@ -27,4 +27,9 @@ class Topic extends Model
     {
         return $this->belongsTo(Group::class, 'GroupID', 'GroupID');
     }
+
+    public function classification()
+    {
+        return $this->hasOne(TopicClassification::class, 'TopicID', 'TopicID');
+    }
 }

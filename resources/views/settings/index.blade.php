@@ -2,73 +2,171 @@
 
 @section('content')
 @php
-    $nameParts = explode(' ', auth()->user()->name ?? auth()->user()->UserName ?? '');
-    $initials = collect($nameParts)->filter()->map(fn($part) => mb_substr($part,0,1))->take(2)->implode('');
+    $displayName = $user->UserName ?? $user->name ?? 'User';
+    $nameParts = explode(' ', $displayName);
+    $initials = collect($nameParts)->filter()->map(fn($p) => mb_substr($p, 0, 1))->take(2)->implode('');
+    $currentTheme = $user->ThemeColor ?? 'luna';
 @endphp
 
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-
 <style>
-    .dashboard-grid-container { display: grid !important; grid-template-columns: 260px 1fr 340px !important; min-height: 100vh !important; width: 100% !important; background-color: #fcfcfd !important; font-family: 'Inter', sans-serif !important; }
-    .sidebar-panel { background: #ffffff !important; border-right: 1px solid #e4e7ec !important; padding-top: 24px !important; }
-    .sidebar-brand { padding: 0 24px 24px 24px !important; display: flex !important; align-items: center !important; gap: 12px !important; border-bottom: 1px solid #f2f4f7 !important; color: #0d52cc !important; font-weight: 700 !important; font-size: 1.2rem !important; letter-spacing: -0.5px !important; }
-    .sidebar-menu { list-style: none !important; padding: 20px 0 !important; margin: 0 !important; }
-    .sidebar-menu li a { padding: 12px 24px !important; font-size: 0.95rem !important; display: flex !important; align-items: center !important; gap: 12px !important; color: #667085 !important; text-decoration: none !important; font-weight: 500 !important; }
-    .sidebar-menu li.active a { color: #0d52cc !important; background: #eef4ff !important; border-radius: 0 24px 24px 0 !important; margin-right: 12px !important; font-weight: 600 !important; }
-    .content-workspace { padding: 3rem 2.5rem !important; background: #fcfcfd !important; }
-    .dashboard-group-card { background: #ffffff !important; border: 1px solid #e4e7ec !important; border-radius: 16px !important; box-shadow: 0px 2px 12px rgba(16, 24, 40, 0.02) !important; padding: 24px !important; display: flex !important; flex-direction: column !important; }
-    .right-info-panel { border-left: 1px solid #e4e7ec !important; background: #ffffff !important; padding: 3rem 2rem !important; display: flex !important; flex-direction: column !important; gap: 2.5rem !important; box-sizing: border-box !important; }
-    .student-profile-box { background: #f8fafc !important; border: 1px solid #e4e7ec !important; border-radius: 14px !important; padding: 1.25rem !important; display: flex !important; align-items: center !important; gap: 12px !important; }
-    .profile-avatar { width: 44px !important; height: 44px !important; background: #0d52cc !important; color: white !important; font-weight: 700 !important; border-radius: 50% !important; display: flex !important; align-items: center !important; justify-content: center !important; }
-    .announcement-banner { background: #0d52cc !important; color: white !important; border-radius: 12px !important; padding: 1.25rem !important; margin-top: auto !important; }
+    .content-workspace { padding: 28px; max-width: 1200px; }
+    .page-header { margin-bottom: 24px; }
+    .page-header p.eyebrow { text-transform: uppercase; color: var(--text-muted); font-size: 0.75rem; font-weight: 600; letter-spacing: 0.5px; margin: 0 0 4px 0; }
+    .page-header h1 { font-size: 24px; font-weight: 800; margin: 0; }
+
+    .settings-layout { display: flex; gap: 20px; align-items: flex-start; }
+    .settings-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 20px; }
+
+    .panel { background: var(--surface-card); border: 1px solid var(--surface-border); border-radius: var(--radius-lg); overflow: hidden; box-shadow: var(--shadow-soft); }
+    .panel-header { padding: 16px 20px; border-bottom: 1px solid var(--surface-border); }
+    .panel-header h2 { font-size: 15px; font-weight: 700; margin: 0; color: var(--text-heading); }
+    .panel-header p { font-size: 12.5px; color: var(--text-muted); margin: 4px 0 0 0; }
+    .panel-body { padding: 20px; }
+
+    .field-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; }
+    @media (max-width: 640px) { .field-grid { grid-template-columns: 1fr; } }
+
+    .theme-swatches { display: flex; gap: 24px; flex-wrap: wrap; margin-top: 4px; }
+    .theme-swatch-option { display: flex; flex-direction: column; align-items: center; gap: 8px; cursor: pointer; }
+    .theme-swatch-option input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+    .theme-swatch {
+        width: 44px; height: 44px; border-radius: 50%; border: 2px solid var(--surface-border);
+        display: flex; align-items: center; justify-content: center; color: #fff; font-size: 14px;
+        transition: box-shadow 0.15s ease, transform 0.15s ease;
+    }
+    .theme-swatch.luna { background: #26658C; }
+    .theme-swatch.black { background: #2B2B2B; }
+    .theme-swatch.brown { background: #8C5A2B; }
+    .theme-swatch.green { background: #2F7D5E; }
+    .theme-swatch-option input:checked + .theme-swatch {
+        box-shadow: 0 0 0 3px var(--surface-card), 0 0 0 5px var(--luna-mid);
+        transform: scale(1.05);
+    }
+    .theme-swatch-option input:checked + .theme-swatch::after {
+        content: "\f00c"; font-family: "Font Awesome 6 Free"; font-weight: 900;
+    }
+    .theme-swatch-option input:focus-visible + .theme-swatch { outline: 2px solid var(--luna-light); outline-offset: 2px; }
+    .theme-swatch-label { font-size: 12px; color: var(--text-muted); font-weight: 600; }
+
+    .panel-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+
+    .right-info-panel { display: flex; flex-direction: column; gap: 20px; max-width: 300px; }
+    .profile-mini { display: flex; align-items: center; gap: 10px; padding: 16px 20px; }
+    .profile-mini .avatar { width: 40px; height: 40px; border-radius: 50%; background: var(--luna-mid); color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 13px; }
+    .profile-mini .name { font-weight: 700; color: var(--text-heading); font-size: 13.5px; }
+    .profile-mini .role { color: var(--text-muted); font-size: 11.5px; }
+
+    .announcement-banner { background: var(--luna-mid); color: #fff; border-radius: var(--radius-lg); padding: 18px 20px; }
+    .announcement-banner .tag { display: flex; align-items: center; gap: 8px; text-transform: uppercase; font-size: 0.72rem; font-weight: 700; letter-spacing: 0.5px; opacity: 0.9; margin-bottom: 8px; }
+    .announcement-banner .body { font-size: 0.85rem; font-weight: 500; line-height: 1.4; }
+
+    .danger-panel { border-color: var(--accent-danger-bg); }
+    .danger-panel .panel-header h2 { color: var(--accent-danger); }
+
+    @media (max-width: 1024px) {
+        .settings-layout { flex-direction: column; }
+        .right-info-panel { max-width: 100%; }
+    }
 </style>
 
-<div class="dashboard-grid-container" id="clean-dashboard-root">
-   @include('layouts.sidebar')
-
-    <div class="content-workspace">
-        <div style="margin-bottom: 2rem;">
-            <p style="text-transform: uppercase; color: #667085; font-size: 0.75rem; font-weight: 600; letter-spacing: 0.5px; margin: 0 0 4px 0;">Account</p>
-            <h1 style="letter-spacing: -0.5px; color: #101828; font-size: 2rem; font-weight: 700; margin: 0;">SETTINGS</h1>
-        </div>
-
-        <form method="POST" action="{{ route('settings.update') }}" class="dashboard-group-card" style="max-width: 720px;">
-            @csrf
-            <div class="row g-3">
-                <div class="col-md-6"><label class="form-label">Name</label><input name="name" class="form-control" value="{{ $user->name }}"></div>
-                <div class="col-md-6"><label class="form-label">Username</label><input name="username" class="form-control" value="{{ $user->UserName }}"></div>
-                <div class="col-md-6"><label class="form-label">Email</label><input name="email" class="form-control" value="{{ $user->email }}"></div>
-                <div class="col-md-6"><label class="form-label">Current password</label><input name="current_password" type="password" class="form-control"></div>
-                <div class="col-md-6"><label class="form-label">New password</label><input name="new_password" type="password" class="form-control"></div>
-                <div class="col-md-6"><label class="form-label">Confirm password</label><input name="new_password_confirmation" type="password" class="form-control"></div>
-                <div class="col-12"><label class="form-label">Notification preferences</label><div class="form-check"><input class="form-check-input" type="checkbox" name="email_notifications" value="1" {{ $preferences['email'] ? 'checked' : '' }}><label class="form-check-label">Email notifications</label></div><div class="form-check"><input class="form-check-input" type="checkbox" name="push_notifications" value="1" {{ $preferences['push'] ? 'checked' : '' }}><label class="form-check-label">Push notifications</label></div></div>
-                <div class="col-12"><div class="form-check form-switch"><input class="form-check-input" type="checkbox" name="dark_mode" value="1" {{ $darkMode ? 'checked' : '' }}><label class="form-check-label">Dark mode</label></div></div>
-            </div>
-            <div class="mt-4 d-flex gap-2">
-                <button type="submit" class="btn btn-primary" style="background:#0d52cc; border-color:#0d52cc;">Save</button>
-            </div>
-        </form>
-        <form method="POST" action="{{ route('logout') }}" class="d-inline">
-            @csrf
-            <button type="submit" class="btn btn-outline-danger">Logout</button>
-        </form>
+<div class="content-workspace">
+    <div class="page-header">
+        <p class="eyebrow">Account</p>
+        <h1>Settings</h1>
     </div>
 
-    <div class="right-info-panel">
-        <div>
-            <div style="color: #667085; font-weight: 700; text-transform: uppercase; font-size: 0.75rem; letter-spacing: 0.5px; margin-bottom: 8px;">Student Info</div>
-            <div class="student-profile-box">
-                <div class="profile-avatar">{{ $initials ?: 'SU' }}</div>
-                <div>
-                    <div style="color: #101828; font-weight: 700; font-size: 0.95rem;">{{ auth()->user()->UserName ?? auth()->user()->name }}</div>
-                    <div style="color: #667085; font-size: 0.8rem;">Student Account</div>
+    @if(session('status'))
+        <div class="alert alert-success" style="margin-bottom: 20px;">{{ session('status') }}</div>
+    @endif
+
+    <div class="settings-layout">
+        <div class="settings-main">
+            <form method="POST" action="{{ route('settings.update') }}">
+                @csrf
+
+                <div class="panel" style="margin-bottom: 20px;">
+                    <div class="panel-header"><h2>Profile</h2></div>
+                    <div class="panel-body">
+                        <div class="field-grid">
+                            <div><label class="form-label">Name</label><input name="name" class="form-control" value="{{ $user->name }}"></div>
+                            <div><label class="form-label">Username</label><input name="username" class="form-control" value="{{ $user->UserName }}"></div>
+                            <div><label class="form-label">Email</label><input name="email" class="form-control" value="{{ $user->email }}"></div>
+                            @if($user->Role === 'Lecturer')
+                                <div>
+                                    <label class="form-label">Default quiz duration (minutes)</label>
+                                    <input type="number" min="1" name="default_quiz_duration" class="form-control" value="{{ $user->DefaultQuizDurationMinutes }}" placeholder="e.g. 30">
+                                </div>
+                            @endif
+                        </div>
+                    </div>
+                </div>
+
+                <div class="panel" style="margin-bottom: 20px;">
+                    <div class="panel-header"><h2>Password</h2></div>
+                    <div class="panel-body">
+                        <div class="field-grid">
+                            <div><label class="form-label">Current password</label><input name="current_password" type="password" class="form-control"></div>
+                            <div><label class="form-label">New password</label><input name="new_password" type="password" class="form-control"></div>
+                            <div><label class="form-label">Confirm password</label><input name="new_password_confirmation" type="password" class="form-control"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="panel" style="margin-bottom: 20px;">
+                    <div class="panel-header">
+                        <h2>Appearance</h2>
+                        <p>Pick an accent color for the whole site. Applies everywhere, on every device.</p>
+                    </div>
+                    <div class="panel-body">
+                        <div class="theme-swatches">
+                            @foreach($themeOptions as $value => $label)
+                                <label class="theme-swatch-option">
+                                    <input type="radio" name="theme_color" value="{{ $value }}" {{ $currentTheme === $value ? 'checked' : '' }}>
+                                    <span class="theme-swatch {{ $value }}"></span>
+                                    <span class="theme-swatch-label">{{ $label }}</span>
+                                </label>
+                            @endforeach
+                        </div>
+                    </div>
+                </div>
+
+                <div class="panel-actions">
+                    <button type="submit" class="btn btn-primary">Save Changes</button>
+                </div>
+            </form>
+
+            <div class="panel danger-panel">
+                <div class="panel-header"><h2>Sessions</h2></div>
+                <div class="panel-body">
+                    <div class="panel-actions">
+                        <form method="POST" action="{{ route('logout') }}" class="d-inline">
+                            @csrf
+                            <button type="submit" class="btn btn-outline-secondary">Logout</button>
+                        </form>
+                        <form method="POST" action="{{ route('settings.logout-all-devices') }}" class="d-inline" onsubmit="return confirm('This will log you out on every device where you\'re signed in. Continue?');">
+                            @csrf
+                            <button type="submit" class="btn btn-outline-danger">Log out of all devices</button>
+                        </form>
+                    </div>
                 </div>
             </div>
         </div>
-        <div class="announcement-banner">
-            <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;"><i class="fa-solid fa-bullhorn"></i><span style="text-transform: uppercase; font-size: 0.75rem; font-weight: 700; letter-spacing: 0.5px; opacity: 0.9;">Security</span></div>
-            <div style="font-size: 0.88rem; font-weight: 500; line-height: 1.4;">Keep your profile and password updated to protect your account.</div>
+
+        <div class="right-info-panel">
+            <section class="panel">
+                <div class="profile-mini">
+                    <div class="avatar">{{ strtoupper($initials ?: 'U') }}</div>
+                    <div>
+                        <div class="name">{{ $displayName }}</div>
+                        <div class="role">{{ $user->Role ?? 'Student' }} Account</div>
+                    </div>
+                </div>
+            </section>
+
+            <div class="announcement-banner">
+                <div class="tag"><i class="fa-solid fa-shield-halved"></i> Security</div>
+                <div class="body">Keep your profile and password updated to protect your account. Use "Log out of all devices" if you ever sign in on a shared computer.</div>
+            </div>
         </div>
     </div>
 </div>

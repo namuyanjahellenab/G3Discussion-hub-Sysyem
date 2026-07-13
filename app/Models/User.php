@@ -37,6 +37,8 @@ class User extends Authenticatable
     'Status',
     'RulesAccepted',
     'LastActive',
+    'ThemeColor',
+    'DefaultQuizDurationMinutes',
 ];
 
     /**

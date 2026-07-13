@@ -115,6 +115,10 @@ Route::post('/messages', [DiscussionHubPageController::class, 'storeMessage'])
         ->middleware('verified')
         ->name('recommend.index');
 
+    Route::post('/recommend/dismiss', [DiscussionHubPageController::class, 'dismissRecommendations'])
+        ->middleware('verified')
+        ->name('recommend.dismiss');
+
     Route::get('/settings', [DiscussionHubPageController::class, 'settings'])
         ->middleware('verified')
         ->name('settings.index');
@@ -122,6 +126,10 @@ Route::post('/messages', [DiscussionHubPageController::class, 'storeMessage'])
     Route::post('/settings', [DiscussionHubPageController::class, 'updateSettings'])
         ->middleware('verified')
         ->name('settings.update');
+
+    Route::post('/settings/logout-all-devices', [DiscussionHubPageController::class, 'logoutAllDevices'])
+        ->middleware('verified')
+        ->name('settings.logout-all-devices');
 });
 
 Route::middleware(['auth', 'verified'])->group(function () {
@@ -180,6 +188,9 @@ Route::get('/quiz-test', function() {
 Route::get('/quiz/{quizID}/my-review', [QuizEngineController::class, 'myReview'])
     ->middleware('auth')
     ->name('quiz.my-review');
+    Route::get('/quiz/latest-results', [QuizEngineController::class, 'latestResults'])
+    ->middleware('auth')
+    ->name('quiz.latest-results');
 
 // ->middleware('auth')
 use App\Http\Controllers\AdminGroupController;

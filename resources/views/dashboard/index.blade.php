@@ -2,321 +2,193 @@
 
 @section('content')
 @php
-    $nameParts = explode(' ', auth()->user()->name ?? '');
-    $initials = collect($nameParts)
-        ->filter()
-        ->map(fn($part) => mb_substr($part, 0, 1))
-        ->take(2)
-        ->implode('');
+    $displayName = Auth::user()->UserName ?? Auth::user()->name ?? 'Student User';
+    $nameParts = explode(' ', $displayName);
+    $initials = collect($nameParts)->filter()->map(fn($p) => mb_substr($p, 0, 1))->take(2)->implode('');
 @endphp
 
-<!-- Inter Font & Icons -->
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght=400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-
 <style>
-    /* Prevent layout flashing while JavaScript runs */
-    .dashboard-grid-container {
-        display: grid !important;
-        grid-template-columns: 1fr 340px !important;
-        min-height: 100vh !important;
-        width: 100% !important;
-        background-color: #fcfcfd !important;
-        font-family: 'Inter', sans-serif !important;
-    }
+    .content-workspace { padding: 28px; max-width: 1200px; }
+    .page-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 24px; flex-wrap: wrap; gap: 12px; }
+    .page-header p.eyebrow { text-transform: uppercase; color: var(--text-muted); font-size: 0.75rem; font-weight: 600; letter-spacing: 0.5px; margin: 0 0 4px 0; }
+    .page-header h1 { font-size: 24px; font-weight: 800; margin: 0; }
 
-    /* LEFT SIDEBAR PANEL */
-    .sidebar-panel {
-        background: #ffffff !important;
-        border-right: 1px solid #e4e7ec !important;
-        padding-top: 24px !important;
-    }
-    .sidebar-brand {
-        padding: 0 24px 24px 24px !important;
-        display: flex !important;
-        align-items: center !important;
-        gap: 12px !important;
-        border-bottom: 1px solid #f2f4f7 !important;
-        color: #0d52cc !important; /* Forces DISCUSSION HUB Blue */
-        font-weight: 700 !important;
-        font-size: 1.2rem !important;
-        letter-spacing: -0.5px !important;
-    }
-    .sidebar-menu {
-        list-style: none !important;
-        padding: 20px 0 !important;
-        margin: 0 !important;
-    }
-    .sidebar-menu li a {
-        padding: 12px 24px !important;
-        font-size: 0.95rem !important;
-        display: flex !important;
-        align-items: center !important;
-        gap: 12px !important;
-        color: #667085 !important;
-        text-decoration: none !important;
-        font-weight: 500 !important;
-    }
-    .sidebar-menu li.active a {
-        color: #0d52cc !important;
-        background: #eef4ff !important;
-        border-radius: 0 24px 24px 0 !important;
-        margin-right: 12px !important;
-        font-weight: 600 !important;
-    }
+    .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 28px; }
+    .stat-card { background: var(--surface-card); border: 1px solid var(--surface-border); border-top: 3px solid var(--luna-mid); border-radius: var(--radius-lg); padding: 18px 20px; box-shadow: var(--shadow-soft); }
+    .stat-card .label { font-size: 12px; color: var(--text-muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.4px; }
+    .stat-card .value { font-size: 26px; font-weight: 800; color: var(--text-heading); margin-top: 6px; }
+    .stat-card .value small { font-size: 13px; font-weight: 600; color: var(--text-muted); }
 
-    /* MIDDLE WORKSPACE PANEL */
-    .content-workspace {
-        padding: 3rem 2.5rem !important;
-        background: #fcfcfd !important;
-    }
-    
-    /* STRICTLY FORCED SIDE-BY-SIDE 2-COLUMN GRID FOR JOINED GROUPS */
-    .groups-side-by-side-row {
-        display: grid !important;
-        grid-template-columns: 1fr 1fr !important;
-        gap: 20px !important;
-        width: 100% !important;
-    }
-    .dashboard-group-card {
-        background: #ffffff !important;
-        border: 1px solid #e4e7ec !important;
-        border-radius: 16px !important;
-        box-shadow: 0px 2px 12px rgba(16, 24, 40, 0.02) !important;
-        padding: 24px !important;
-        display: flex !important;
-        flex-direction: column !important;
-        align-items: center !important;
-        text-align: center !important;
-    }
-    .group-card-icon {
-        width: 44px !important;
-        height: 44px !important;
-        background: #eef4ff !important;
-        color: #0d52cc !important;
-        border-radius: 10px !important;
-        display: flex !important;
-        align-items: center !important;
-        justify-content: center !important;
-        margin-bottom: 16px !important;
-    }
-    .btn-view-forum {
-        background-color: #0d52cc !important;
-        color: white !important;
-        font-weight: 600 !important;
-        font-size: 0.85rem !important;
-        border-radius: 8px !important;
-        padding: 12px !important;
-        border: none !important;
-        text-transform: uppercase !important;
-        text-decoration: none !important;
-        display: flex !important;
-        align-items: center !important;
-        justify-content: center !important;
-        gap: 8px !important;
-        width: 100 !important;
-        margin-top: auto !important;
-    }
+    .quick-links { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 28px; }
+    .quick-link { display: flex; align-items: center; gap: 10px; background: var(--surface-card); border: 1px solid var(--surface-border); border-radius: var(--radius-md); padding: 10px 16px; text-decoration: none; color: var(--text-heading); font-weight: 600; font-size: 13px; box-shadow: var(--shadow-soft); }
+    .quick-link i { color: var(--luna-mid); }
+    .quick-link:hover { border-color: var(--luna-mid); color: var(--luna-dark); }
 
-    /* EXTREME RIGHT PANEL */
-    .right-info-panel {
-        border-left: 1px solid #e4e7ec !important;
-        background: #ffffff !important;
-        padding: 3rem 2rem !important;
-        display: flex !important;
-        flex-direction: column !important;
-        gap: 2.5rem !important;
-        box-sizing: border-box !important;
-    }
-    .student-profile-box {
-        background: #f8fafc !important;
-        border: 1px solid #e4e7ec !important;
-        border-radius: 14px !important;
-        padding: 1.25rem !important;
-        display: flex !important;
-        align-items: center !important;
-        gap: 12px !important;
-    }
-    .profile-avatar {
-        width: 44px !important;
-        height: 44px !important;
-        background: #0d52cc !important;
-        color: white !important;
-        font-weight: 700 !important;
-        border-radius: 50% !important;
-        display: flex !important;
-        align-items: center !important;
-        justify-content: center !important;
-    }
-    
-    /* Extreme Right Blue Navigation Link */
-    .see-all-groups-blue-link {
-        color: #0d52cc !important;
-        font-weight: 700 !important;
-        font-size: 0.95rem !important;
-        text-decoration: none !important;
-        display: inline-flex !important;
-        align-items: center !important;
-        gap: 8px !important;
-    }
-    .see-all-groups-blue-link:hover {
-        text-decoration: underline !important;
-    }
+    .panels-grid { display: grid; grid-template-columns: 1.4fr 1fr; gap: 20px; margin-bottom: 20px; }
+    .panel { background: var(--surface-card); border: 1px solid var(--surface-border); border-radius: var(--radius-lg); overflow: hidden; box-shadow: var(--shadow-soft); }
+    .panel-header { padding: 16px 20px; border-bottom: 1px solid var(--surface-border); display: flex; justify-content: space-between; align-items: center; }
+    .panel-header h2 { font-size: 15px; font-weight: 700; margin: 0; }
+    .panel-header a { font-size: 12.5px; color: var(--luna-mid); text-decoration: none; font-weight: 600; }
 
-    .announcement-banner {
-        background: #0d52cc !important;
-        color: white !important;
-        border-radius: 12px !important;
-        padding: 1.25rem !important;
-        margin-top: auto !important;
+    .groups-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 16px; padding: 20px; }
+    .group-card { background: var(--surface-bg); border: 1px solid var(--surface-border); border-radius: var(--radius-md); padding: 20px; display: flex; flex-direction: column; align-items: center; text-align: center; }
+    .group-card-icon { width: 40px; height: 40px; background: var(--luna-lightest); color: var(--luna-dark); border-radius: 10px; display: flex; align-items: center; justify-content: center; margin-bottom: 12px; }
+    .group-card h5 { font-size: 1rem; font-weight: 700; margin: 0 0 2px 0; color: var(--text-heading); }
+    .group-card p { color: var(--text-muted); font-size: 0.8rem; margin: 0 0 16px 0; }
+
+    .activity-row, .notif-row { display: flex; align-items: flex-start; gap: 10px; padding: 13px 20px; border-bottom: 1px solid var(--surface-border); font-size: 13.5px; }
+    .activity-row:last-child, .notif-row:last-child { border-bottom: none; }
+    .activity-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--luna-mid); margin-top: 6px; flex-shrink: 0; }
+    .activity-row .who { font-weight: 700; color: var(--text-heading); }
+    .activity-row .meta, .notif-row .meta { color: var(--text-muted); font-size: 12px; margin-top: 2px; }
+
+    .upcoming-quiz-card { padding: 20px; }
+    .upcoming-quiz-card .title { font-weight: 700; color: var(--text-heading); font-size: 14px; }
+    .upcoming-quiz-card .meta { color: var(--text-muted); font-size: 12.5px; margin-top: 4px; }
+    .upcoming-quiz-card .btn { margin-top: 14px; }
+
+    .btn { display: inline-flex; align-items: center; gap: 8px; padding: 0.55rem 1rem; border-radius: var(--radius-md); font-size: 13px; font-weight: 600; text-decoration: none; border: 1px solid transparent; box-shadow: var(--shadow-soft); }
+    .btn-primary { background: var(--luna-mid); color: #fff; }
+    .btn-primary:hover { background: var(--luna-dark); color: #fff; }
+
+    .empty-state { padding: 32px 20px; text-align: center; color: var(--text-muted); font-size: 13.5px; }
+
+    .side-panel { display: flex; flex-direction: column; gap: 20px; }
+    .profile-mini { display: flex; align-items: center; gap: 10px; padding: 16px 20px; }
+    .profile-mini .avatar { width: 40px; height: 40px; border-radius: 50%; background: var(--luna-mid); color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 13px; }
+    .profile-mini .name { font-weight: 700; color: var(--text-heading); font-size: 13.5px; }
+    .profile-mini .role { color: var(--text-muted); font-size: 11.5px; }
+
+    .announcement-banner { background: var(--luna-mid); color: #fff; border-radius: var(--radius-lg); padding: 18px 20px; }
+    .announcement-banner .tag { display: flex; align-items: center; gap: 8px; text-transform: uppercase; font-size: 0.72rem; font-weight: 700; letter-spacing: 0.5px; opacity: 0.9; margin-bottom: 8px; }
+    .announcement-banner .body { font-size: 0.85rem; font-weight: 500; line-height: 1.4; }
+
+    @media (max-width: 1024px) {
+        .panels-grid { grid-template-columns: 1fr; }
+        .stats-grid { grid-template-columns: repeat(2, 1fr); }
     }
 </style>
 
-<!-- Main Wrapper Layout Container -->
-<div class="dashboard-grid-container" id="clean-dashboard-root">
-
-    
-
-    <!-- COLUMN 2: WORKSPACE CONTENT -->
-    <div class="content-workspace">
-        <div style="margin-bottom: 2.5rem;">
-            <p style="text-transform: uppercase; color: #667085; font-size: 0.75rem; font-weight: 600; letter-spacing: 0.5px; margin: 0 0 4px 0;">Overview</p>
-            <h1 style="letter-spacing: -0.5px; color: #101828; font-size: 2rem; font-weight: 700; margin: 0;">MY DASHBOARD</h1>
+<div class="content-workspace">
+    <div class="page-header">
+        <div>
+            <p class="eyebrow">Overview</p>
+            <h1>My Dashboard</h1>
         </div>
+    </div>
 
-        <!-- Joined Groups List Row -->
-        <div style="margin-bottom: 3rem;">
-            <div style="margin-bottom: 1.25rem;">
-                <h2 style="color: #101828; font-size: 1.1rem; font-weight: 700; margin: 0; letter-spacing: -0.2px;">MY GROUPS</h2>
-            </div>
-            
-            <div class="groups-side-by-side-row">
-                @forelse($joined_groups as $group)
-                    <div class="dashboard-group-card">
-                        <div class="group-card-icon">
-                            <i class="fa-solid fa-users fs-5"></i>
+    <div class="stats-grid">
+        <div class="stat-card">
+            <div class="label">Groups Joined</div>
+            <div class="value">{{ $joined_groups->count() }}</div>
+        </div>
+        <div class="stat-card">
+            <div class="label">Unread Notifications</div>
+            <div class="value">{{ $notificationsCount }}</div>
+        </div>
+        <div class="stat-card">
+            <div class="label">Participation</div>
+            <div class="value">{{ $snapshot['participation'] }}<small> / 10</small></div>
+        </div>
+        <div class="stat-card">
+            <div class="label">Quiz Average</div>
+            <div class="value">{{ $snapshot['quiz_average'] ?? '—' }}</div>
+        </div>
+    </div>
+
+    <div class="quick-links">
+        <a href="{{ route('forum.index') }}" class="quick-link"><i class="fa-solid fa-comments"></i> Forum</a>
+        <a href="{{ route('groups.index') }}" class="quick-link"><i class="fa-solid fa-message"></i> Group Chat</a>
+        <a href="{{ route('marks.index') }}" class="quick-link"><i class="fa-solid fa-star"></i> Marks</a>
+        <a href="{{ url('/quizzes') }}" class="quick-link"><i class="fa-solid fa-file-lines"></i> Quizzes</a>
+    </div>
+
+    <div class="panels-grid">
+        <div style="display: flex; flex-direction: column; gap: 20px;">
+            <section class="panel">
+                <div class="panel-header">
+                    <h2>My Groups</h2>
+                    <a href="{{ route('groups.index') }}">See all</a>
+                </div>
+                <div class="groups-grid">
+                    @forelse($joined_groups as $group)
+                        <div class="group-card">
+                            <div class="group-card-icon"><i class="fa-solid fa-users"></i></div>
+                            <h5>{{ $group->GroupName }}</h5>
+                            <p>{{ $group->member_count ?? 0 }} members</p>
+                            <a href="{{ route('groups.topics', $group) }}" class="btn btn-primary">
+                                View Forum <i class="fa-solid fa-arrow-right" style="font-size: 0.75rem;"></i>
+                            </a>
                         </div>
-                        <h5 style="color: #101828; font-size: 1.15rem; font-weight: 700; margin: 0 0 4px 0;">{{ $group->GroupName }}</h5>
-                        <p style="color: #667085; font-size: 0.85rem; margin: 0 0 24px 0;">{{ $group->member_count ?? 0 }} members</p>
-                        <a href="{{ route('groups.topics', $group) }}" class="btn-view-forum">
-                            <span>View Forum</span>
-                            <i class="fa-solid fa-arrow-right" style="font-size: 0.8rem;"></i>
-                        </a>
-                    </div>
-                @empty
-                    <div style="grid-column: span 2; padding: 2rem; text-align: center; background: #ffffff; border: 1px solid #e4e7ec; border-radius: 12px; color: #667085;">
-                        You haven't joined any groups yet.
-                    </div>
-                @endforelse
-            </div>
-        </div>
+                    @empty
+                        <div class="empty-state" style="grid-column: 1 / -1;">You haven't joined any groups yet.</div>
+                    @endforelse
+                </div>
+            </section>
 
-        <!-- Notifications Container Block -->
-        <div style="background: #ffffff; border: 1px solid #e4e7ec; border-radius: 16px; padding: 24px; box-shadow: 0px 2px 12px rgba(16, 24, 40, 0.02);">
-            <h3 style="color: #101828; font-size: 1.05rem; font-weight: 700; margin: 0 0 1.5rem 0;">Recent Notifications</h3>
-            <div>
-                @forelse($notifications as $notification)
-                    <div style="display: flex; justify-content: space-between; align-items: start; gap: 12px; padding: 16px 0; border-bottom: 1px solid #f2f4f7;">
-                        <div style="display: flex; align-items: start; gap: 12px;">
-                            <span style="width: 8px; height: 8px; background-color: #0d52cc; border-radius: 50%; margin-top: 6px; flex-shrink: 0;"></span>
+            <section class="panel">
+                <div class="panel-header"><h2>Recent Activity</h2></div>
+                <div>
+                    @forelse($recentActivity as $activity)
+                        <div class="activity-row">
+                            <span class="activity-dot"></span>
                             <div>
-                                <div style="color: #101828; font-weight: 700; font-size: 0.95rem;">{{ $notification->Type }}</div>
-                                <div style="color: #667085; font-size: 0.85rem; margin-top: 2px;">{{ $notification->Message }}</div>
+                                <div><span class="who">{{ $activity['user_name'] ?? 'Someone' }}</span> {{ $activity['action'] }}</div>
+                                <div class="meta">{{ $activity['time'] }}</div>
                             </div>
                         </div>
-                        <small style="color: #98a2b3; white-space: nowrap; font-size: 0.8rem;">{{ $notification->CreatedAt->diffForHumans() }}</small>
-                    </div>
-                @empty
-                    <div style="color: #667085; font-size: 0.9rem; padding: 0.5rem 0;">No notifications yet.</div>
-                @endforelse
-            </div>
-        </div>
-    </div>
-
-    <!-- COLUMN 3: RIGHT INFO PANEL -->
-    <div class="right-info-panel">
-    <div>
-        <div style="color: #667085; font-weight: 700; text-transform: uppercase; font-size: 0.75rem; letter-spacing: 0.5px; margin-bottom: 8px;">
-            Student Info
-        </div>
-        
-        <div class="dropdown">
-            <div class="profile-info-card dropdown-toggle" id="studentInfoDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false" style="cursor: pointer;">
-                <div class="circle-avatar">
-                    @php
-                        // Directly use Auth::user() to guarantee it fetches the logged-in session
-                        $displayName = Auth::user()->UserName ?? Auth::user()->name ?? 'Student User';
-                    @endphp
-                    <img src="https://ui-avatars.com/api/?name={{ urlencode($displayName) }}&background=0052CC&color=fff&rounded=true"
-                         alt="Avatar" class="rounded-circle" width="32" height="32">
+                    @empty
+                        <div class="empty-state">No recent activity in your groups yet.</div>
+                    @endforelse
                 </div>
+            </section>
+        </div>
+
+        <div class="side-panel">
+            <section class="panel">
+                <div class="profile-mini">
+                    <div class="avatar">{{ strtoupper($initials ?: 'S') }}</div>
+                    <div>
+                        <div class="name">{{ $displayName }}</div>
+                        <div class="role">Student Account</div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="panel upcoming-quiz-card">
+                <h2 style="font-size: 15px; font-weight: 700; margin: 0 0 4px 0;">Upcoming Quiz</h2>
+                @if($upcomingQuiz)
+                    <div class="title">{{ $upcomingQuiz->Title }}</div>
+                    <div class="meta">{{ $upcomingQuiz->StartTime->format('d M Y, h:i A') }} · {{ $upcomingQuiz->Duration }} min</div>
+                    <a href="{{ url('/quizzes') }}" class="btn btn-primary">View Details</a>
+                @else
+                    <div class="meta" style="margin-top: 8px;">No upcoming quizzes scheduled.</div>
+                @endif
+            </section>
+
+            <section class="panel">
+                <div class="panel-header"><h2>Notifications</h2></div>
                 <div>
-                    <div style="color: #101828; font-weight: 700; font-size: 0.95rem;">
-                        {{ $displayName }}
-                    </div>
-                    <div style="color: #667085; font-size: 0.8rem;">Student Account</div>
+                    @forelse($notifications->take(4) as $notification)
+                        <div class="notif-row">
+                            <span class="activity-dot"></span>
+                            <div>
+                                <div style="font-weight: 700; color: var(--text-heading);">{{ $notification->Type }}</div>
+                                <div class="meta">{{ $notification->Message }}</div>
+                                <div class="meta">{{ $notification->CreatedAt->diffForHumans() }}</div>
+                            </div>
+                        </div>
+                    @empty
+                        <div class="empty-state">No notifications yet.</div>
+                    @endforelse
                 </div>
-            </div>
+            </section>
 
-            <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="studentInfoDropdown">
-                <li><a class="dropdown-item" href="{{ route('profile.edit') }}">Profile</a></li>
-                <li><hr class="dropdown-divider"></li>
-                <li>
-                    <form method="POST" action="{{ route('logout') }}">
-                        @csrf
-                        <button type="submit" class="dropdown-item text-danger">Logout</button>
-                    </form>
-                </li>
-            </ul>
-        </div>
-    </div>
-</div>
-
-        <!-- Blue See All Groups Link Actions -->
-        <div>
-            <div style="color: #667085; font-weight: 700; text-transform: uppercase; font-size: 0.75rem; letter-spacing: 0.5px; margin-bottom: 8px;">Group Management</div>
-            <a href="{{ route('groups.index') }}" class="see-all-groups-blue-link">
-                <span>See All Groups </span>
-                <i class="fa-solid fa-arrow-right-to-bracket"></i>
-            </a>
-        </div>
-
-        <!-- Announcement Alert -->
-        <div class="announcement-banner">
-            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
-                <i class="fa-solid fa-bullhorn"></i>
-                <span style="text-transform: uppercase; font-size: 0.75rem; font-weight: 700; letter-spacing: 0.5px; opacity: 0.9;">Announcement</span>
-            </div>
-            <div style="font-size: 0.88rem; font-weight: 500; line-height: 1.4;">
-                Upcoming Quiz: Week 5 - Programming Principles starts at 15:00 today.
+            <div class="announcement-banner">
+                <div class="tag"><i class="fa-solid fa-bullhorn"></i> Announcement</div>
+                <div class="body">Upcoming Quiz: Week 5 - Programming Principles starts at 15:00 today.</div>
             </div>
         </div>
     </div>
 </div>
-
-<!-- FORCED CLEANUP JAVASCRIPT -->
-<script>
-    document.addEventListener("DOMContentLoaded", function() {
-        // Find our clean grid root container
-        var rootGrid = document.getElementById('clean-dashboard-root');
-        if (rootGrid) {
-            // Select everything that is a sibling or parent before our root wrapper and hide it
-            var parentContainer = rootGrid.parentElement;
-            
-            // Loop through all nodes inside the parent container
-            Array.from(parentContainer.children).forEach(function(element) {
-                if (element !== rootGrid && element.tagName !== 'STYLE' && element.tagName !== 'SCRIPT') {
-                    element.style.setProperty('display', 'none', 'important');
-                }
-            });
-            
-            // Clean up any extra floating elements directly inside the body tag
-            Array.from(document.body.children).forEach(function(element) {
-                if (!element.contains(rootGrid) && element !== rootGrid && element.tagName !== 'STYLE' && element.tagName !== 'SCRIPT') {
-                    element.style.setProperty('display', 'none', 'important');
-                }
-            });
-        }
-    });
-</script>
 @endsection
