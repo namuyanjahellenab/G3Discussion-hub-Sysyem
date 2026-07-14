@@ -264,6 +264,7 @@ public function latestResults()
     $lecturerId = Auth::id();
 
     $latestQuiz = Quiz::where('LecturerID', $lecturerId)
+        ->where('Status', 'scheduled')
         ->orderByDesc('StartTime')
         ->first();
 

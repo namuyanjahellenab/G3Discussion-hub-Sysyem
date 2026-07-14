@@ -130,6 +130,14 @@ Route::post('/messages', [DiscussionHubPageController::class, 'storeMessage'])
     Route::post('/settings/logout-all-devices', [DiscussionHubPageController::class, 'logoutAllDevices'])
         ->middleware('verified')
         ->name('settings.logout-all-devices');
+
+    Route::get('/announcements/create', [DashboardController::class, 'createAnnouncement'])
+        ->middleware('verified')
+        ->name('announcements.create');
+
+    Route::post('/announcements', [DashboardController::class, 'storeAnnouncement'])
+        ->middleware('verified')
+        ->name('announcements.store');
 });
 
 Route::middleware(['auth', 'verified'])->group(function () {
@@ -154,6 +162,9 @@ use App\Http\Controllers\QuizEngineController;
 
 Route::middleware('auth')->group(function () {
     Route::get('/quiz/schedule', [QuizController::class, 'create'])->name('quiz.schedule');
+    Route::get('/quiz/drafts', [QuizController::class, 'drafts'])->name('quiz.drafts');
+    Route::post('/quiz/draft', [QuizController::class, 'saveDraft'])->name('quiz.draft.save');
+    Route::delete('/quiz/draft/{id}', [QuizController::class, 'deleteDraft'])->name('quiz.draft.delete');
     Route::get('/quiz/{id}/results', function ($id) {
         return view('quizzes.results', ['quizID' => $id]);
     })->name('quiz.results');

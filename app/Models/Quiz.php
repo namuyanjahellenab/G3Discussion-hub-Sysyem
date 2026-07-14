@@ -9,14 +9,19 @@ class Quiz extends Model {
     protected $casts = [
     'StartTime' => 'datetime',
     'CreatedAt' => 'datetime',
+    'UpdatedAt' => 'datetime',
 ];
 
     protected $fillable = [
-        'LecturerID', 'Title', 'StartTime', 'Duration', 'TargetCategory'
+        'LecturerID', 'GroupID', 'Title', 'StartTime', 'Duration', 'TargetCategory', 'Status'
     ];
 
     public function questions() {
         return $this->hasMany(Question::class, 'QuizID', 'QuizID');
+    }
+
+    public function group() {
+        return $this->belongsTo(Group::class, 'GroupID', 'GroupID');
     }
 
     public function results() {

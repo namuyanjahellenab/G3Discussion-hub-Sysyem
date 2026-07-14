@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Quiz;
 use App\Models\QuizResult;
+use App\Models\Group;
 use App\Models\GroupStudent;
 use App\Models\Notification;
 use App\Models\Post;
@@ -102,6 +103,7 @@ class DashboardController extends Controller
     // the logic already used in DiscussionHubPageController::quizzes(); adjust
     // the whereIn column if quizzes are actually scoped differently there.
     $upcomingQuiz = Quiz::whereIn('GroupID', $groupIds)
+        ->where('Status', 'scheduled')
         ->where('StartTime', '>', now())
         ->orderBy('StartTime')
         ->first();
@@ -184,22 +186,90 @@ protected function participationSnapshot($userId)
     {
         $lecturerId = Auth::id();
 
-        // TODO: replace these placeholder values with real queries once
-        // course/discussion features are fully built out
-        $activeCoursesCount = Quiz::where('LecturerID', $lecturerId)->distinct('GroupID')->count('GroupID');
-        $totalStudents = 0;
-        $activeDiscussions = 0;
-        $newDiscussionsToday = 0;
-        $unansweredQuestions = 0;
-        $reportedPosts = 0;
-        $reportedPostsChange = 0;
-        $recentDiscussions = collect();
+        // A lecturer's "courses" are the groups they've scheduled a quiz for —
+        // there's no direct Group<->Lecturer link in the schema, so this is
+        // the only available signal. If a lecturer hasn't scheduled a quiz
+        // yet, their groups/students/discussions will show as 0 here even if
+        // they're active in the group's forum.
+        $groupIds = Quiz::where('LecturerID', $lecturerId)->where('Status', 'scheduled')->distinct('GroupID')->pluck('GroupID');
+
+        $activeCoursesCount = $groupIds->count();
+
+        $totalStudents = GroupStudent::whereIn('GroupID', $groupIds)
+            ->where('Status', 'active')
+            ->distinct('UserID')
+            ->count('UserID');
+
+        $topicIds = Topic::whereIn('GroupID', $groupIds)->pluck('TopicID');
+
+        $activeDiscussions = Topic::whereIn('GroupID', $groupIds)
+            ->whereIn('Status', ['open', 'discussion'])
+            ->count();
+
+        $unansweredQuestions = Topic::whereIn('GroupID', $groupIds)
+            ->where('Status', 'open')
+            ->count();
+
+        $reportedPosts = Post::whereIn('TopicID', $topicIds)
+            ->where('IsFlagged', true)
+            ->count();
+
+        $recentDiscussions = Topic::whereIn('GroupID', $groupIds)
+            ->with(['creator', 'group'])
+            ->withCount('posts')
+            ->latest('CreatedAt')
+            ->take(8)
+            ->get();
+
+        $courses = Group::whereIn('GroupID', $groupIds)
+            ->withCount(['students as student_count' => fn($q) => $q->where('Status', 'active')])
+            ->get();
 
         return view('lecturer.dash', compact(
             'activeCoursesCount', 'totalStudents', 'activeDiscussions',
-            'newDiscussionsToday', 'unansweredQuestions', 'reportedPosts',
-            'reportedPostsChange', 'recentDiscussions'
+            'unansweredQuestions', 'reportedPosts', 'recentDiscussions', 'courses'
         ));
+    }
+
+    public function createAnnouncement()
+    {
+        abort_unless(Auth::user()->Role === 'Lecturer', 403);
+
+        $groupIds = Quiz::where('LecturerID', Auth::id())->where('Status', 'scheduled')->distinct('GroupID')->pluck('GroupID');
+        $groups = Group::whereIn('GroupID', $groupIds)->get();
+
+        return view('lecturer.announcement-create', compact('groups'));
+    }
+
+    public function storeAnnouncement(Request $request)
+    {
+        abort_unless(Auth::user()->Role === 'Lecturer', 403);
+
+        $request->validate([
+            'GroupID' => 'required|exists:Group,GroupID',
+            'message' => 'required|string|max:1000',
+        ]);
+
+        $groupIds = Quiz::where('LecturerID', Auth::id())->where('Status', 'scheduled')->distinct('GroupID')->pluck('GroupID');
+        abort_unless($groupIds->contains((int) $request->GroupID), 403);
+
+        $studentIds = GroupStudent::where('GroupID', $request->GroupID)
+            ->where('Status', 'active')
+            ->pluck('UserID');
+
+        $lecturerName = Auth::user()->UserName ?? Auth::user()->name ?? 'Your lecturer';
+
+        foreach ($studentIds as $studentId) {
+            Notification::create([
+                'UserID' => $studentId,
+                'Message' => "{$lecturerName}: {$request->message}",
+                'Status' => false,
+                'Type' => 'Announcement',
+            ]);
+        }
+
+        return redirect()->route('dashboard')
+            ->with('status', 'Announcement sent to ' . $studentIds->count() . ' student(s).');
     }
 
     protected function lecturerMarks()
@@ -207,6 +277,7 @@ protected function participationSnapshot($userId)
         $lecturerId = Auth::id();
 
         $quizzes = Quiz::where('LecturerID', $lecturerId)
+            ->where('Status', 'scheduled')
             ->orderByDesc('StartTime')
             ->get();
 

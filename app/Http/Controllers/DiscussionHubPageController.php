@@ -634,7 +634,7 @@ if ($request->filled('parent_post_id')) {
     $userId = Auth::id();
     $now = now();
 
-    $allQuizzes = Quiz::orderByDesc('StartTime')->get();
+    $allQuizzes = Quiz::where('Status', 'scheduled')->orderByDesc('StartTime')->get();
 
     $completed = QuizResult::where('UserID', $userId)->with('quiz')->latest('SubmissionTime')->get();
     $completedQuizIds = $completed->pluck('QuizID')->unique();

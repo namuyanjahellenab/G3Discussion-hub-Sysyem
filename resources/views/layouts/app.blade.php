@@ -18,6 +18,7 @@
         @vite(['resources/css/app.css', 'resources/js/app.js'])
         <link rel="stylesheet" href="{{ asset('css/style.css') }}">
         <link rel="stylesheet" href="{{ asset('css/admin-theme.css') }}">
+        @stack('styles')
     </head>
     <body class="bg-light" data-theme="{{ auth()->user()->ThemeColor ?? 'luna' }}">
         <div class="min-h-screen bg-light">

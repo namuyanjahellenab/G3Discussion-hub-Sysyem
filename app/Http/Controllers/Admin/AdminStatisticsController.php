@@ -48,7 +48,7 @@ class AdminStatisticsController extends Controller
         $openQuestions = $openQuestionsQuery->count();
 
         // ---- Quizzes Run ----
-        $quizzesQuery = Quiz::query();
+        $quizzesQuery = Quiz::where('Status', 'scheduled');
         if ($groupId) {
             $quizzesQuery->where('GroupID', $groupId);
         }
@@ -99,7 +99,7 @@ class AdminStatisticsController extends Controller
             $activeUsers = $this->activeUserIds(null, $group->GroupID, false, true)->count();
 
             $enrolledCount = DB::table('groupstudent')->where('GroupID', $group->GroupID)->count();
-            $quizIds = Quiz::where('GroupID', $group->GroupID)->pluck('QuizID');
+            $quizIds = Quiz::where('GroupID', $group->GroupID)->where('Status', 'scheduled')->pluck('QuizID');
             $expectedSubmissions = $quizIds->count() * max($enrolledCount, 1);
             $actualSubmissions = QuizResult::whereIn('QuizID', $quizIds)->count();
             $quizCompletion = $expectedSubmissions > 0

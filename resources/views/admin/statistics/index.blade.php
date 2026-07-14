@@ -65,7 +65,6 @@
                     <div class="stat-icon bg-secondary bg-opacity-10 text-secondary">
                         <i class="bi bi-question-circle-fill"></i>
                     </div>
-                    <span class="badge bg-danger-subtle text-danger fw-semibold">Open</span>
                 </div>
                 <div class="fs-2 fw-bold">{{ $openQuestions }}</div>
                 <div class="text-muted small text-uppercase">Open Questions</div>
@@ -80,7 +79,6 @@
                     <div class="stat-icon bg-primary bg-opacity-10 text-primary">
                         <i class="bi bi-clock-history"></i>
                     </div>
-                    <span class="badge bg-secondary-subtle text-secondary fw-semibold">Stable</span>
                 </div>
                 <div class="fs-2 fw-bold">{{ $quizzesRun }}</div>
                 <div class="text-muted small text-uppercase">Quizzes Run</div>

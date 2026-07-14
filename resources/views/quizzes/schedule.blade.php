@@ -666,6 +666,10 @@
                 <div class="page-header">
                     <h1 class="page-title">SCHEDULE QUIZ</h1>
                     <div class="header-actions">
+                        <a href="{{ route('quiz.drafts') }}" class="btn btn-outline-secondary">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                            MY DRAFTS
+                        </a>
                         <button class="btn btn-outline-secondary" onclick="saveDraft()">
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
                             SAVE DRAFT
@@ -819,6 +823,7 @@
     // ── QUESTION MANAGEMENT ──────────────────────────────────────
     let questionCount  = 0;
     let optionCounts   = {};
+    let currentDraftId = @json($draft->QuizID ?? null);
 
     function updateCountBadge() {
         const cards = document.querySelectorAll('.q-card');
@@ -949,6 +954,41 @@
         document.getElementById('options_' + n).appendChild(row);
     }
 
+    function populateDraft(draft) {
+        document.getElementById('Title').value = draft.Title === 'Untitled draft' ? '' : (draft.Title || '');
+        if (draft.GroupID) document.getElementById('GroupSelector').value = draft.GroupID;
+        if (draft.TargetCategory) document.getElementById('TargetCategory').value = draft.TargetCategory;
+        if (draft.StartTime) {
+            const dt = draft.StartTime.replace(' ', 'T');
+            const [datePart, timePart] = dt.split('T');
+            document.getElementById('DateInput').value = datePart || '';
+            document.getElementById('TimeInput').value = (timePart || '').slice(0, 5);
+        }
+        if (draft.Duration) document.getElementById('Duration').value = draft.Duration;
+
+        (draft.questions || []).forEach(q => {
+            addQuestion();
+            const n = questionCount;
+            document.getElementById('qtype_' + n).value = q.QuestionType || 'MCQ';
+            handleTypeChange(n);
+            document.getElementById('qtext_' + n).value = q.QuestionText || '';
+            document.getElementById('qmarks_' + n).value = q.Marks || '';
+
+            if (q.QuestionType === 'MCQ' && Array.isArray(q.Options)) {
+                q.Options.forEach((opt, idx) => {
+                    if (idx >= 2) addOption(n);
+                    const input = document.getElementById('opt_' + n + '_' + idx);
+                    if (input) input.value = opt;
+                    if (opt === q.CorrectAnswer) markCorrect(n, idx);
+                    const radio = document.querySelector(`input[name="correct_${n}"][value="${idx}"]`);
+                    if (radio && opt === q.CorrectAnswer) radio.checked = true;
+                });
+            }
+        });
+
+        currentDraftId = draft.QuizID;
+    }
+
     function collectQuestions() {
         const questions = [];
         document.querySelectorAll('.q-card').forEach(card => {
@@ -1019,6 +1059,7 @@ if (!groupId)   return showError('Please select a group.');
                     'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
                 },
                 body: JSON.stringify({
+    QuizID: currentDraftId,
     Title: title,
     StartTime: startTime,
     Duration: duration,
@@ -1032,6 +1073,7 @@ if (!groupId)   return showError('Please select a group.');
 
             if (response.ok) {
                 showSuccess('Quiz published! ' + (data.students_notified ?? 0) + ' students notified. Quiz ID: ' + (data.QuizID ?? '—'));
+                currentDraftId = null;
                 resetForm();
             } else {
                 showError(data.message ?? data.error ?? 'Something went wrong.');
@@ -1041,8 +1083,39 @@ if (!groupId)   return showError('Please select a group.');
         }
     }
 
-    function saveDraft() {
-        showSuccess('Draft saved locally. Click Publish Quiz when ready to send.');
+    async function saveDraft() {
+        hideAlerts();
+
+        try {
+            const response = await fetch('{{ route("quiz.draft.save") }}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                },
+                body: JSON.stringify({
+                    QuizID: currentDraftId,
+                    Title: document.getElementById('Title').value.trim(),
+                    StartTime: getStartTime(),
+                    Duration: parseInt(document.getElementById('Duration').value) || null,
+                    TargetCategory: document.getElementById('TargetCategory').value || null,
+                    GroupID: document.getElementById('GroupSelector').value || null,
+                    Questions: collectQuestions(),
+                }),
+            });
+
+            const data = await response.json();
+
+            if (response.ok) {
+                currentDraftId = data.QuizID;
+                showSuccess('Draft saved — find it any time under "My Drafts".');
+            } else {
+                showError(data.message ?? 'Could not save draft.');
+            }
+        } catch (err) {
+            showError('Could not connect to the server. Is Laravel running?');
+        }
     }
 
     function resetForm() {
@@ -1051,6 +1124,7 @@ if (!groupId)   return showError('Please select a group.');
         document.getElementById('TimeInput').value = '';
         document.getElementById('Duration').value = '';
         document.getElementById('TargetCategory').value = '';
+        document.getElementById('GroupSelector').value = '';
         document.getElementById('questionsList').innerHTML = '';
         questionCount = 0;
         optionCounts  = {};
@@ -1075,6 +1149,10 @@ if (!groupId)   return showError('Please select a group.');
         document.getElementById('successMsg').classList.remove('show');
         document.getElementById('errorMsg').classList.remove('show');
     }
+
+    @if($draft)
+        populateDraft(@json($draft));
+    @endif
 </script>
 </body>
 </html>
