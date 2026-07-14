@@ -100,7 +100,7 @@
     <div class="content-workspace">
         <div style="margin-bottom: 1.5rem;">
             <p style="text-transform: uppercase; color: var(--text-muted); font-size: 0.75rem; font-weight: 700; letter-spacing: 0.75px; margin: 0 0 4px 0;">Collaboration</p>
-            <h1 style="letter-spacing: -0.75px; color: var(--text-main); font-size: 1.85rem; font-weight: 700; margin: 0;">Messages</h1>
+            <h1 style="letter-spacing: -0.75px; color: var(--text-main); font-size: 1.85rem; font-weight: 700; margin: 0;">Group Chat</h1>
         </div>
 
         <!-- Filter Utility Bar -->

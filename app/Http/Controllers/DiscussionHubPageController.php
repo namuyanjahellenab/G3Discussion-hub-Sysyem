@@ -956,7 +956,7 @@ public function showTopic(Topic $topic)
         ->take(3)
         ->get();
 
-    return view('topics.show', compact('topic', 'mainPost'))->with('showSidebar', false);
+    return view('topics.show', compact('topic', 'mainPost', 'participants', 'lastActivity', 'recommended'))->with('showSidebar', true);
 
 }
 

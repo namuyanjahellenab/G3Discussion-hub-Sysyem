@@ -1,127 +1,205 @@
 @extends('layouts.app')
 
 @section('content')
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+@php
+    $displayName = auth()->user()->UserName ?? auth()->user()->name ?? 'Student User';
+    $nameParts = explode(' ', $displayName);
+    $initials = collect($nameParts)->filter()->map(fn($p) => mb_substr($p, 0, 1))->take(2)->implode('');
+
+    $statusMap = [
+        'answered' => ['label' => 'Answered', 'badge' => 'bg-success-subtle'],
+        'discussion' => ['label' => 'Discussion', 'badge' => 'bg-warning'],
+        'open' => ['label' => 'Open', 'badge' => 'bg-secondary-subtle'],
+    ];
+    $statusMeta = $statusMap[$topic->Status] ?? $statusMap['open'];
+@endphp
 
 <style>
-    .thread-page-wrap { font-family: 'Inter', sans-serif; padding: 2.5rem; max-width: 800px; margin: 0 auto; }
-    .back-link { color: #0d52cc; text-decoration: none; font-size: 0.85rem; font-weight: 600; margin-bottom: 1rem; display: inline-block; }
-    .thread-title { color: #101828; font-size: 1.5rem; font-weight: 700; margin: 0 0 6px 0; }
-    .thread-meta { color: #667085; font-size: 0.85rem; margin-bottom: 1.5rem; }
-    .post-card { background: #fff; border: 1px solid #e4e7ec; border-radius: 14px; padding: 18px 20px; margin-bottom: 16px; display: flex; gap: 14px; }
-    .post-avatar { width: 36px; height: 36px; border-radius: 50%; background: #0d52cc; color: #fff; font-weight: 700; font-size: 0.8rem; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-    .post-avatar.lecturer { background: #12b76a; }
-    .post-author { font-weight: 700; color: #101828; font-size: 0.9rem; }
-    .post-time { color: #98a2b3; font-size: 0.78rem; margin-bottom: 6px; }
-    .post-content { color: #344054; font-size: 0.92rem; line-height: 1.5; }
-    .accepted-card { border: 2px solid #12b76a; background: #f6fefa; }
-    .accepted-tag { color: #12b76a; font-weight: 700; font-size: 0.78rem; text-transform: uppercase; display: flex; align-items: center; gap: 6px; margin-bottom: 10px; }
-    .accept-btn { background: none; border: 1px solid #d0d5dd; color: #667085; border-radius: 8px; padding: 5px 10px; font-size: 0.75rem; margin-top: 8px; cursor: pointer; }
-    .reply-form textarea { width: 100%; border: 1px solid #e4e7ec; border-radius: 12px; padding: 14px; font-size: 0.9rem; resize: vertical; margin-bottom: 10px; }
-    .reply-submit { background: #0d52cc; color: #fff; border: none; border-radius: 10px; padding: 10px 20px; font-weight: 600; font-size: 0.88rem; cursor: pointer; }
-    .sidebar-card { background: #fff; border: 1px solid #e4e7ec; border-radius: 14px; padding: 18px; margin-bottom: 16px; }
-    .sidebar-title { font-weight: 700; color: #101828; font-size: 0.9rem; margin-bottom: 12px; }
-    .sidebar-row { display: flex; justify-content: space-between; font-size: 0.85rem; color: #344054; margin-bottom: 10px; }
-    .status-pill { font-size: 0.7rem; font-weight: 700; padding: 3px 10px; border-radius: 20px; text-transform: uppercase; }
-    .status-answered { background: #ecfdf3; color: #12b76a; }
-    .status-open { background: #f2f4f7; color: #667085; }
-    .status-discussion { background: #fef0ff; color: #9e77ed; }
-    .participant-avatars { display: flex; }
-    .participant-avatars span { width: 26px; height: 26px; border-radius: 50%; background: #0d52cc; color: #fff; font-size: 0.65rem; font-weight: 700; display: flex; align-items: center; justify-content: center; margin-left: -8px; border: 2px solid #fff; }
-    .rec-item { padding: 10px 0; border-bottom: 1px solid #f2f4f7; font-size: 0.85rem; }
-    .rec-item:last-child { border-bottom: none; }
-    .rec-item a { color: #101828; font-weight: 600; text-decoration: none; }
-    .rec-item .rec-meta { color: #98a2b3; font-size: 0.75rem; margin-top: 2px; }
+    .content-workspace { padding: 28px; max-width: 1200px; }
+    .breadcrumb-row { color: var(--text-muted); font-size: 0.8rem; margin-bottom: 16px; }
+    .breadcrumb-row a { color: var(--text-muted); text-decoration: none; }
+    .breadcrumb-row a:hover { color: var(--luna-mid); }
 
-    .dashboard-grid-container { display: grid !important; grid-template-columns: 260px 1fr 340px !important; min-height: 100vh !important; width: 100% !important; background-color: #fcfcfd !important; font-family: 'Inter', sans-serif !important; }
-    .sidebar-panel { background: #ffffff !important; border-right: 1px solid #e4e7ec !important; padding-top: 24px !important; }
-    .sidebar-brand { padding: 0 24px 24px 24px !important; display: flex !important; align-items: center !important; gap: 12px !important; border-bottom: 1px solid #f2f4f7 !important; color: #0d52cc !important; font-weight: 700 !important; font-size: 1.2rem !important; letter-spacing: -0.5px !important; }
-    .sidebar-menu { list-style: none !important; padding: 20px 0 !important; margin: 0 !important; }
-    .sidebar-menu li a { padding: 12px 24px !important; font-size: 0.95rem !important; display: flex !important; align-items: center !important; gap: 12px !important; color: #667085 !important; text-decoration: none !important; font-weight: 500 !important; }
-    .sidebar-menu li.active a { color: #0d52cc !important; background: #eef4ff !important; border-radius: 0 24px 24px 0 !important; margin-right: 12px !important; font-weight: 600 !important; }
-    .content-workspace { padding: 3rem 2.5rem !important; background: #fcfcfd !important; }
+    .forum-layout { display: flex; gap: 20px; align-items: flex-start; }
+    .forum-main { flex: 1; min-width: 0; max-width: 760px; }
+
+    .thread-title { color: var(--text-heading); font-size: 1.5rem; font-weight: 800; margin: 0; }
+    .thread-meta { color: var(--text-muted); font-size: 0.85rem; margin: 10px 0 20px 0; }
+
+    .post-card { background: var(--surface-card); border: 1px solid var(--surface-border); border-radius: var(--radius-lg); padding: 18px 20px; margin-bottom: 16px; display: flex; gap: 14px; box-shadow: var(--shadow-soft); }
+    .post-avatar { width: 36px; height: 36px; border-radius: 50%; background: var(--luna-mid); color: #fff; font-weight: 700; font-size: 0.8rem; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+    .post-avatar.lecturer { background: var(--accent-success); }
+    .post-author { font-weight: 700; color: var(--text-heading); font-size: 0.9rem; }
+    .post-time { color: var(--text-muted); font-size: 0.78rem; margin-bottom: 6px; }
+    .post-content { color: var(--text-body); font-size: 0.92rem; line-height: 1.5; white-space: pre-wrap; }
+
+    .accepted-card { border: 2px solid var(--accent-success); background: var(--accent-success-bg); }
+    .accepted-tag { color: var(--accent-success); font-weight: 700; font-size: 0.78rem; text-transform: uppercase; display: flex; align-items: center; gap: 6px; margin-bottom: 10px; }
+    .accept-btn { background: none; border: 1px solid var(--surface-border); color: var(--text-muted); border-radius: var(--radius-md); padding: 5px 10px; font-size: 0.75rem; margin-top: 8px; cursor: pointer; }
+    .accept-btn:hover { border-color: var(--luna-mid); color: var(--luna-mid); }
+
+    .replies-heading { font-weight: 700; color: var(--text-heading); margin: 24px 0 12px 0; font-size: 15px; }
+    .empty-state { color: var(--text-muted); font-size: 0.88rem; }
+
+    .reply-form textarea { width: 100%; border: 1px solid var(--surface-border); border-radius: var(--radius-md); padding: 14px; font-size: 0.9rem; resize: vertical; margin-bottom: 10px; font-family: var(--font-body); }
+
+    .btn { display: inline-flex; align-items: center; gap: 8px; padding: 0.55rem 1rem; border-radius: var(--radius-md); font-size: 13px; font-weight: 600; text-decoration: none; border: 1px solid transparent; box-shadow: var(--shadow-soft); cursor: pointer; }
+    .btn-primary { background: var(--luna-mid); color: #fff; }
+    .btn-primary:hover { background: var(--luna-dark); color: #fff; }
+
+    .right-info-panel { display: flex; flex-direction: column; gap: 20px; max-width: 300px; }
+    .panel { background: var(--surface-card); border: 1px solid var(--surface-border); border-radius: var(--radius-lg); overflow: hidden; box-shadow: var(--shadow-soft); }
+    .panel-header { padding: 16px 20px; border-bottom: 1px solid var(--surface-border); }
+    .panel-header h2 { font-size: 15px; font-weight: 700; margin: 0; color: var(--text-heading); }
+
+    .profile-mini { display: flex; align-items: center; gap: 10px; padding: 16px 20px; }
+    .profile-mini .avatar { width: 40px; height: 40px; border-radius: 50%; background: var(--luna-mid); color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 13px; }
+    .profile-mini .name { font-weight: 700; color: var(--text-heading); font-size: 13.5px; }
+    .profile-mini .role { color: var(--text-muted); font-size: 11.5px; }
+
+    .topic-info-body { padding: 4px 20px 16px; }
+    .topic-info-body .row { display: flex; justify-content: space-between; font-size: 13px; color: var(--text-body); padding: 6px 0; }
+
+    .participant-avatars { display: flex; padding: 4px 20px 16px; }
+    .participant-avatars span { width: 28px; height: 28px; border-radius: 50%; background: var(--luna-mid); color: #fff; font-size: 0.68rem; font-weight: 700; display: flex; align-items: center; justify-content: center; margin-left: -8px; border: 2px solid var(--surface-card); }
+    .participant-avatars span:first-child { margin-left: 0; }
+
+    .rec-item { padding: 10px 20px; border-bottom: 1px solid var(--surface-border); font-size: 0.85rem; }
+    .rec-item:last-child { border-bottom: none; }
+    .rec-item a { color: var(--text-heading); font-weight: 600; text-decoration: none; }
+    .rec-item a:hover { color: var(--luna-mid); }
+    .rec-item .rec-meta { color: var(--text-muted); font-size: 0.75rem; margin-top: 2px; }
+
+    .announcement-banner { background: var(--luna-mid); color: #fff; border-radius: var(--radius-lg); padding: 18px 20px; }
+    .announcement-banner .tag { display: flex; align-items: center; gap: 8px; text-transform: uppercase; font-size: 0.72rem; font-weight: 700; letter-spacing: 0.5px; opacity: 0.9; margin-bottom: 8px; }
+    .announcement-banner .body { font-size: 0.85rem; font-weight: 500; line-height: 1.4; }
+
+    @media (max-width: 1024px) {
+        .forum-layout { flex-direction: column; }
+        .forum-main { max-width: 100%; }
+        .right-info-panel { max-width: 100%; }
+    }
 </style>
 
-<div class="dashboard-grid-container" id="clean-dashboard-root">
-    @include('layouts.sidebar')
+<div class="content-workspace">
+    <div class="breadcrumb-row">
+        <a href="{{ route('groups.topics', $topic->group) }}">&larr; Back to Forum</a>
+    </div>
 
-    <div class="content-workspace">
-        <div class="thread-page-wrap">
-            <div>
-                <a href="{{ route('groups.topics', $topic->group) }}" class="back-link">&larr; Back to Forum</a>
-                <h1 class="thread-title">{{ $topic->Title }}</h1>
+    <div class="forum-layout">
+        <div class="forum-main">
+            <div style="display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap;">
+                <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+                    <h1 class="thread-title">{{ $topic->Title }}</h1>
+                    <span class="badge {{ $statusMeta['badge'] }}">{{ $statusMeta['label'] }}</span>
+                </div>
+                <a href="{{ route('topics.export', $topic) }}" class="btn btn-outline-secondary">
+                    <i class="fa-solid fa-file-pdf"></i> Export to PDF
+                </a>
+            </div>
 
-                @if($mainPost)
-                    <div class="thread-meta">
-                        Posted by {{ $mainPost->author?->UserName ?? $mainPost->author?->name ?? 'a member' }}
-                        &bull; {{ $mainPost->CreatedAt->diffForHumans() }}
+            @if($mainPost)
+                <div class="thread-meta">
+                    Posted by {{ $mainPost->author?->UserName ?? $mainPost->author?->name ?? 'a member' }}
+                    &bull; {{ $mainPost->CreatedAt->diffForHumans() }}
+                </div>
+
+                <div class="post-card">
+                    <div class="post-avatar">{{ Str::substr($mainPost->author?->UserName ?? $mainPost->author?->name ?? '?', 0, 1) }}</div>
+                    <div style="flex:1;">
+                        <div class="post-author">{{ $mainPost->author?->UserName ?? $mainPost->author?->name ?? 'a member' }}</div>
+                        <div class="post-content">{{ $mainPost->Content }}</div>
                     </div>
+                </div>
 
-                    <div class="post-card">
-                        <div class="post-avatar">{{ Str::substr($mainPost->author?->UserName ?? $mainPost->author?->name ?? '?', 0, 1) }}</div>
+                <h6 class="replies-heading">Replies</h6>
+
+                @forelse($mainPost->replies as $reply)
+                    <div class="post-card {{ $reply->IsAccepted ? 'accepted-card' : '' }}">
+                        <div class="post-avatar {{ $reply->author?->Role === 'Lecturer' ? 'lecturer' : '' }}">
+                            {{ Str::substr($reply->author?->UserName ?? $reply->author?->name ?? '?', 0, 1) }}
+                        </div>
                         <div style="flex:1;">
-                            <div class="post-author">{{ $mainPost->author?->UserName ?? $mainPost->author?->name ?? 'a member' }}</div>
-                            <div class="post-content">{{ $mainPost->Content }}</div>
+                            @if($reply->IsAccepted)
+                                <div class="accepted-tag"><i class="fa-solid fa-circle-check"></i> Accepted Answer</div>
+                            @endif
+                            <div class="post-author">{{ $reply->author?->UserName ?? $reply->author?->name ?? 'a member' }}</div>
+                            <div class="post-time">{{ $reply->CreatedAt->diffForHumans() }}</div>
+                            <div class="post-content">{{ $reply->ReplyContent }}</div>
+
+                            @if(!$reply->IsAccepted && auth()->user()->Role === 'Lecturer')
+                                <form method="POST" action="{{ route('replies.accept', $reply) }}">
+                                    @csrf
+                                    <button type="submit" class="accept-btn">Mark as Accepted Answer</button>
+                                </form>
+                            @endif
                         </div>
                     </div>
+                @empty
+                    <p class="empty-state">No replies yet. Be the first to respond.</p>
+                @endforelse
 
-                    <h6 style="font-weight:700; color:#101828; margin: 24px 0 12px 0;">Replies</h6>
+                <form method="POST" action="{{ route('posts.reply', $mainPost->PostID) }}" class="reply-form" style="margin-top: 20px;">
+                    @csrf
+                    <textarea name="ReplyContent" rows="3" placeholder="Write your reply here..." required></textarea>
+                    <button type="submit" class="btn btn-primary">Post Reply <i class="fa-solid fa-paper-plane"></i></button>
+                </form>
+            @else
+                <p class="empty-state" style="margin-top: 16px;">No discussion started in this topic yet.</p>
+            @endif
+        </div>
 
-                    @forelse($mainPost->replies as $reply)
-                        <div class="post-card {{ $reply->IsAccepted ? 'accepted-card' : '' }}">
-                            <div class="post-avatar {{ $reply->author?->Role === 'Lecturer' ? 'lecturer' : '' }}">
-                                {{ Str::substr($reply->author?->UserName ?? $reply->author?->name ?? '?', 0, 1) }}
-                            </div>
-                            <div style="flex:1;">
-                                @if($reply->IsAccepted)
-                                    <div class="accepted-tag"><i class="fa-solid fa-circle-check"></i> Accepted Answer</div>
-                                @endif
-                                <div class="post-author">{{ $reply->author?->UserName ?? $reply->author?->name ?? 'a member' }}</div>
-                                <div class="post-time">{{ $reply->CreatedAt->diffForHumans() }}</div>
-                                <div class="post-content">{{ $reply->ReplyContent }}</div>
+        <div class="right-info-panel">
+            <section class="panel">
+                <div class="profile-mini">
+                    <div class="avatar">{{ strtoupper($initials ?: 'S') }}</div>
+                    <div>
+                        <div class="name">{{ $displayName }}</div>
+                        <div class="role">{{ auth()->user()->Role ?? 'Student' }} Account</div>
+                    </div>
+                </div>
+            </section>
 
-                                @if(!$reply->IsAccepted && auth()->user()->Role === 'Lecturer')
-                                    <form method="POST" action="{{ route('replies.accept', $reply) }}">
-                                        @csrf
-                                        <button type="submit" class="accept-btn">Mark as Accepted Answer</button>
-                                    </form>
-                                @endif
-                            </div>
+            <section class="panel">
+                <div class="panel-header"><h2>Topic Info</h2></div>
+                <div class="topic-info-body">
+                    <div class="row"><span>Group</span><strong>{{ $topic->group?->GroupName ?? '—' }}</strong></div>
+                    <div class="row"><span>Status</span><strong>{{ $statusMeta['label'] }}</strong></div>
+                    <div class="row"><span>Last activity</span><strong>{{ $lastActivity?->diffForHumans() ?? '—' }}</strong></div>
+                </div>
+            </section>
+
+            <section class="panel">
+                <div class="panel-header"><h2>Participants ({{ $participants->count() }})</h2></div>
+                <div class="participant-avatars">
+                    @foreach($participants->take(8) as $participant)
+                        <span title="{{ $participant->UserName ?? $participant->name }}">{{ strtoupper(Str::substr($participant->UserName ?? $participant->name ?? '?', 0, 1)) }}</span>
+                    @endforeach
+                    @if($participants->isEmpty())
+                        <span class="empty-state" style="padding: 0;">No participants yet.</span>
+                    @endif
+                </div>
+            </section>
+
+            <section class="panel">
+                <div class="panel-header"><h2>Related Topics</h2></div>
+                <div>
+                    @forelse($recommended as $rec)
+                        <div class="rec-item">
+                            <a href="{{ route('topics.show', $rec) }}">{{ $rec->Title }}</a>
+                            <div class="rec-meta">{{ $rec->posts_count }} {{ Str::plural('reply', $rec->posts_count) }} &bull; {{ $rec->CreatedAt->diffForHumans() }}</div>
                         </div>
                     @empty
-                        <p style="color:#667085; font-size:0.88rem;">No replies yet. Be the first to respond.</p>
+                        <div class="empty-state" style="padding: 16px 20px;">No other topics in this group yet.</div>
                     @endforelse
+                </div>
+            </section>
 
-                    <form method="POST" action="{{ route('posts.reply', $mainPost->PostID) }}" class="reply-form" style="margin-top: 20px;">
-                        @csrf
-                        <textarea name="ReplyContent" rows="3" placeholder="Write your reply here..." required></textarea>
-                        <button type="submit" class="reply-submit">Post Reply <i class="fa-solid fa-paper-plane"></i></button>
-                    </form>
-                @else
-                    <p style="color:#667085;">No discussion started in this topic yet.</p>
-                @endif
+            <div class="announcement-banner">
+                <div class="tag"><i class="fa-solid fa-bullhorn"></i> Tip</div>
+                <div class="body">Lecturers can mark the most helpful reply as the accepted answer to close out a discussion.</div>
             </div>
         </div>
     </div>
 </div>
-
-<script>
-    document.addEventListener('DOMContentLoaded', function () {
-        var rootGrid = document.getElementById('clean-dashboard-root');
-        if (rootGrid) {
-            var parentContainer = rootGrid.parentElement;
-            Array.from(parentContainer.children).forEach(function (element) {
-                if (element !== rootGrid && element.tagName !== 'STYLE' && element.tagName !== 'SCRIPT') {
-                    element.style.setProperty('display', 'none', 'important');
-                }
-            });
-            Array.from(document.body.children).forEach(function (element) {
-                if (!element.contains(rootGrid) && element !== rootGrid && element.tagName !== 'STYLE' && element.tagName !== 'SCRIPT') {
-                    element.style.setProperty('display', 'none', 'important');
-                }
-            });
-        }
-    });
-</script>
 @endsection

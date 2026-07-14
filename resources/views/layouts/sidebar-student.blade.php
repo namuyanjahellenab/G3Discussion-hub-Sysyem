@@ -63,13 +63,13 @@
             <a href="{{ route('dashboard') }}"><i class="fa-solid fa-table-columns"></i> Dashboard</a>
         </li>
         <li class="{{ request()->routeIs('forum.index', 'groups.topics', 'topics.*') ? 'active' : '' }}">
-            <a href="{{ route('forum.index') }}"><i class="fa-regular fa-comments"></i> Forum</a>
+            <a href="{{ route('forum.index') }}"><i class="fa-regular fa-comments"></i> Topic Discussions</a>
         </li>
         <li class="{{ request()->routeIs('messages.index') ? 'active' : '' }}">
     @if($currentGroupId)
-        <a href="{{ route('student.messages', ['groupId' => $currentGroupId]) }}"><i class="fa-regular fa-comments"></i> Messages</a>
+        <a href="{{ route('student.messages', ['groupId' => $currentGroupId]) }}"><i class="fa-regular fa-comments"></i> Group Chat</a>
     @else
-        <a href="#" class="disabled"><i class="fa-regular fa-comments"></i> Messages</a>
+        <a href="#" class="disabled"><i class="fa-regular fa-comments"></i> Group Chat</a>
     @endif
 </li>
         <li class="{{ request()->routeIs('marks.index') ? 'active' : '' }}">

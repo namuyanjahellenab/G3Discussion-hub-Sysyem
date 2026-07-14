@@ -47,9 +47,13 @@ class GroupChatController extends Controller
             ->with('user')
             ->get();
 
+        // All of this user's groups, so they can switch chats instead of
+        // being stuck on whichever group the link happened to point at.
+        $userGroups = auth()->user()->groups()->get();
+
         return view('student.messages', compact(
             'groupId', 'mainConversation', 'restrictedThreads',
-            'activeConversation', 'messages', 'groupMembers'
+            'activeConversation', 'messages', 'groupMembers', 'userGroups'
         ));
     }
 
@@ -63,16 +67,30 @@ class GroupChatController extends Controller
         ]);
 
         $userId = auth()->id();
-        $excludeIds = collect($request->input('exclude', []))->map(fn($id) => (int) $id)->sort()->values();
 
-        if ($excludeIds->isEmpty()) {
-            // goes to the main group thread
-            $conversation = Conversation::firstOrCreate(
-                ['group_id' => $groupId, 'Type' => 'group'],
-                ['CreatedBy' => $userId]
+        if ($request->filled('conversation_id')) {
+            // Replying inside an existing thread (e.g. a restricted thread) —
+            // stay in it instead of re-deriving from `exclude[]`, which a reply
+            // form never sends.
+            $conversation = Conversation::where('ConversationID', $request->input('conversation_id'))
+                ->where('group_id', $groupId)
+                ->firstOrFail();
+
+            abort_unless(
+                ConversationMember::where('ConversationID', $conversation->ConversationID)
+                    ->where('UserID', $userId)
+                    ->exists(),
+                403
             );
         } else {
-            $conversation = $this->findOrCreateRestrictedConversation($groupId, $userId, $excludeIds);
+            $excludeIds = collect($request->input('exclude', []))->map(fn($id) => (int) $id)->sort()->values();
+
+            $conversation = $excludeIds->isEmpty()
+                ? Conversation::firstOrCreate(
+                    ['group_id' => $groupId, 'Type' => 'group'],
+                    ['CreatedBy' => $userId]
+                )
+                : $this->findOrCreateRestrictedConversation($groupId, $userId, $excludeIds);
         }
 
         Message::create([

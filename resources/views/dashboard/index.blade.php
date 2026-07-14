@@ -19,11 +19,6 @@
     .stat-card .value { font-size: 26px; font-weight: 800; color: var(--text-heading); margin-top: 6px; }
     .stat-card .value small { font-size: 13px; font-weight: 600; color: var(--text-muted); }
 
-    .quick-links { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 28px; }
-    .quick-link { display: flex; align-items: center; gap: 10px; background: var(--surface-card); border: 1px solid var(--surface-border); border-radius: var(--radius-md); padding: 10px 16px; text-decoration: none; color: var(--text-heading); font-weight: 600; font-size: 13px; box-shadow: var(--shadow-soft); }
-    .quick-link i { color: var(--luna-mid); }
-    .quick-link:hover { border-color: var(--luna-mid); color: var(--luna-dark); }
-
     .panels-grid { display: grid; grid-template-columns: 1.4fr 1fr; gap: 20px; margin-bottom: 20px; }
     .panel { background: var(--surface-card); border: 1px solid var(--surface-border); border-radius: var(--radius-lg); overflow: hidden; box-shadow: var(--shadow-soft); }
     .panel-header { padding: 16px 20px; border-bottom: 1px solid var(--surface-border); display: flex; justify-content: space-between; align-items: center; }
@@ -36,11 +31,10 @@
     .group-card h5 { font-size: 1rem; font-weight: 700; margin: 0 0 2px 0; color: var(--text-heading); }
     .group-card p { color: var(--text-muted); font-size: 0.8rem; margin: 0 0 16px 0; }
 
-    .activity-row, .notif-row { display: flex; align-items: flex-start; gap: 10px; padding: 13px 20px; border-bottom: 1px solid var(--surface-border); font-size: 13.5px; }
-    .activity-row:last-child, .notif-row:last-child { border-bottom: none; }
+    .notif-row { display: flex; align-items: flex-start; gap: 10px; padding: 13px 20px; border-bottom: 1px solid var(--surface-border); font-size: 13.5px; }
+    .notif-row:last-child { border-bottom: none; }
     .activity-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--luna-mid); margin-top: 6px; flex-shrink: 0; }
-    .activity-row .who { font-weight: 700; color: var(--text-heading); }
-    .activity-row .meta, .notif-row .meta { color: var(--text-muted); font-size: 12px; margin-top: 2px; }
+    .notif-row .meta { color: var(--text-muted); font-size: 12px; margin-top: 2px; }
 
     .upcoming-quiz-card { padding: 20px; }
     .upcoming-quiz-card .title { font-weight: 700; color: var(--text-heading); font-size: 14px; }
@@ -96,13 +90,6 @@
         </div>
     </div>
 
-    <div class="quick-links">
-        <a href="{{ route('forum.index') }}" class="quick-link"><i class="fa-solid fa-comments"></i> Forum</a>
-        <a href="{{ route('groups.index') }}" class="quick-link"><i class="fa-solid fa-message"></i> Group Chat</a>
-        <a href="{{ route('marks.index') }}" class="quick-link"><i class="fa-solid fa-star"></i> Marks</a>
-        <a href="{{ url('/quizzes') }}" class="quick-link"><i class="fa-solid fa-file-lines"></i> Quizzes</a>
-    </div>
-
     <div class="panels-grid">
         <div style="display: flex; flex-direction: column; gap: 20px;">
             <section class="panel">
@@ -127,18 +114,19 @@
             </section>
 
             <section class="panel">
-                <div class="panel-header"><h2>Recent Activity</h2></div>
+                <div class="panel-header"><h2>Notifications</h2></div>
                 <div>
-                    @forelse($recentActivity as $activity)
-                        <div class="activity-row">
+                    @forelse($notifications->take(6) as $notification)
+                        <div class="notif-row">
                             <span class="activity-dot"></span>
                             <div>
-                                <div><span class="who">{{ $activity['user_name'] ?? 'Someone' }}</span> {{ $activity['action'] }}</div>
-                                <div class="meta">{{ $activity['time'] }}</div>
+                                <div style="font-weight: 700; color: var(--text-heading);">{{ $notification->Type }}</div>
+                                <div class="meta">{{ $notification->Message }}</div>
+                                <div class="meta">{{ $notification->CreatedAt->diffForHumans() }}</div>
                             </div>
                         </div>
                     @empty
-                        <div class="empty-state">No recent activity in your groups yet.</div>
+                        <div class="empty-state">No notifications yet.</div>
                     @endforelse
                 </div>
             </section>
@@ -164,24 +152,6 @@
                 @else
                     <div class="meta" style="margin-top: 8px;">No upcoming quizzes scheduled.</div>
                 @endif
-            </section>
-
-            <section class="panel">
-                <div class="panel-header"><h2>Notifications</h2></div>
-                <div>
-                    @forelse($notifications->take(4) as $notification)
-                        <div class="notif-row">
-                            <span class="activity-dot"></span>
-                            <div>
-                                <div style="font-weight: 700; color: var(--text-heading);">{{ $notification->Type }}</div>
-                                <div class="meta">{{ $notification->Message }}</div>
-                                <div class="meta">{{ $notification->CreatedAt->diffForHumans() }}</div>
-                            </div>
-                        </div>
-                    @empty
-                        <div class="empty-state">No notifications yet.</div>
-                    @endforelse
-                </div>
             </section>
 
             <div class="announcement-banner">

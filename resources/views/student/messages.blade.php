@@ -7,6 +7,17 @@
 
         {{-- LEFT: thread list (main group thread + any restricted threads) --}}
         <aside class="thread-list card">
+            @if($userGroups->count() > 1)
+                <div class="thread-list__subheader">Your Groups</div>
+                @foreach($userGroups as $g)
+                    <a href="{{ route('student.messages', ['groupId' => $g->GroupID]) }}"
+                       class="thread-item {{ (string) $g->GroupID === (string) $groupId ? 'thread-item--active' : '' }}">
+                        <i class="fa-solid fa-layer-group"></i>
+                        <div><strong>{{ $g->GroupName }}</strong></div>
+                    </a>
+                @endforeach
+            @endif
+
             <div class="thread-list__header">
                 <i class="fa-solid fa-comments"></i> Threads
             </div>
