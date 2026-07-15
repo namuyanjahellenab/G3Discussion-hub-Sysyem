@@ -7,6 +7,7 @@ use App\Models\GroupStudent;
 use App\Models\Notification;
 use App\Models\Post;
 use App\Models\Topic;
+use App\Services\MlGatewayClient;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 
@@ -67,6 +68,12 @@ class SyncController extends Controller
         }
 
         if ($entityType === 'Post') {
+            $content = $payload['Content'] ?? '';
+
+            if (app(MlGatewayClient::class)->isSpam($content)) {
+                return response()->json(['message' => 'Content blocked: detected as spam'], 422);
+            }
+
             $post = Post::create([
                 'TopicID' => $payload['TopicID'] ?? null,
                 'UserID' => $payload['UserID'] ?? $request->user()->UserID,

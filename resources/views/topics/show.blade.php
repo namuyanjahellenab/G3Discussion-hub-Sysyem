@@ -16,9 +16,18 @@
 
 <style>
     .content-workspace { padding: 28px; max-width: 1200px; }
-    .breadcrumb-row { color: var(--text-muted); font-size: 0.8rem; margin-bottom: 16px; }
-    .breadcrumb-row a { color: var(--text-muted); text-decoration: none; }
-    .breadcrumb-row a:hover { color: var(--luna-mid); }
+    .breadcrumb-row { margin-bottom: 16px; }
+    .back-link { display: inline-flex; align-items: center; gap: 7px; color: var(--text-muted); text-decoration: none; font-size: 0.82rem; font-weight: 600; padding: 7px 14px; border-radius: 999px; border: 1px solid var(--surface-border); background: var(--surface-card); box-shadow: var(--shadow-soft); transition: color 0.15s ease, border-color 0.15s ease, background-color 0.15s ease; }
+    .back-link i { font-size: 0.72rem; transition: transform 0.15s ease; }
+    /* Scoped to real pointer devices only - a :hover rule that changes an
+       element's appearance makes touch browsers (notably iOS Safari) consume
+       the first tap just to simulate hover, requiring a second tap to
+       actually navigate. (hover: hover) excludes touchscreens from this rule
+       entirely, so a single tap always navigates immediately. */
+    @media (hover: hover) {
+        .back-link:hover { color: var(--luna-mid); border-color: var(--luna-mid); background: var(--luna-lightest); }
+        .back-link:hover i { transform: translateX(-2px); }
+    }
 
     .forum-layout { display: flex; gap: 20px; align-items: flex-start; }
     .forum-main { flex: 1; min-width: 0; max-width: 760px; }
@@ -83,7 +92,9 @@
 
 <div class="content-workspace">
     <div class="breadcrumb-row">
-        <a href="{{ route('groups.topics', $topic->group) }}">&larr; Back to Forum</a>
+        <a href="{{ route('groups.topics', $topic->group) }}" class="back-link">
+            <i class="fa-solid fa-arrow-left"></i> Back
+        </a>
     </div>
 
     <div class="forum-layout">
@@ -93,9 +104,26 @@
                     <h1 class="thread-title">{{ $topic->Title }}</h1>
                     <span class="badge {{ $statusMeta['badge'] }}">{{ $statusMeta['label'] }}</span>
                 </div>
-                <a href="{{ route('topics.export', $topic) }}" class="btn btn-outline-secondary">
-                    <i class="fa-solid fa-file-pdf"></i> Export to PDF
-                </a>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <a href="{{ route('topics.export', $topic) }}" class="btn btn-outline-secondary">
+                        <i class="fa-solid fa-file-pdf"></i> Export to PDF
+                    </a>
+                    @if($shareLinks)
+                        <div class="dropdown">
+                            <button class="btn btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                <i class="fa-solid fa-share-nodes"></i> Share
+                            </button>
+                            <ul class="dropdown-menu dropdown-menu-end">
+                                <li><a class="dropdown-item" href="{{ $shareLinks['Links']['whatsapp'] }}" target="_blank" rel="noopener"><i class="fa-brands fa-whatsapp"></i> WhatsApp</a></li>
+                                <li><a class="dropdown-item" href="{{ $shareLinks['Links']['twitter'] }}" target="_blank" rel="noopener"><i class="fa-brands fa-x-twitter"></i> X / Twitter</a></li>
+                                <li><a class="dropdown-item" href="{{ $shareLinks['Links']['facebook'] }}" target="_blank" rel="noopener"><i class="fa-brands fa-facebook"></i> Facebook</a></li>
+                                <li><a class="dropdown-item" href="{{ $shareLinks['Links']['email'] }}"><i class="fa-solid fa-envelope"></i> Email</a></li>
+                                <li><hr class="dropdown-divider"></li>
+                                <li><button type="button" class="dropdown-item" onclick="copyTopicShareLink()"><i class="fa-solid fa-link"></i> Copy Link</button></li>
+                            </ul>
+                        </div>
+                    @endif
+                </div>
             </div>
 
             @if($mainPost)
@@ -202,4 +230,14 @@
         </div>
     </div>
 </div>
+
+@if($shareLinks)
+<script>
+function copyTopicShareLink() {
+    navigator.clipboard.writeText(@json($shareLinks['ShareUrl'])).then(() => {
+        alert('Link copied to clipboard!');
+    });
+}
+</script>
+@endif
 @endsection

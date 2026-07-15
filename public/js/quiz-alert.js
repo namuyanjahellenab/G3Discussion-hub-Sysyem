@@ -29,8 +29,12 @@
         `;
         document.body.appendChild(blurDiv);
 
-        // Prevent clicking anything behind
-        document.body.style.pointerEvents = 'none';
+        // The blur layer and overlay below are both fixed, full-viewport,
+        // higher z-index than everything else, so they already intercept
+        // clicks to the page behind them just by being on top - no need to
+        // (and must not) disable pointer-events on the whole body, since
+        // nothing here ever resets that back to 'auto' afterward, which
+        // would otherwise leave the entire page permanently unclickable.
 
         // Popup overlay
         const overlay = document.createElement('div');

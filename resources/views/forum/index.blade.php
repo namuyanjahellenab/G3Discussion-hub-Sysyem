@@ -37,7 +37,8 @@
     .topic-row a.title { color: var(--text-heading); font-weight: 700; text-decoration: none; font-size: 13.5px; }
     .topic-row a.title:hover { color: var(--luna-mid); }
     .topic-row .meta { color: var(--text-muted); font-size: 12px; margin-top: 2px; }
-    .topic-row .time { color: var(--text-muted); font-size: 12px; white-space: nowrap; }
+    .topic-row .time { color: var(--text-muted); font-size: 12px; white-space: nowrap; text-align: right; }
+    .topic-row .category-badge { display: inline-block; margin-top: 4px; background: var(--luna-lightest); color: var(--luna-dark); border-radius: 999px; padding: 2px 10px; font-size: 11px; font-weight: 600; }
 
     .empty-state { padding: 32px 20px; text-align: center; color: var(--text-muted); font-size: 13.5px; }
 
@@ -75,7 +76,7 @@
                 </div>
                 <div class="stat-card">
                     <div class="label">Total Topics</div>
-                    <div class="value">{{ $topics->count() }}</div>
+                    <div class="value">{{ $totalTopicsCount }}</div>
                 </div>
             </div>
 
@@ -98,10 +99,14 @@
                 <div class="panel-header"><h2>Latest Topics</h2></div>
                 <div>
                     @forelse($topics as $topic)
+                        @php($category = $topic->classification?->PredictedCategory ?? $topic->Category)
                         <div class="topic-row">
                             <div>
                                 <a href="{{ route('topics.show', $topic) }}" class="title">{{ $topic->Title }}</a>
                                 <div class="meta">Created by {{ $topic->creator?->UserName ?? $topic->creator?->name ?? 'a member' }}</div>
+                                @if($category)
+                                    <span class="category-badge">{{ $category }}</span>
+                                @endif
                             </div>
                             <div class="time">{{ $topic->CreatedAt->diffForHumans() }}</div>
                         </div>

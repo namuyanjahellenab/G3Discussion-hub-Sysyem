@@ -17,6 +17,50 @@
         </form>
     </div>
 
+    @if(isset($suggestedGroups) && $suggestedGroups->isNotEmpty())
+        <div class="mb-5">
+            <h2 class="fw-bold text-dark mb-3" style="font-size: 1.15rem;">
+                <i class="bi bi-graph-up-arrow me-1" style="color: #0052CC;"></i> Suggested for you
+            </h2>
+            <div class="row g-4">
+                @foreach($suggestedGroups as $group)
+                    <div class="col-12 col-md-6">
+                        <div class="card shadow-sm border-0 h-100 bg-white positional-card"
+                             style="border-radius: 14px;
+                                    border-left: 5px solid #0052CC !important;
+                                    box-shadow: 0 4px 12px rgba(0,0,0,0.04);">
+                            <div class="card-body p-4 d-flex flex-column">
+                                <div class="d-flex align-items-center justify-content-between mb-3">
+                                    <span class="badge px-2.5 py-1.5 rounded text-uppercase fw-bold"
+                                          style="font-size: 0.75rem; background-color: #E6F0FF; color: #0052CC;">
+                                        Trending
+                                    </span>
+                                    <div class="d-flex align-items-center text-secondary px-2.5 py-1 rounded" style="background-color: #F4F5F7; font-size: 0.8rem; font-weight: 500;">
+                                        <i class="bi bi-people-fill me-1.5 text-muted" style="font-size: 0.85rem;"></i>
+                                        <span>{{ $group->member_count ?? 0 }} members</span>
+                                    </div>
+                                </div>
+
+                                <h4 class="fw-bold text-dark mb-4" style="font-size: 1.35rem; letter-spacing: -0.3px;">
+                                    {{ $group->GroupName }}
+                                </h4>
+
+                                <div class="mt-auto">
+                                    <form method="POST" action="{{ route('groups.join', $group->GroupID) }}">
+                                        @csrf
+                                        <button type="submit" class="btn btn-primary w-100 py-2.5 rounded-3 fw-bold d-flex align-items-center justify-content-center" style="background-color: #0052CC; border-color: #0052CC; font-size: 0.95rem;">
+                                            Join Group <i class="bi bi-chevron-right ms-1 small"></i>
+                                        </button>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                @endforeach
+            </div>
+        </div>
+    @endif
+
     <div class="row g-4">
         @foreach($groups as $group)
             <div class="col-12 col-md-6">

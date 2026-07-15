@@ -65,13 +65,49 @@ class DiscussionHubPageController extends Controller
         $groupIds = $joinedGroups->pluck('GroupID');
         $memberIds = GroupStudent::whereIn('GroupID', $groupIds)->pluck('UserID')->unique();
 
-        // Get topics for joined groups (including system-created topics)
+        // Ask the ML gateway to categorize any newly created topics that
+        // don't have a prediction yet, so "Latest Topics" can show a category.
+        $this->backfillClassifications($groupIds);
+
+        $totalTopicsCount = Topic::whereIn('GroupID', $groupIds)->count();
+
+        // Latest Topics feed: newest 5 only, including system-created topics.
         $topics = Topic::whereIn('GroupID', $groupIds)
-            ->with('creator')
+            ->with(['creator', 'classification'])
             ->latest('CreatedAt')
+            ->limit(5)
             ->get();
 
-        return view('forum.index', compact('joinedGroups', 'topics'))->with('showSidebar', true);
+        return view('forum.index', compact('joinedGroups', 'topics', 'totalTopicsCount'))->with('showSidebar', true);
+    }
+
+    /**
+     * Ask the ML gateway to classify topics in these groups that don't have
+     * a predicted category yet, and persist the result. Shared by the Latest
+     * Topics feed and the recommendation generator so both stay in sync.
+     */
+    private function backfillClassifications($groupIds, int $limit = 15): void
+    {
+        $gateway = app(MlGatewayClient::class);
+
+        $unclassifiedTopics = Topic::whereIn('GroupID', $groupIds)
+            ->whereDoesntHave('classification')
+            ->latest('CreatedAt')
+            ->limit($limit)
+            ->get();
+
+        foreach ($unclassifiedTopics as $topic) {
+            $result = $gateway->classify($topic->Title, $topic->TopicID);
+            if ($result && !empty($result['PredictedCategory'])) {
+                TopicClassification::updateOrCreate(
+                    ['TopicID' => $topic->TopicID],
+                    [
+                        'PredictedCategory' => $result['PredictedCategory'],
+                        'ConfidenceScore' => $result['ConfidenceScore'] ?? 0,
+                    ]
+                );
+            }
+        }
     }
 
     public function messages(Request $request)
@@ -279,6 +315,19 @@ class DiscussionHubPageController extends Controller
             return back()->withErrors(['content' => 'Please enter a message or attach a file.']);
         }
 
+        if (app(MlGatewayClient::class)->isSpam($request->input('content', ''))) {
+            $message = 'Your message was blocked because it looks like spam.';
+
+            if ($request->wantsJson() || $request->header('Accept') === 'application/json') {
+                return response()->json([
+                    'success' => false,
+                    'message' => $message,
+                    'errors' => ['content' => [$message]],
+                ], 422);
+            }
+
+            return back()->withErrors(['content' => $message]);
+        }
 
         $attachmentPath = null;
         $attachmentType = null;
@@ -517,24 +566,30 @@ if ($request->filled('parent_post_id')) {
 
     public function exportTopic(Topic $topic)
     {
+        // Primary generator is Python (Flask + xhtml2pdf). Falls back to the
+        // local Dompdf generator only if the ML gateway is unreachable, so
+        // export never dead-ends in an error page for the user.
+        $pdfBytes = app(MlGatewayClient::class)->exportTopicPdf($topic->TopicID);
 
-        $posts = Post::with(['author', 'parent.author', 'replies.author'])
-            ->where('TopicID', $topic->TopicID)
-            ->orderBy('CreatedAt')
-            ->get();
+        if ($pdfBytes === null) {
+            $posts = Post::with(['author', 'parent.author', 'replies.author'])
+                ->where('TopicID', $topic->TopicID)
+                ->orderBy('CreatedAt')
+                ->get();
 
-        $html = view('messages.export_pdf', compact('topic', 'posts'))->render();
-        $dompdf = new Dompdf();
-        $dompdf->loadHtml($html);
-        $dompdf->setPaper('A4', 'portrait');
-        $dompdf->render();
+            $html = view('messages.export_pdf', compact('topic', 'posts'))->render();
+            $dompdf = new Dompdf();
+            $dompdf->loadHtml($html);
+            $dompdf->setPaper('A4', 'portrait');
+            $dompdf->render();
+            $pdfBytes = $dompdf->output();
+        }
 
         $filename = Str::slug($topic->Title ?: 'discussion') . '-discussion.pdf';
-        $path = 'discussions/' . $filename;
-        Storage::disk('public')->put($path, $dompdf->output());
 
-        return response()->download(Storage::disk('public')->path($path), $filename, [
+        return response($pdfBytes, 200, [
             'Content-Type' => 'application/pdf',
+            'Content-Disposition' => "attachment; filename=\"{$filename}\"",
         ]);
     }
 
@@ -735,24 +790,7 @@ if ($request->filled('parent_post_id')) {
     {
         $gateway = app(MlGatewayClient::class);
 
-        $unclassifiedTopics = Topic::whereIn('GroupID', $groupIds)
-            ->whereDoesntHave('classification')
-            ->latest('CreatedAt')
-            ->limit(15)
-            ->get();
-
-        foreach ($unclassifiedTopics as $topic) {
-            $result = $gateway->classify($topic->Title, $topic->TopicID);
-            if ($result && !empty($result['PredictedCategory'])) {
-                TopicClassification::updateOrCreate(
-                    ['TopicID' => $topic->TopicID],
-                    [
-                        'PredictedCategory' => $result['PredictedCategory'],
-                        'ConfidenceScore' => $result['ConfidenceScore'] ?? 0,
-                    ]
-                );
-            }
-        }
+        $this->backfillClassifications($groupIds);
 
         $interests = Topic::whereIn('GroupID', $groupIds)
             ->whereNotNull('Category')
@@ -780,24 +818,29 @@ if ($request->filled('parent_post_id')) {
                 ->all();
         }
 
-        $ranked = $gateway->recommend($user->UserID, $interests, $recentMessages);
+        $ranked = $gateway->recommend($user->UserID, $interests, $recentMessages, $groupIds->all());
         $categoryScores = collect($ranked['Recommendations'] ?? [])
             ->pluck('RelevanceScore', 'Category');
 
         $candidateTopics = Topic::whereIn('GroupID', $groupIds)
             ->where('CreatedBy', '!=', $user->UserID)
+            ->withCount('posts')
             ->get();
 
         if ($categoryScores->isNotEmpty()) {
             $topics = $candidateTopics
                 ->filter(fn ($topic) => $categoryScores->has($topic->Category))
-                ->sortByDesc(fn ($topic) => $categoryScores->get($topic->Category))
+                ->sortBy([
+                    fn ($a, $b) => $categoryScores->get($b->Category) <=> $categoryScores->get($a->Category),
+                    fn ($a, $b) => $b->posts_count <=> $a->posts_count,
+                    fn ($a, $b) => $b->CreatedAt <=> $a->CreatedAt,
+                ])
                 ->values();
         } else {
             $topics = $candidateTopics->sortByDesc('CreatedAt')->values();
         }
 
-        $topics = $topics->take(8);
+        $topics = $topics->take(10); // max topics recommended to a user
 
         Recommendation::where('UserID', $user->UserID)->delete();
 
@@ -805,7 +848,10 @@ if ($request->filled('parent_post_id')) {
             Recommendation::create([
                 'UserID' => $user->UserID,
                 'TopicID' => $topic->TopicID,
-                'RelevanceScore' => round($categoryScores->get($topic->Category, 0) * 100, 2),
+                // Clamp defensively: the gateway score is meant to be 0-1, but
+                // never trust an external service's math to persist a
+                // percentage the UI treats as a hard 0-100 range.
+                'RelevanceScore' => min(round($categoryScores->get($topic->Category, 0) * 100, 2), 100),
             ]);
         }
     }
@@ -912,6 +958,12 @@ public function storeTopic(Request $request)
         'Content' => 'required|string',
     ]);
 
+    if (app(MlGatewayClient::class)->isSpam($request->input('Content'))) {
+        return back()
+            ->withErrors(['Content' => 'Your post was blocked because it looks like spam.'])
+            ->withInput();
+    }
+
     $group = Group::find($request->input('GroupID'));
 
     $topic = Topic::create([
@@ -956,7 +1008,13 @@ public function showTopic(Topic $topic)
         ->take(3)
         ->get();
 
-    return view('topics.show', compact('topic', 'mainPost', 'participants', 'lastActivity', 'recommended'))->with('showSidebar', true);
+    // Share links are also Python-generated (Flask builds the URL/text/per-
+    // platform links). Unlike PDF export, this is a page-load render, not an
+    // explicit action — if the gateway is unreachable, just hide the button
+    // rather than erroring the whole page.
+    $shareLinks = app(MlGatewayClient::class)->topicShareLinks($topic->TopicID, url('/'));
+
+    return view('topics.show', compact('topic', 'mainPost', 'participants', 'lastActivity', 'recommended', 'shareLinks'))->with('showSidebar', true);
 
 }
 

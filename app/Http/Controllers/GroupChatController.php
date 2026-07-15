@@ -7,6 +7,7 @@ use App\Models\ConversationMember;
 use App\Models\ConversationExclusion;
 use App\Models\GroupStudent;
 use App\Models\Message;
+use App\Services\MlGatewayClient;
 use Illuminate\Http\Request;
 
 class GroupChatController extends Controller
@@ -93,13 +94,37 @@ class GroupChatController extends Controller
                 : $this->findOrCreateRestrictedConversation($groupId, $userId, $excludeIds);
         }
 
-        Message::create([
+        $wantsJson = $request->wantsJson() || $request->header('Accept') === 'application/json';
+
+        if (app(MlGatewayClient::class)->isSpam($request->body)) {
+            $message = 'Your message was blocked because it looks like spam.';
+
+            if ($wantsJson) {
+                return response()->json(['success' => false, 'message' => $message], 422);
+            }
+
+            return back()->withErrors(['body' => $message])->withInput();
+        }
+
+        $chatMessage = Message::create([
             'ConversationID' => $conversation->ConversationID,
             'TopicID' => null,
             'user_id' => $userId,
             'body' => $request->body,
             'is_spam' => 0,
         ]);
+
+        if ($wantsJson) {
+            $chatMessage->load('user');
+
+            return response()->json([
+                'success' => true,
+                'html' => view('student.partials.chat-bubble', [
+                    'msg' => $chatMessage,
+                    'canExclude' => $conversation->Type !== 'restricted',
+                ])->render(),
+            ]);
+        }
 
         return back();
     }

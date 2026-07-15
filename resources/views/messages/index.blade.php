@@ -222,10 +222,16 @@
                     <!-- Active Reply HUD Banner Indicator -->
                     <div id="reply-context-banner" style="display: none; padding: 10px 16px; background: #f2f4f7; border-left: 4px solid var(--primary-color); align-items: center; gap: 12px; margin-bottom: 8px; border-radius: 4px;">
                         <div style="font-size: 0.85rem; flex-grow: 1; color: #344054; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
-                            <span style="font-weight: 700; color: var(--primary-color);" id="reply-banner-sender"></span>: 
+                            <span style="font-weight: 700; color: var(--primary-color);" id="reply-banner-sender"></span>:
                             <span id="reply-banner-body" style="font-style: italic;"></span>
                         </div>
                         <i class="fa-solid fa-xmark" onclick="clearReplyContext()" style="cursor: pointer; color: var(--text-muted); font-size: 1.1rem;"></i>
+                    </div>
+
+                    <!-- Send-blocked error banner (e.g. spam detection) -->
+                    <div id="composer-error-banner" style="display: none; padding: 10px 16px; background: #fef3f2; border-left: 4px solid #dc3545; align-items: center; gap: 12px; margin-bottom: 8px; border-radius: 4px;">
+                        <div style="font-size: 0.85rem; flex-grow: 1; color: #b42318;" id="composer-error-text"></div>
+                        <i class="fa-solid fa-xmark" onclick="document.getElementById('composer-error-banner').style.display='none';" style="cursor: pointer; color: #b42318; font-size: 1.1rem;"></i>
                     </div>
 
                     <div style="border: 1px solid var(--border-color); border-radius: var(--radius-md); overflow: hidden; background: #fff;">
@@ -373,6 +379,13 @@
         document.getElementById('parent-post-id-input').value = '';
         document.getElementById('parent-reply-text-input').value = '';
         document.getElementById('reply-context-banner').style.display = 'none';
+    }
+
+    function showComposerError(message) {
+        const banner = document.getElementById('composer-error-banner');
+        document.getElementById('composer-error-text').textContent = message;
+        banner.style.display = 'flex';
+        setTimeout(() => { banner.style.display = 'none'; }, 6000);
     }
 
     async function deleteMessage(postId) {
@@ -581,12 +594,14 @@
                     if (res.status === 422) {
                         const data = await res.json().catch(() => null);
                         console.error('Validation error', data);
+                        showComposerError(data?.message || 'Your message could not be sent.');
                         return;
                     }
 
                     if (!res.ok) {
                         const data = await res.json().catch(() => null);
                         console.error('Server error', data);
+                        showComposerError('Something went wrong sending your message. Please try again.');
                         return;
                     }
 

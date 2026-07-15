@@ -1,0 +1,9 @@
+# Versions of dependencies required after installing python on your machine
+Flask==3.0.3
+Werkzeug==3.0.1
+pandas==2.2.3
+scikit-learn==1.6.0
+PyMySQL==2.2.8
+python-dotenv==1.0.1
+nltk==3.10.0
+xhtml2pdf==0.2.17

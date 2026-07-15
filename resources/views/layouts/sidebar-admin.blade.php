@@ -96,6 +96,9 @@
         <li class="{{ request()->routeIs('admin.blacklist') ? 'active' : '' }}">
             <a href="{{ route('admin.blacklist') }}"><i class="fa-solid fa-ban"></i> Blacklist</a>
         </li>
+        <li class="{{ request()->routeIs('admin.flagged-content.*') ? 'active' : '' }}">
+            <a href="{{ route('admin.flagged-content.index') }}"><i class="fa-solid fa-flag"></i> Flagged Content</a>
+        </li>
         <li class="{{ request()->routeIs('admin.groups.index') ? 'active' : '' }}">
             <a href="{{ route('admin.groups.index') }}"><i class="fa-solid fa-people-group"></i> Groups</a>
         </li>

@@ -225,7 +225,11 @@ Route::post('/lecturer-staff/{user}/demote', [AdminLecturerStaffController::clas
 Route::post('/blacklist', [\App\Http\Controllers\Admin\AdminBlacklistController::class, 'store'])->name('blacklist.store');
 Route::delete('/blacklist/{blacklist}', [\App\Http\Controllers\Admin\AdminBlacklistController::class, 'destroy'])->name('blacklist.destroy');
 Route::post('/warning', [\App\Http\Controllers\Admin\AdminWarningController::class, 'store'])->name('warning.store');
-   
+
+    Route::get('/flagged-content', [\App\Http\Controllers\Admin\AdminFlaggedContentController::class, 'index'])->name('flagged-content.index');
+    Route::post('/flagged-content/{post}/dismiss', [\App\Http\Controllers\Admin\AdminFlaggedContentController::class, 'dismiss'])->name('flagged-content.dismiss');
+    Route::delete('/flagged-content/{post}', [\App\Http\Controllers\Admin\AdminFlaggedContentController::class, 'destroy'])->name('flagged-content.destroy');
+    Route::post('/flagged-content/messages/{message}/dismiss', [\App\Http\Controllers\Admin\AdminFlaggedContentController::class, 'dismissMessage'])->name('flagged-content.messages.dismiss');
 
 });
 
