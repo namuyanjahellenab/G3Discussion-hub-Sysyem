@@ -2,21 +2,15 @@
 
 import os
 
-DEFAULT_SPAM_KEYWORDS = (
-    "crypto,buy now,click here,free money,viagra,loan approved,"
-    "earn cash,work from home,winner,claim your prize,act now,risk free"
-)
 DEFAULT_CATEGORY = "General Chat"
 DEFAULT_RECOMMENDATION_LIMIT = 10
 SIMILARITY_FLOOR = 0.05
 CATALOG_TTL_SECONDS = 60
 TRENDING_WINDOW_DAYS = 14
 RECENT_ACTIVITY_LIMIT = 10
-GROUP_SUGGESTION_LIMIT = 5
+TRENDING_GROUP_LIMIT = 5
 GROUP_ACTIVITY_WEIGHT = 2
 DB_CONNECT_TIMEOUT_SECONDS = 3
-# Max words allowed between a multi-word spam phrase's terms to still count as a match.
-SPAM_PHRASE_MATCH_SLACK = 3
 
 
 def _expected_token() -> str | None:

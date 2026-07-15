@@ -12,11 +12,12 @@ class MlGatewayClient
      * Returns null if the gateway is unreachable or misconfigured — callers
      * must fall back gracefully since this is a separate Python process.
      */
-    public function classify(string $text, ?int $referenceId = null): ?array
+    public function classify(string $text, ?int $referenceId = null, ?string $context = null): ?array
     {
         $response = $this->post('/classify', [
             'MessageText' => $text,
             'MessageID' => $referenceId,
+            'Context' => $context,
         ]);
 
         return $response;
@@ -39,18 +40,32 @@ class MlGatewayClient
     }
 
     /**
-     * Rank groups the user hasn't joined by member count and recent activity,
-     * for cold-start members who don't have enough signal for topic matching.
+     * Rank specific candidate topics for a user by relevance. Each topic's
+     * own title is scored individually against interests/recent activity,
+     * instead of every topic in a category collapsing onto one identical
+     * score (see recommend()). Returns null if the gateway is unreachable.
+     *
+     * @param array<int, array{TopicID: int, Title: ?string, Category: ?string}> $topics
+     */
+    public function recommendTopics(int $userId, array $interests, array $recentMessages, array $topics): ?array
+    {
+        return $this->post('/recommend-topics', [
+            'UserID' => $userId,
+            'Interests' => array_values($interests),
+            'RecentMessages' => array_values($recentMessages),
+            'Topics' => array_values($topics),
+        ]);
+    }
+
+    /**
+     * Every group ranked by member count + weighted recent activity, joined
+     * or not - an objective "what's popular right now" signal, not a
+     * personalized "you haven't joined this" suggestion.
      * Returns null if the gateway is unreachable or misconfigured.
      */
-    public function recommendGroups(int $userId, array $excludeGroupIds = []): ?array
+    public function trendingGroups(): ?array
     {
-        $response = $this->post('/recommend-groups', [
-            'UserID' => $userId,
-            'GroupIDs' => array_values($excludeGroupIds),
-        ]);
-
-        return $response;
+        return $this->post('/trending-groups', []);
     }
 
     /**
@@ -67,6 +82,31 @@ class MlGatewayClient
         $result = $this->classify($text);
 
         return (bool) ($result['IsFiltered'] ?? false);
+    }
+
+    /**
+     * Classify a piece of text for both spam and educational relevance in a
+     * single gateway round trip (avoids calling /classify twice per post).
+     * Pass $context (e.g. the topic + original question) to judge a reply's
+     * relevance against that specific thread rather than generic "is this
+     * educational" — otherwise the general course-relevance check is used.
+     * Fails open: unreachable/misconfigured gateway means "not spam" and
+     * "educational" — content is never blocked or flagged on an absent signal.
+     *
+     * @return array{isSpam: bool, isEducational: bool}
+     */
+    public function moderateContent(string $text, ?string $context = null): array
+    {
+        if (trim($text) === '') {
+            return ['isSpam' => false, 'isEducational' => true];
+        }
+
+        $result = $this->classify($text, null, $context);
+
+        return [
+            'isSpam' => (bool) ($result['IsFiltered'] ?? false),
+            'isEducational' => (bool) ($result['IsEducational'] ?? true),
+        ];
     }
 
     /**

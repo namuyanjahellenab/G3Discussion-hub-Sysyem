@@ -96,22 +96,14 @@ class GroupChatController extends Controller
 
         $wantsJson = $request->wantsJson() || $request->header('Accept') === 'application/json';
 
-        if (app(MlGatewayClient::class)->isSpam($request->body)) {
-            $message = 'Your message was blocked because it looks like spam.';
-
-            if ($wantsJson) {
-                return response()->json(['success' => false, 'message' => $message], 422);
-            }
-
-            return back()->withErrors(['body' => $message])->withInput();
-        }
+        $isSpam = app(MlGatewayClient::class)->isSpam($request->body);
 
         $chatMessage = Message::create([
             'ConversationID' => $conversation->ConversationID,
             'TopicID' => null,
             'user_id' => $userId,
             'body' => $request->body,
-            'is_spam' => 0,
+            'is_spam' => $isSpam,
         ]);
 
         if ($wantsJson) {

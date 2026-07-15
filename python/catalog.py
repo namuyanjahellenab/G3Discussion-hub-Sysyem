@@ -61,6 +61,17 @@ def _rank_against_catalog(query_text: str, catalog: list[dict[str, str]]) -> lis
     return list(zip(catalog, similarities))
 
 
+def _rank_texts(query_text: str, texts: list[str]) -> list[float]:
+    # Cosine-similarity-rank arbitrary texts (e.g. topic titles) against a
+    # query - for callers ranking specific items rather than the fixed
+    # category catalog. Returns one score per text, same order as given.
+    corpus = texts + [query_text]
+    vectorizer = TfidfVectorizer(stop_words="english")
+    matrix = vectorizer.fit_transform(corpus)
+    similarities = cosine_similarity(matrix[-1], matrix[:-1])[0]
+    return [_clamp_score(score) for score in similarities]
+
+
 def _classify_category(text: str) -> tuple[str, float]:
     catalog = _build_catalog()
     ranked = sorted(_rank_against_catalog(text, catalog), key=lambda pair: pair[1], reverse=True)

@@ -1,5 +1,5 @@
 # ML gateway for the Discussion Hub Laravel app.
-# Endpoints: /classify, /recommend, /recommend-groups, /export-topic-pdf, /topic-share-links
+# Endpoints: /classify, /recommend, /recommend-topics, /trending-groups, /export-topic-pdf, /topic-share-links
 # Classification/ranking uses TF-IDF + cosine similarity against a catalog rebuilt from live Topic data.
 # Helpers are imported by name so tests can keep monkeypatching them directly.
 
@@ -10,19 +10,19 @@ from dotenv import load_dotenv
 from flask import Flask, Response, jsonify, request
 from flask.typing import ResponseReturnValue
 
-from catalog import _build_catalog, _clamp_score, _classify_category, _rank_against_catalog
+from catalog import _build_catalog, _clamp_score, _classify_category, _rank_against_catalog, _rank_texts
 from config import GROUP_ACTIVITY_WEIGHT, _is_authorized, _recommendation_limit
 from db import (
-    _fetch_group_suggestions,
     _fetch_topic_export_data,
     _fetch_topic_share_data,
     _fetch_trending_categories,
+    _fetch_trending_groups,
     _fetch_user_recent_text,
     _run_query,
 )
 from pdf import _build_topic_pdf, _slugify
 from share import _build_share_links
-from spam import _is_spam
+from spam import _classify_content
 
 load_dotenv()
 
@@ -31,20 +31,26 @@ app = Flask(__name__)
 
 @app.route("/classify", methods=["POST"])
 def classify() -> ResponseReturnValue:
-    # Predict a category for a single piece of text, with a spam short-circuit.
+    # Predict a category for a single piece of text. _classify_content covers
+    # both the spam short-circuit and whether the message is educational/
+    # on-topic for an academic discussion board.
     if not _is_authorized(request):
         return jsonify({"error": "unauthorized"}), 401
 
     payload = request.get_json(silent=True) or {}
     message_text = payload.get("MessageText") or ""
     message_id = payload.get("MessageID")
+    context = payload.get("Context")
 
-    if _is_spam(message_text):
+    verdict = _classify_content(message_text, context=context)
+
+    if verdict["is_spam"]:
         return jsonify({
             "MessageID": message_id,
             "PredictedCategory": "Spam/Filtered Content",
             "ConfidenceScore": 1.0,
             "IsFiltered": True,
+            "IsEducational": verdict["is_educational"],
         })
 
     category, score = _classify_category(message_text)
@@ -53,6 +59,7 @@ def classify() -> ResponseReturnValue:
         "PredictedCategory": category,
         "ConfidenceScore": score,
         "IsFiltered": False,
+        "IsEducational": verdict["is_educational"],
     })
 
 
@@ -108,24 +115,55 @@ def recommend() -> ResponseReturnValue:
     return jsonify({"UserID": user_id, "Recommendations": recommendations, "Mode": "personalized"})
 
 
-@app.route("/recommend-groups", methods=["POST"])
-def recommend_groups() -> ResponseReturnValue:
-    # Suggest groups the user hasn't joined, ranked by member count + activity.
+@app.route("/recommend-topics", methods=["POST"])
+def recommend_topics() -> ResponseReturnValue:
+    # Rank specific candidate topics for a user by relevance. Unlike
+    # /recommend (which only ranks categories), this scores each topic's own
+    # title text against the user's interests/activity, so topics sharing a
+    # category no longer collapse onto one identical, duplicated score.
     if not _is_authorized(request):
         return jsonify({"error": "unauthorized"}), 401
 
     payload = request.get_json(silent=True) or {}
     user_id = payload.get("UserID")
-    group_ids = payload.get("GroupIDs") or []
+    interests = payload.get("Interests") or []
+    recent_messages = payload.get("RecentMessages") or []
+    topics = payload.get("Topics") or []
 
-    rows = _fetch_group_suggestions(user_id, group_ids)
+    db_recent_text = _fetch_user_recent_text(user_id)
+    query_text = " ".join(
+        str(part) for part in [*interests, *recent_messages, *(db_recent_text or [])]
+    ).strip()
+
+    if not query_text or not topics:
+        topic_scores = [{"TopicID": topic.get("TopicID"), "RelevanceScore": 0.0} for topic in topics]
+        return jsonify({"UserID": user_id, "TopicScores": topic_scores})
+
+    texts = [" ".join(filter(None, [topic.get("Title"), topic.get("Category")])) for topic in topics]
+    scores = _rank_texts(query_text, texts)
+    topic_scores = [
+        {"TopicID": topic.get("TopicID"), "RelevanceScore": round(score, 4)}
+        for topic, score in zip(topics, scores)
+    ]
+    return jsonify({"UserID": user_id, "TopicScores": topic_scores})
+
+
+@app.route("/trending-groups", methods=["POST"])
+def trending_groups() -> ResponseReturnValue:
+    # Every group ranked by member count + weighted recent activity, joined
+    # or not - an objective "what's popular right now" signal, not a
+    # personalized "you haven't joined this" suggestion.
+    if not _is_authorized(request):
+        return jsonify({"error": "unauthorized"}), 401
+
+    rows = _fetch_trending_groups()
     if not rows:
-        return jsonify({"UserID": user_id, "SuggestedGroups": []})
+        return jsonify({"TrendingGroups": []})
 
     max_score = max(
         (row["MemberCount"] or 0) + GROUP_ACTIVITY_WEIGHT * (row["RecentActivity"] or 0) for row in rows
     ) or 1
-    suggestions = [
+    trending = [
         {
             "GroupID": row["GroupID"],
             "GroupName": row["GroupName"],
@@ -135,7 +173,7 @@ def recommend_groups() -> ResponseReturnValue:
         }
         for row in rows
     ]
-    return jsonify({"UserID": user_id, "SuggestedGroups": suggestions})
+    return jsonify({"TrendingGroups": trending})
 
 
 @app.route("/export-topic-pdf", methods=["POST"])

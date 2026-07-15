@@ -1,6 +1,8 @@
 import importlib
 import os
 
+import spam
+
 
 def setup_module(module):
     # pytest auto-runs this exact function name before tests in the file.
@@ -56,7 +58,11 @@ def testClassifySuccess():
     assert data["PredictedCategory"] == "General Chat"
 
 
-def testClassifySpam():
+def testClassifySpam(monkeypatch):
+    # /classify itself doesn't care how _classify_content decides - that's
+    # spam.py's job (covered below). This just checks the short-circuit wiring.
+    monkeypatch.setattr(appModule, "_classify_content", lambda text, context=None: {"is_spam": True, "is_educational": True})
+
     client = app.test_client()
     resp = client.post(
         "/classify",
@@ -67,60 +73,126 @@ def testClassifySpam():
     data = resp.get_json()
     assert data["IsFiltered"] is True
     assert data["PredictedCategory"] == "Spam/Filtered Content"
+    assert data["IsEducational"] is True
 
 
-def testClassifySpamCatchesVerbFormBypass():
-    # "buying it now" should match "buy now" once stemmed.
+def testClassifyNotSpamSkipsShortCircuit(monkeypatch):
+    monkeypatch.setattr(appModule, "_classify_content", lambda text, context=None: {"is_spam": False, "is_educational": True})
+
     client = app.test_client()
     resp = client.post(
         "/classify",
         headers={"Authorization": "Bearer testtoken"},
-        json={"MessageText": "I'm buying it now before the deal ends"},
-    )
-    data = resp.get_json()
-    assert data["IsFiltered"] is True
-
-
-def testClassifySpamCatchesPluralBypass():
-    # "loan approvals" should match "loan approved" via shared stem.
-    client = app.test_client()
-    resp = client.post(
-        "/classify",
-        headers={"Authorization": "Bearer testtoken"},
-        json={"MessageText": "Your loan approvals are ready, check now"},
-    )
-    data = resp.get_json()
-    assert data["IsFiltered"] is True
-
-
-def testClassifyDoesNotFlagSingleWordFromTwoWordPhrase():
-    # "now" alone must not trigger - all words of a multi-word phrase are required.
-    client = app.test_client()
-    resp = client.post(
-        "/classify",
-        headers={"Authorization": "Bearer testtoken"},
-        json={"MessageText": "Can we meet now to discuss the assignment?"},
+        json={"MessageText": "How does merge sort work?"},
     )
     data = resp.get_json()
     assert data["IsFiltered"] is False
     assert data["PredictedCategory"] != "Spam/Filtered Content"
+    assert data["IsEducational"] is True
 
 
-def testClassifyDoesNotFlagUnrelatedWordsFarApart():
-    # "buy" and "now" both appear but far apart, so the sliding window should not match.
+def testClassifyNonEducationalIsReportedEvenWhenNotSpam(monkeypatch):
+    monkeypatch.setattr(appModule, "_classify_content", lambda text, context=None: {"is_spam": False, "is_educational": False})
+
     client = app.test_client()
     resp = client.post(
         "/classify",
         headers={"Authorization": "Bearer testtoken"},
-        json={
-            "MessageText": (
-                "I want to buy a new textbook for the algorithms course. "
-                "My lecturer said the library restocks it sometime around now."
-            )
-        },
+        json={"MessageText": "lol what a nice day outside"},
     )
     data = resp.get_json()
     assert data["IsFiltered"] is False
+    assert data["IsEducational"] is False
+
+
+def testClassifyPassesContextThrough(monkeypatch):
+    received = {}
+
+    def fake_classify(text, context=None):
+        received["text"] = text
+        received["context"] = context
+        return {"is_spam": False, "is_educational": False}
+
+    monkeypatch.setattr(appModule, "_classify_content", fake_classify)
+
+    client = app.test_client()
+    client.post(
+        "/classify",
+        headers={"Authorization": "Bearer testtoken"},
+        json={"MessageText": "pizza tonight?", "Context": "Sorting Algorithms Help\nHow does merge sort work?"},
+    )
+
+    assert received["text"] == "pizza tonight?"
+    assert received["context"] == "Sorting Algorithms Help\nHow does merge sort work?"
+
+
+def testClassifyContentBlankTextReturnsDefaultVerdict():
+    assert spam._classify_content("") == {"is_spam": False, "is_educational": True}
+    assert spam._classify_content("   ") == {"is_spam": False, "is_educational": True}
+    assert spam._is_spam("") is False
+    assert spam._is_educational("") is True
+
+
+def testIsSpamDetectsObviousSpam():
+    assert spam._is_spam("click here to claim your free prize now, limited offer") is True
+    assert spam._is_spam("earn $5000 a week working from home, sign up today") is True
+
+
+def testIsSpamDoesNotFlagOrdinaryAcademicText():
+    assert spam._is_spam("how does merge sort work?") is False
+    assert spam._is_spam("can someone explain normalization in databases") is False
+
+
+def testIsEducationalDetectsAcademicText():
+    assert spam._is_generically_educational("what's the time complexity of binary search?") is True
+    assert spam._is_generically_educational("i'm stuck on the recursion assignment, any tips?") is True
+
+
+def testIsEducationalFlagsCasualChitChat():
+    assert spam._is_generically_educational("lol anyone up for pizza tonight") is False
+    assert spam._is_generically_educational("happy birthday, hope you have a great day") is False
+
+
+def testClassifyContentWithoutContextUsesGenericEducationalCheck():
+    verdict = spam._classify_content("what's the best restaurant near campus")
+    assert verdict == {"is_spam": False, "is_educational": False}
+
+
+def testReplyRelevantToThreadIsNotFlagged():
+    context = "Sorting Algorithms Help\nHow does merge sort work?"
+    verdict = spam._classify_content(
+        "Merge sort splits the array in half recursively, then merges the sorted halves back together.",
+        context=context,
+    )
+    assert verdict == {"is_spam": False, "is_educational": True}
+
+
+def testReplyIrrelevantToThreadIsFlaggedEvenIfGenericallyEducational():
+    # "Explain recursion" reads as academic on its own, but this thread is
+    # about database normalization - it should still be flagged as irrelevant.
+    context = "Database Design Help\nCan someone explain third normal form?"
+    verdict = spam._classify_content(
+        "Recursion is when a function calls itself to solve smaller subproblems, commonly used in sorting algorithms.",
+        context=context,
+    )
+    assert verdict == {"is_spam": False, "is_educational": False}
+
+
+def testShortReplyToThreadSkipsRelevanceCheck():
+    # Short acknowledgments rarely share vocabulary with the thread even
+    # when genuinely on-topic, so they're allowed through regardless.
+    context = "Sorting Algorithms Help\nHow does merge sort work?"
+    verdict = spam._classify_content("Thanks, makes sense!", context=context)
+    assert verdict == {"is_spam": False, "is_educational": True}
+
+
+def testSpamReplyToThreadIsStillCaughtRegardlessOfRelevance():
+    context = "Sorting Algorithms Help\nHow does merge sort work?"
+    verdict = spam._classify_content(
+        "buy cheap laptops now, huge discount click here",
+        context=context,
+    )
+    assert verdict["is_spam"] is True
 
 
 def testAuthFailure():
@@ -217,46 +289,82 @@ def testRecommendFallsBackToPersonalizedWhenNoTrendingSignal(monkeypatch):
     assert data["Recommendations"][0]["Category"] == "Databases"
 
 
-def testRecommendGroupsSuccess(monkeypatch):
+def testRecommendTopicsScoresVaryByTitle():
+    client = app.test_client()
+    resp = client.post(
+        "/recommend-topics",
+        headers={"Authorization": "Bearer testtoken"},
+        json={
+            "UserID": 999,
+            "Interests": ["Algorithms"],
+            "RecentMessages": ["Looking for sorting and complexity examples"],
+            "Topics": [
+                {"TopicID": 1, "Title": "Merge sort walkthrough", "Category": "Algorithms"},
+                {"TopicID": 2, "Title": "Binary search trees explained", "Category": "Algorithms"},
+                {"TopicID": 3, "Title": "Planning the end of year party", "Category": "General Chat"},
+            ],
+        },
+    )
+    assert resp.status_code == 200
+    data = resp.get_json()
+    scores = {row["TopicID"]: row["RelevanceScore"] for row in data["TopicScores"]}
+    # Two topics share a category but have different titles - they must not
+    # collapse onto the same duplicated score the way category-only ranking did.
+    assert scores[1] != scores[2]
+    assert scores[1] > scores[3]
+    assert scores[2] > scores[3]
+
+
+def testRecommendTopicsNoSignalReturnsZeroForEveryTopic():
+    client = app.test_client()
+    resp = client.post(
+        "/recommend-topics",
+        headers={"Authorization": "Bearer testtoken"},
+        json={"UserID": 999, "Topics": [{"TopicID": 1, "Title": "Anything", "Category": "Algorithms"}]},
+    )
+    assert resp.status_code == 200
+    data = resp.get_json()
+    assert data["TopicScores"] == [{"TopicID": 1, "RelevanceScore": 0.0}]
+
+
+def testRecommendTopicsAuthFailure():
+    client = app.test_client()
+    resp = client.post("/recommend-topics", json={"UserID": 999, "Topics": []})
+    assert resp.status_code == 401
+
+
+def testTrendingGroupsSuccess(monkeypatch):
     monkeypatch.setattr(
         appModule,
-        "_fetch_group_suggestions",
-        lambda user_id, exclude_ids: [
+        "_fetch_trending_groups",
+        lambda: [
             {"GroupID": 1, "GroupName": "Algorithms", "MemberCount": 10, "RecentActivity": 5},
             {"GroupID": 2, "GroupName": "Databases", "MemberCount": 3, "RecentActivity": 1},
         ],
     )
 
     client = app.test_client()
-    resp = client.post(
-        "/recommend-groups",
-        headers={"Authorization": "Bearer testtoken"},
-        json={"UserID": 999, "GroupIDs": [5]},
-    )
+    resp = client.post("/trending-groups", headers={"Authorization": "Bearer testtoken"})
     assert resp.status_code == 200
     data = resp.get_json()
-    assert data["SuggestedGroups"][0]["GroupID"] == 1
-    assert data["SuggestedGroups"][0]["InteractionScore"] == 1.0
-    assert data["SuggestedGroups"][1]["GroupID"] == 2
+    assert data["TrendingGroups"][0]["GroupID"] == 1
+    assert data["TrendingGroups"][0]["InteractionScore"] == 1.0
+    assert data["TrendingGroups"][1]["GroupID"] == 2
 
 
-def testRecommendGroupsAuthFailure():
+def testTrendingGroupsAuthFailure():
     client = app.test_client()
-    resp = client.post("/recommend-groups", json={"UserID": 999})
+    resp = client.post("/trending-groups")
     assert resp.status_code == 401
 
 
-def testRecommendGroupsDbUnavailableFallsBackToEmpty(monkeypatch):
+def testTrendingGroupsDbUnavailableFallsBackToEmpty(monkeypatch):
     monkeypatch.setattr(appModule, "_run_query", lambda *args, **kwargs: None)
 
     client = app.test_client()
-    resp = client.post(
-        "/recommend-groups",
-        headers={"Authorization": "Bearer testtoken"},
-        json={"UserID": 999},
-    )
+    resp = client.post("/trending-groups", headers={"Authorization": "Bearer testtoken"})
     assert resp.status_code == 200
-    assert resp.get_json()["SuggestedGroups"] == []
+    assert resp.get_json()["TrendingGroups"] == []
 
 
 def testExportTopicPdfAuthFailure():

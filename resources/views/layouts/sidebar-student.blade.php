@@ -55,13 +55,13 @@
         <li class="{{ request()->routeIs('dashboard') ? 'active' : '' }}">
             <a href="{{ route('dashboard') }}"><i class="fa-solid fa-table-columns"></i> Dashboard</a>
         </li>
-        <li class="{{ request()->routeIs('forum.index', 'groups.topics', 'topics.*') ? 'active' : '' }}">
+        <li class="{{ request()->routeIs('forum.index', 'groups.topics', 'topics.create', 'topics.store', 'topics.show', 'topics.export') ? 'active' : '' }}">
             <a href="{{ route('forum.index') }}"><i class="fa-regular fa-comments"></i> Topic Discussions</a>
         </li>
         <li class="{{ request()->routeIs('topics.my-questions') ? 'active' : '' }}">
             <a href="{{ route('topics.my-questions') }}"><i class="fa-regular fa-circle-question"></i> My Questions</a>
         </li>
-        <li class="{{ request()->routeIs('messages.index') ? 'active' : '' }}">
+        <li class="{{ request()->routeIs('student.messages') ? 'active' : '' }}">
     @if($currentGroupId)
         <a href="{{ route('student.messages', ['groupId' => $currentGroupId]) }}"><i class="fa-regular fa-comments"></i> Group Chat</a>
     @else

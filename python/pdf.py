@@ -14,15 +14,23 @@ _TOPIC_PDF_TEMPLATE = """
 <meta charset="utf-8">
 <style>
     body { font-family: Helvetica, Arial, sans-serif; font-size: 12px; color: #222; }
-    .header h2 { margin-bottom: 2px; }
+    .header { border-bottom: 2px solid #0052CC; padding-bottom: 8px; margin-bottom: 4px; }
+    .header h2 { margin: 0 0 4px 0; color: #0052CC; }
     .header .meta { color: #666; font-size: 10px; margin-bottom: 2px; }
-    .post { border: 1px solid #ddd; border-radius: 4px; padding: 10px; margin-top: 12px; }
-    .post .author { font-weight: bold; }
-    .post .content { margin-top: 4px; white-space: pre-wrap; }
-    .post .attachment { margin-top: 4px; color: #666; font-size: 10px; }
-    .reply { margin-top: 8px; margin-left: 20px; padding: 6px 10px; background: #f5f5f5; border-radius: 4px; }
-    .reply .author { font-weight: bold; font-size: 11px; }
-    .reply .content { margin-top: 2px; white-space: pre-wrap; }
+    .post { border: 1px solid #ddd; border-radius: 4px; padding: 10px; margin-top: 14px; }
+    .msg-header { margin-bottom: 6px; }
+    .avatar { display: inline-block; width: 20px; height: 20px; border-radius: 10px;
+              background-color: #0052CC; color: #ffffff; text-align: center;
+              font-size: 10px; font-weight: bold; line-height: 20px; }
+    .author-name { font-weight: bold; color: #111; font-size: 12px; }
+    .badge-op { color: #0052CC; font-size: 9px; font-weight: bold; margin-left: 6px; }
+    .timestamp { color: #999; font-size: 9px; margin-left: 6px; }
+    .content { margin-top: 6px; white-space: pre-wrap; line-height: 1.5; }
+    .attachment { margin-top: 6px; color: #666; font-size: 10px; }
+    .reply { margin-top: 10px; margin-left: 20px; padding: 8px 10px; background: #f5f5f5; border-radius: 4px; }
+    .reply .author-name { font-size: 11px; }
+    .reply .avatar { width: 16px; height: 16px; border-radius: 8px; line-height: 16px;
+                      font-size: 9px; background-color: #6b7280; }
 </style>
 </head>
 <body>
@@ -33,14 +41,23 @@ _TOPIC_PDF_TEMPLATE = """
     </div>
     {% for post in posts %}
     <div class="post">
-        <div class="author">{{ post.AuthorName or "Student" }}</div>
+        <div class="msg-header">
+            <span class="avatar">{{ (post.AuthorName or "S")[0]|upper }}</span>
+            <span class="author-name">{{ post.AuthorName or "Student" }}</span>
+            <span class="badge-op">ORIGINAL POST</span>
+            {% if post.PostedAt %}<span class="timestamp">{{ post.PostedAt }}</span>{% endif %}
+        </div>
         <div class="content">{{ post.Content or "" }}</div>
         {% if post.Attachment %}
         <div class="attachment">Attachment: {{ post.Attachment.split("/")[-1] }}</div>
         {% endif %}
         {% for reply in post.Replies %}
         <div class="reply">
-            <div class="author">{{ reply.AuthorName or "Student" }}</div>
+            <div class="msg-header">
+                <span class="avatar">{{ (reply.AuthorName or "S")[0]|upper }}</span>
+                <span class="author-name">{{ reply.AuthorName or "Student" }}</span>
+                {% if reply.PostedAt %}<span class="timestamp">{{ reply.PostedAt }}</span>{% endif %}
+            </div>
             <div class="content">{{ reply.ReplyContent or "" }}</div>
         </div>
         {% endfor %}

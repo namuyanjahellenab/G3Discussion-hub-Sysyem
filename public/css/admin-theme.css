@@ -407,6 +407,25 @@ button:focus-visible,
   color: var(--luna-dark) !important;
 }
 
+/* Disabled sidebar items (e.g. Group Chat before a group is joined) look
+   clickable without this — same hover as a working link, but the click
+   goes nowhere (href="#"). This makes "not clickable" visually obvious
+   instead of hovering exactly like every working item. */
+.sidebar-menu li a.disabled {
+  color: var(--text-muted) !important;
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.sidebar-menu li a.disabled:hover {
+  background-color: transparent;
+  color: var(--text-muted) !important;
+}
+
+.sidebar-menu li a.disabled i {
+  color: var(--text-muted) !important;
+}
+
 .sidebar-menu li a i {
   color: var(--luna-mid) !important;
 }
@@ -639,6 +658,17 @@ button:focus-visible,
    existing #sidebar-toggle-btn, unchanged on desktop).
    ============================================================ */
 .mobile-sidebar-backdrop { display: none; }
+
+/* .sidebar-panel had no explicit width, so on desktop it was a plain flex
+   child sized by shrink-to-fit — its rendered width (and therefore whether
+   "Topic Discussions" wrapped to two lines) depended on how much space each
+   page's own content happened to leave it, varying page to page. Fixed at
+   the same 260px used for the mobile drawer below, with flex-shrink: 0 so
+   no page's content can squeeze it smaller. */
+.app-sidebar-wrapper {
+    width: 260px;
+    flex-shrink: 0;
+}
 
 @media (max-width: 991.98px) {
     .app-sidebar-wrapper {

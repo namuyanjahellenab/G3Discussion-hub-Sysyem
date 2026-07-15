@@ -10,7 +10,7 @@ import pymysql
 import pymysql.cursors
 from pymysql.connections import Connection
 
-from config import DB_CONNECT_TIMEOUT_SECONDS, GROUP_ACTIVITY_WEIGHT, GROUP_SUGGESTION_LIMIT, RECENT_ACTIVITY_LIMIT, TRENDING_WINDOW_DAYS
+from config import DB_CONNECT_TIMEOUT_SECONDS, GROUP_ACTIVITY_WEIGHT, RECENT_ACTIVITY_LIMIT, TRENDING_GROUP_LIMIT, TRENDING_WINDOW_DAYS
 
 _logger = logging.getLogger(__name__)
 
@@ -99,39 +99,32 @@ def _fetch_trending_categories(group_ids: list[Any]) -> list[dict[str, Any]] | N
     return _run_query(base_sql.format(group_filter=""))
 
 
-def _fetch_group_suggestions(user_id: Any, exclude_group_ids: list[Any]) -> list[dict[str, Any]] | None:
-    # Groups the user hasn't joined, ranked by member count + recent activity.
-    exclude_ids = {gid for gid in (exclude_group_ids or []) if gid is not None}
-    if not exclude_ids and user_id:
-        joined = _run_query("SELECT GroupID FROM `groupstudent` WHERE UserID = %s", (user_id,))
-        if joined is None:
-            return None
-        exclude_ids = {row["GroupID"] for row in joined}
-
-    base_sql = """
+def _fetch_trending_groups() -> list[dict[str, Any]] | None:
+    # Every group with at least one real member, ranked by member count +
+    # weighted recent activity (posts + replies in the last
+    # TRENDING_WINDOW_DAYS days). Membership status of the *requesting* user
+    # is irrelevant here - trending is an objective, platform-wide signal,
+    # not a personalized "you haven't joined this yet" suggestion. But a
+    # group nobody has actually joined isn't "trending" just because it has
+    # a stray post in it, so MemberCount > 0 is a hard requirement, not just
+    # a non-zero combined score.
+    return _run_query(
+        """
         SELECT g.GroupID AS GroupID, g.GroupName AS GroupName,
                COUNT(DISTINCT gs.StudentID) AS MemberCount,
                COUNT(DISTINCT p.PostID) + COUNT(DISTINCT r.ReplyID) AS RecentActivity
         FROM `Group` g
         LEFT JOIN `groupstudent` gs ON gs.GroupID = g.GroupID
         LEFT JOIN `Topic` t ON t.GroupID = g.GroupID
-        LEFT JOIN `Post` p ON p.TopicID = t.TopicID AND p.CreatedAt >= NOW() - INTERVAL {window} DAY
-        LEFT JOIN `Reply` r ON r.PostID = p.PostID AND r.CreatedAt >= NOW() - INTERVAL {window} DAY
-        {exclude_filter}
+        LEFT JOIN `Post` p ON p.TopicID = t.TopicID AND p.CreatedAt >= NOW() - INTERVAL %s DAY
+        LEFT JOIN `Reply` r ON r.PostID = p.PostID AND r.CreatedAt >= NOW() - INTERVAL %s DAY
         GROUP BY g.GroupID, g.GroupName
-        ORDER BY (COUNT(DISTINCT gs.StudentID) + {weight} * (COUNT(DISTINCT p.PostID) + COUNT(DISTINCT r.ReplyID))) DESC
-        LIMIT {limit}
-    """.format(
-        window=TRENDING_WINDOW_DAYS,
-        weight=GROUP_ACTIVITY_WEIGHT,
-        limit=GROUP_SUGGESTION_LIMIT,
-        exclude_filter="{exclude_filter}",
+        HAVING COUNT(DISTINCT gs.StudentID) > 0
+        ORDER BY (COUNT(DISTINCT gs.StudentID) + %s * (COUNT(DISTINCT p.PostID) + COUNT(DISTINCT r.ReplyID))) DESC
+        LIMIT %s
+        """,
+        (TRENDING_WINDOW_DAYS, TRENDING_WINDOW_DAYS, GROUP_ACTIVITY_WEIGHT, TRENDING_GROUP_LIMIT),
     )
-
-    if exclude_ids:
-        placeholders = ",".join(["%s"] * len(exclude_ids))
-        return _run_query(base_sql.format(exclude_filter=f"WHERE g.GroupID NOT IN ({placeholders})"), tuple(exclude_ids))
-    return _run_query(base_sql.format(exclude_filter=""))
 
 
 def _fetch_topic_export_data(topic_id: Any) -> dict[str, Any] | None:
@@ -146,8 +139,10 @@ def _fetch_topic_export_data(topic_id: Any) -> dict[str, Any] | None:
     if not topic_rows:
         return {"topic": None, "posts": []}
 
+    # %% is required here - pymysql treats a bare % in DATE_FORMAT as a param placeholder.
     posts = _run_query(
-        "SELECT p.PostID, p.Content, p.Attachment, u.UserName AS AuthorName "
+        "SELECT p.PostID, p.Content, p.Attachment, u.UserName AS AuthorName, "
+        "DATE_FORMAT(p.CreatedAt, '%%Y-%%m-%%d %%H:%%i') AS PostedAt "
         "FROM `Post` p LEFT JOIN `User` u ON u.UserID = p.UserID "
         "WHERE p.TopicID = %s ORDER BY p.CreatedAt",
         (topic_id,),
@@ -160,7 +155,8 @@ def _fetch_topic_export_data(topic_id: Any) -> dict[str, Any] | None:
     if post_ids:
         placeholders = ",".join(["%s"] * len(post_ids))
         replies = _run_query(
-            "SELECT r.PostID, r.ReplyContent, u.UserName AS AuthorName "
+            "SELECT r.PostID, r.ReplyContent, u.UserName AS AuthorName, "
+            "DATE_FORMAT(r.CreatedAt, '%%Y-%%m-%%d %%H:%%i') AS PostedAt "
             "FROM `Reply` r LEFT JOIN `User` u ON u.UserID = r.UserID "
             f"WHERE r.PostID IN ({placeholders}) ORDER BY r.CreatedAt",
             tuple(post_ids),

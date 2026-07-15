@@ -11,7 +11,7 @@ python/
   config.py    constants + env-driven settings + request auth check
   db.py        all database access (single source of truth for SQL)
   catalog.py   TF-IDF catalog build + classification/ranking
-  spam.py      stemming + phrase-aware spam keyword detection
+  spam.py      local ML content moderation (TF-IDF + Naive Bayes, no external API)
   pdf.py       topic -> PDF rendering (xhtml2pdf)
   share.py     topic -> social share URL/text construction
   test_app.py  pytest suite
@@ -23,7 +23,7 @@ them unqualified and tests can keep monkeypatching functions directly on the
 `app` module (e.g. `monkeypatch.setattr(appModule, "_fetch_user_recent_text", ...)`).
 
 ## Endpoints
-- `POST /classify` — predict a category for a piece of text (with a spam keyword short-circuit).
+- `POST /classify` — predict a category for a piece of text (with a local ML spam short-circuit).
 - `POST /recommend` — rank categories for a user; personalized from their real post/reply history, or trending-category-based for cold-start users with no activity yet.
 - `POST /recommend-groups` — suggest groups a user hasn't joined, ranked by member count and recent activity.
 - `POST /export-topic-pdf` — render a topic + its posts/replies as a downloadable PDF (no PHP/Dompdf involvement on this side).
@@ -40,7 +40,6 @@ Gateway auth:
 - `GATEWAY_TOKEN_PREFIX` — defaults to `Bearer `.
 
 Classification/recommendation behavior:
-- `SPAM_KEYWORDS`
 - `DEFAULT_CATEGORY`
 - `RECOMMENDATION_LIMIT`
 - `PORT` — defaults to `5000`.
@@ -60,11 +59,16 @@ to the static seed catalog / empty results) instead of erroring.
   they have none, it returns trending categories (recent engagement,
   scoped to their groups, falling back platform-wide); otherwise it blends
   their real recent content into the TF-IDF ranking.
-- Spam detection stems both the message and the configured keyword phrases
-  (see `spam.py`), and requires every word of a multi-word phrase to appear
-  together within a small window — not an exact substring, and not just one
-  of the words — to survive plural/verb-form bypasses without producing
-  false positives on ordinary messages.
+- Content moderation (`spam.py`) uses two local TF-IDF + Naive Bayes
+  classifiers trained at import time on a small bundled dataset — one spots
+  spam, one spots generic off-topic/casual text. No external API, no key,
+  nothing to configure. Replies also get a cosine-similarity check against
+  the thread they're replying to, so a reply can be flagged as irrelevant
+  even if it reads as generically "educational" on its own. Laravel doesn't
+  block on a spam verdict for topics/messages — it auto-flags the post for
+  the admin moderation queue instead (see `admin.flagged-content.*` routes);
+  replies are blocked outright on either spam or irrelevance, with a
+  specific reason shown to the sender.
 
 ## Running locally
 ```

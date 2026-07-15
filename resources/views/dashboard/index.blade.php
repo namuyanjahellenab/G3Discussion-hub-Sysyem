@@ -154,10 +154,12 @@
                 @endif
             </section>
 
-            <div class="announcement-banner">
-                <div class="tag"><i class="fa-solid fa-bullhorn"></i> Announcement</div>
-                <div class="body">Upcoming Quiz: Week 5 - Programming Principles starts at 15:00 today.</div>
-            </div>
+            @if($latestAnnouncement)
+                <div class="announcement-banner">
+                    <div class="tag"><i class="fa-solid fa-bullhorn"></i> Announcement{{ $latestAnnouncement->group ? " — {$latestAnnouncement->group->GroupName}" : '' }}</div>
+                    <div class="body">{{ $latestAnnouncement->Message }}</div>
+                </div>
+            @endif
         </div>
     </div>
 </div>

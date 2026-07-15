@@ -110,9 +110,17 @@ class DashboardController extends Controller
         ->orderBy('StartTime')
         ->first();
 
+    // Most recent announcement for one of the student's groups, skipping
+    // any this student was specifically excluded from.
+    $latestAnnouncement = Announcement::whereIn('GroupID', $groupIds)
+        ->whereDoesntHave('exclusions', fn ($q) => $q->where('UserID', $user->UserID))
+        ->with('group')
+        ->latest('CreatedAt')
+        ->first();
+
     return view('dashboard.index', compact(
         'joined_groups', 'notifications', 'recentActivity', 'notificationsCount',
-        'snapshot', 'upcomingQuiz'
+        'snapshot', 'upcomingQuiz', 'latestAnnouncement'
     ))
         ->with('showSidebar', true)
         ->with('showNavbar', true);

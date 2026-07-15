@@ -8,11 +8,9 @@ use App\Models\Quiz;
 use App\Models\QuizResult;
 use App\Models\Recommendation;
 use App\Jobs\ClassifyTopicJob;
-use App\Jobs\ExportTopicPdfJob;
 use App\Models\Topic;
 use App\Models\TopicClassification;
 use App\Models\TopicExclusion;
-use App\Models\TopicExport;
 use App\Models\User;
 use App\Models\Group;
 use App\Models\Participation;
@@ -304,8 +302,10 @@ class DiscussionHubPageController extends Controller
             return back()->withErrors(['content' => 'Please enter a message or attach a file.']);
         }
 
-        if (app(MlGatewayClient::class)->isSpam($request->input('content', ''))) {
-            $message = 'Your message was blocked because it looks like spam.';
+        $moderation = app(MlGatewayClient::class)->moderateContent($request->input('content', ''));
+
+        if (!$moderation['isEducational']) {
+            $message = 'This group is for course discussion — please keep posts relevant to your studies.';
 
             if ($request->wantsJson() || $request->header('Accept') === 'application/json') {
                 return response()->json([
@@ -317,6 +317,8 @@ class DiscussionHubPageController extends Controller
 
             return back()->withErrors(['content' => $message]);
         }
+
+        $isSpam = $moderation['isSpam'];
 
         $attachmentPath = null;
         $attachmentType = null;
@@ -334,6 +336,8 @@ class DiscussionHubPageController extends Controller
             'ParentPostID' => $request->input('parent_post_id'),
             'Attachment' => $attachmentPath,
             'AttachmentType' => $attachmentType,
+            'IsFlagged' => $isSpam,
+            'FlaggedReason' => $isSpam ? 'Auto-flagged by spam detection' : null,
         ]);
 // Requirement #2: notify the original post's author when someone replies
 if ($request->filled('parent_post_id')) {
@@ -552,36 +556,31 @@ if ($request->filled('parent_post_id')) {
 
     public function exportTopic(Topic $topic)
     {
-        // Generation (Python gateway, falling back to local Dompdf) used to
-        // run synchronously in this request — up to an 8s gateway timeout
-        // plus render time blocking the response. Now it's a queued job;
-        // the user gets a Notification with a download link once it's ready.
-        $export = TopicExport::create([
-            'TopicID' => $topic->TopicID,
-            'UserID' => Auth::id(),
-            'Status' => 'pending',
+        // Generated synchronously — the Python gateway is tried first
+        // (richer rendering), falling back to local Dompdf if it's
+        // unreachable, so the download always succeeds either way.
+        $pdfBytes = app(MlGatewayClient::class)->exportTopicPdf($topic->TopicID);
+
+        if ($pdfBytes === null) {
+            $posts = Post::with(['author', 'parent.author', 'replies.author'])
+                ->where('TopicID', $topic->TopicID)
+                ->orderBy('CreatedAt')
+                ->get();
+
+            $html = view('messages.export_pdf', compact('topic', 'posts'))->render();
+            $dompdf = new Dompdf();
+            $dompdf->loadHtml($html);
+            $dompdf->setPaper('A4', 'portrait');
+            $dompdf->render();
+            $pdfBytes = $dompdf->output();
+        }
+
+        $filename = Str::slug($topic->Title ?: 'discussion') . '-discussion.pdf';
+
+        return response($pdfBytes, 200, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => "attachment; filename=\"{$filename}\"",
         ]);
-
-        ExportTopicPdfJob::dispatch($export->TopicExportID);
-
-        return back()->with('status', "Your PDF for \"{$topic->Title}\" is being generated — we'll notify you when it's ready to download.");
-    }
-
-    public function downloadTopicExport(TopicExport $topicExport)
-    {
-        abort_unless($topicExport->UserID === Auth::id(), 403);
-
-        if ($topicExport->Status === 'pending') {
-            return back()->with('status', 'Your PDF is still being generated. Check back in a moment.');
-        }
-
-        if ($topicExport->Status === 'failed' || !$topicExport->FilePath) {
-            return back()->withErrors(['export' => 'PDF generation failed. Please try exporting again.']);
-        }
-
-        $filename = Str::slug($topicExport->topic?->Title ?: 'discussion') . '-discussion.pdf';
-
-        return response()->download(Storage::disk('public')->path($topicExport->FilePath), $filename);
     }
 
     public function exportGroup(Request $request, Group $group)
@@ -809,21 +808,27 @@ if ($request->filled('parent_post_id')) {
                 ->all();
         }
 
-        $ranked = $gateway->recommend($user->UserID, $interests, $recentMessages, $groupIds->all());
-        $categoryScores = collect($ranked['Recommendations'] ?? [])
-            ->pluck('RelevanceScore', 'Category');
-
         $candidateTopics = Topic::whereIn('GroupID', $groupIds)
             ->where('CreatedBy', '!=', $user->UserID)
             ->visibleTo($user->UserID)
             ->withCount('posts')
             ->get();
 
-        if ($categoryScores->isNotEmpty()) {
+        $topicPayload = $candidateTopics->map(fn ($topic) => [
+            'TopicID' => $topic->TopicID,
+            'Title' => $topic->Title,
+            'Category' => $topic->Category,
+        ])->all();
+
+        $ranked = $topicPayload !== []
+            ? $gateway->recommendTopics($user->UserID, $interests, $recentMessages, $topicPayload)
+            : null;
+        $topicScores = collect($ranked['TopicScores'] ?? [])->pluck('RelevanceScore', 'TopicID');
+
+        if ($topicScores->isNotEmpty() && $topicScores->sum() > 0) {
             $topics = $candidateTopics
-                ->filter(fn ($topic) => $categoryScores->has($topic->Category))
                 ->sortBy([
-                    fn ($a, $b) => $categoryScores->get($b->Category) <=> $categoryScores->get($a->Category),
+                    fn ($a, $b) => $topicScores->get($b->TopicID, 0) <=> $topicScores->get($a->TopicID, 0),
                     fn ($a, $b) => $b->posts_count <=> $a->posts_count,
                     fn ($a, $b) => $b->CreatedAt <=> $a->CreatedAt,
                 ])
@@ -843,7 +848,7 @@ if ($request->filled('parent_post_id')) {
                 // Clamp defensively: the gateway score is meant to be 0-1, but
                 // never trust an external service's math to persist a
                 // percentage the UI treats as a hard 0-100 range.
-                'RelevanceScore' => min(round($categoryScores->get($topic->Category, 0) * 100, 2), 100),
+                'RelevanceScore' => min(round($topicScores->get($topic->TopicID, 0) * 100, 2), 100),
             ]);
         }
     }
@@ -977,11 +982,15 @@ public function storeTopic(Request $request)
         'exclude.*' => 'exists:User,UserID',
     ]);
 
-    if (app(MlGatewayClient::class)->isSpam($request->input('Content'))) {
+    $moderation = app(MlGatewayClient::class)->moderateContent($request->input('Content'));
+
+    if (!$moderation['isEducational']) {
         return back()
-            ->withErrors(['Content' => 'Your post was blocked because it looks like spam.'])
+            ->withErrors(['Content' => 'This group is for course discussion — please keep posts relevant to your studies.'])
             ->withInput();
     }
+
+    $isSpam = $moderation['isSpam'];
 
     $group = Group::find($request->input('GroupID'));
 
@@ -1008,6 +1017,8 @@ public function storeTopic(Request $request)
         'Content' => $request->input('Content'),
         'Attachment' => $attachmentPath,
         'AttachmentType' => $attachmentType,
+        'IsFlagged' => $isSpam,
+        'FlaggedReason' => $isSpam ? 'Auto-flagged by spam detection' : null,
     ]);
 
     if ($request->input('audience') === 'custom') {
@@ -1090,6 +1101,27 @@ public function storeReply(Request $request, Post $post)
         'parent_reply_id' => 'nullable|exists:Reply,ReplyID',
         'attachment' => ['nullable', 'file', 'mimes:pdf,doc,docx,ppt,pptx,png,jpg,jpeg,zip', 'max:20480'],
     ]);
+
+    // Replies are judged against the thread they're replying to (topic +
+    // original question), not just "is this educational in general" — a
+    // reply can be on-topic for the course yet irrelevant to this thread.
+    $threadContext = trim(($post->topic?->Title ?? '') . "\n" . ($post->Content ?? ''));
+    $moderation = app(MlGatewayClient::class)->moderateContent(
+        $request->input('ReplyContent'),
+        $threadContext !== '' ? $threadContext : null
+    );
+
+    if ($moderation['isSpam']) {
+        return back()
+            ->withErrors(['ReplyContent' => 'Your reply looks like spam and was not posted.'])
+            ->withInput();
+    }
+
+    if (!$moderation['isEducational']) {
+        return back()
+            ->withErrors(['ReplyContent' => "Your reply doesn't seem relevant to this discussion and was not posted."])
+            ->withInput();
+    }
 
     $attachmentPath = null;
     $attachmentType = null;

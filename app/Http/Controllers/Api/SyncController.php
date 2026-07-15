@@ -70,14 +70,20 @@ class SyncController extends Controller
         if ($entityType === 'Post') {
             $content = $payload['Content'] ?? '';
 
-            if (app(MlGatewayClient::class)->isSpam($content)) {
-                return response()->json(['message' => 'Content blocked: detected as spam'], 422);
+            $moderation = app(MlGatewayClient::class)->moderateContent($content);
+
+            if (!$moderation['isEducational']) {
+                return response()->json(['message' => 'Content blocked: not relevant to course discussion'], 422);
             }
+
+            $isSpam = $moderation['isSpam'];
 
             $post = Post::create([
                 'TopicID' => $payload['TopicID'] ?? null,
                 'UserID' => $payload['UserID'] ?? $request->user()->UserID,
                 'Content' => $payload['Content'] ?? null,
+                'IsFlagged' => $isSpam,
+                'FlaggedReason' => $isSpam ? 'Auto-flagged by spam detection' : null,
             ]);
 
             return response()->json(['PostID' => $post->PostID], 201);

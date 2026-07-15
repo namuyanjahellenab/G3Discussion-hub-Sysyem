@@ -11,16 +11,45 @@
 
         if (!bell) return;
 
+        // The sidebar panel is `position: sticky`, which creates its own
+        // stacking context — the dropdown's z-index only wins inside that
+        // context, so it was rendering behind the main content instead of
+        // on top of it (visible only as a thin sliver, needing a scroll/
+        // squint to read). Moving it to <body> and positioning it as
+        // `fixed` from the bell's actual screen position escapes that
+        // context entirely, so it always renders on top, fully visible.
+        function openDropdown() {
+            if (dropdown.parentElement !== document.body) {
+                document.body.appendChild(dropdown);
+            }
+            const rect = document.getElementById('notification-bell-wrapper').getBoundingClientRect();
+            dropdown.style.position = 'fixed';
+            dropdown.style.top = (rect.bottom + 6) + 'px';
+            dropdown.style.left = Math.max(8, rect.right - 300) + 'px';
+            dropdown.style.zIndex = 3000;
+            dropdown.style.display = 'block';
+        }
+
+        function closeDropdown() {
+            dropdown.style.display = 'none';
+        }
+
         bell.addEventListener('click', function (e) {
             e.stopPropagation();
-            dropdown.style.display = (dropdown.style.display === 'block') ? 'none' : 'block';
+            if (dropdown.style.display === 'block') {
+                closeDropdown();
+            } else {
+                openDropdown();
+            }
         });
 
         document.addEventListener('click', function (e) {
-            if (!e.target.closest('#notification-bell-wrapper')) {
-                dropdown.style.display = 'none';
+            if (!e.target.closest('#notification-bell-wrapper') && !e.target.closest('#notification-dropdown')) {
+                closeDropdown();
             }
         });
+
+        window.addEventListener('resize', closeDropdown);
 
         if (markAllBtn) {
             markAllBtn.addEventListener('click', async function (e) {

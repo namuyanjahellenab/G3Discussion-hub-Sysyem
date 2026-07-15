@@ -120,10 +120,6 @@ Route::post('/messages', [DiscussionHubPageController::class, 'storeMessage'])
         ->middleware('verified')
         ->name('topics.export');
 
-    Route::get('/topic-exports/{topicExport}/download', [DiscussionHubPageController::class, 'downloadTopicExport'])
-        ->middleware('verified')
-        ->name('topic-exports.download');
-
     Route::get('/marks', [DashboardController::class, 'marks'])
     ->middleware('verified')
     ->name('marks.index');

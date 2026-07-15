@@ -31,21 +31,6 @@
     #notification-dropdown .notif-item:last-child { border-bottom: none; }
     #mark-all-read { font-size: 0.75rem; cursor: pointer; font-weight: 600; }
 
-    .sidebar-menu li {
-        margin: 0;
-    }
-
-    .sidebar-menu li a {
-        padding: 12px 24px !important;
-        font-size: 0.95rem !important;
-        display: flex !important;
-        align-items: center !important;
-        gap: 12px !important;
-        line-height: 1.2;
-        text-decoration: none !important;
-        font-weight: 500 !important;
-    }
-
     .sidebar-menu li a i {
         width: 1.15rem;
         flex: 0 0 1.15rem;

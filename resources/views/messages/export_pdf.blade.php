@@ -5,31 +5,62 @@
     <title>{{ $topic->Title ?? 'Discussion Export' }}</title>
     <style>
         body { font-family: Arial, sans-serif; font-size: 12px; color: #1f2937; }
-        .header { margin-bottom: 20px; }
-        .meta { color: #4b5563; margin-bottom: 8px; }
-        .post { border-top: 1px solid #e5e7eb; padding: 10px 0; }
-        .reply { margin-left: 20px; color: #374151; }
+        .header { border-bottom: 2px solid #0052CC; padding-bottom: 8px; margin-bottom: 4px; }
+        .header h2 { margin: 0 0 4px 0; color: #0052CC; }
+        .meta { color: #4b5563; font-size: 10px; margin-bottom: 2px; }
+        .post { border: 1px solid #e5e7eb; border-radius: 4px; padding: 10px; margin-top: 14px; }
+        .msg-header { margin-bottom: 6px; }
+        .avatar { display: inline-block; width: 20px; height: 20px; border-radius: 10px;
+                  background-color: #0052CC; color: #ffffff; text-align: center;
+                  font-size: 10px; font-weight: bold; line-height: 20px; }
+        .author-name { font-weight: bold; color: #111827; font-size: 12px; }
+        .badge-op { color: #0052CC; font-size: 9px; font-weight: bold; margin-left: 6px; }
+        .timestamp { color: #9ca3af; font-size: 9px; margin-left: 6px; }
+        .content { margin-top: 6px; white-space: pre-wrap; line-height: 1.5; }
+        .attachment { margin-top: 6px; color: #6b7280; font-size: 10px; }
+        .reply { margin-top: 10px; margin-left: 20px; padding: 8px 10px; background: #f9fafb; border-radius: 4px; }
+        .reply .author-name { font-size: 11px; }
+        .reply .avatar { width: 16px; height: 16px; border-radius: 8px; line-height: 16px;
+                          font-size: 9px; background-color: #6b7280; }
     </style>
 </head>
 <body>
     <div class="header">
         <h2>{{ $topic->Title ?? 'Discussion Export' }}</h2>
         <div class="meta">Group: {{ $topic->group?->GroupName ?? 'Discussion Hub' }}</div>
-
-        <div class="meta">Date: {{ now()->format('Y-m-d H:i') }}</div>
+        <div class="meta">Generated: {{ now()->format('Y-m-d H:i') }}</div>
     </div>
 
     @foreach($posts as $post)
+        @php
+            $postAuthorName = $post->author?->UserName ?? $post->author?->name ?? 'Student';
+        @endphp
         <div class="post">
-            <strong>{{ $post->author?->UserName ?? $post->author?->name ?? 'Student' }}</strong>
-            <div>{{ $post->Content }}</div>
+            <div class="msg-header">
+                <span class="avatar">{{ strtoupper(substr($postAuthorName, 0, 1)) }}</span>
+                <span class="author-name">{{ $postAuthorName }}</span>
+                <span class="badge-op">ORIGINAL POST</span>
+                @if($post->CreatedAt)
+                    <span class="timestamp">{{ $post->CreatedAt->format('Y-m-d H:i') }}</span>
+                @endif
+            </div>
+            <div class="content">{{ $post->Content }}</div>
             @if($post->Attachment)
-                <div>Attachment: {{ basename($post->Attachment) }}</div>
+                <div class="attachment">Attachment: {{ basename($post->Attachment) }}</div>
             @endif
             @foreach($post->replies as $reply)
+                @php
+                    $replyAuthorName = $reply->author?->UserName ?? $reply->author?->name ?? 'Student';
+                @endphp
                 <div class="reply">
-                    <strong>{{ $reply->author?->UserName ?? $reply->author?->name ?? 'Student' }}</strong>
-                    <div>{{ $reply->ReplyContent }}</div>
+                    <div class="msg-header">
+                        <span class="avatar">{{ strtoupper(substr($replyAuthorName, 0, 1)) }}</span>
+                        <span class="author-name">{{ $replyAuthorName }}</span>
+                        @if($reply->CreatedAt)
+                            <span class="timestamp">{{ $reply->CreatedAt->format('Y-m-d H:i') }}</span>
+                        @endif
+                    </div>
+                    <div class="content">{{ $reply->ReplyContent }}</div>
                 </div>
             @endforeach
         </div>

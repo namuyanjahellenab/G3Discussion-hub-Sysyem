@@ -86,24 +86,22 @@ Run this under a process supervisor (systemd, supervisord, pm2, a Docker
 sidecar container — whatever your infra already uses for long-running
 processes), not as a one-off foreground command. If it goes down, the app
 keeps working but Export/Share/spam-check/classification/recommendations
-degrade (Share falls back to a plain PHP-built version; PDF export queues a
-job that will fail; classification/recommendations just don't enrich
-content). Check `/health` to see this at a glance instead of it being
-mysterious.
+degrade (Export/Share fall back to plain PHP/Dompdf-built versions;
+classification/recommendations just don't enrich content). Check `/health`
+to see this at a glance instead of it being mysterious.
 
 ## 5. Start a queue worker (required)
 
-Topic classification and PDF export are dispatched as queued jobs, not run
-synchronously in the request — nothing processes them without a worker
-running:
+Topic classification is dispatched as a queued job, not run synchronously in
+the request — nothing processes it without a worker running. (PDF export is
+synchronous — it returns the file directly in the response, gateway-first
+with a local Dompdf fallback, and doesn't touch the queue.)
 
 ```bash
 php artisan queue:work --tries=3
 ```
 
-Also run this under a process supervisor. Without it, "Export to PDF" will
-create a `topic_exports` row stuck at `pending` forever and the user never
-gets their download-ready notification.
+Also run this under a process supervisor.
 
 ## 6. Cache framework config/routes/views
 
