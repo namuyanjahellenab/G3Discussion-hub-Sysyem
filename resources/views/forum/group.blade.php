@@ -41,9 +41,17 @@
     .topic-row { display: flex; flex-direction: column; gap: 6px; padding: 16px 20px; border-bottom: 1px solid var(--surface-border); text-decoration: none; color: inherit; }
     .topic-row:last-child { border-bottom: none; }
     .topic-row:hover { background: var(--surface-bg); }
-    .topic-row .badges { display: flex; gap: 6px; }
+    .topic-row .badges { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
     .topic-row .title { color: var(--text-heading); font-weight: 700; font-size: 13.5px; margin: 0; }
     .topic-row .meta { color: var(--text-muted); font-size: 12px; }
+
+    .tag-chip { display: inline-flex; align-items: center; gap: 4px; font-size: 10.5px; font-weight: 600; background: #fff; border: 1px solid var(--surface-border); padding: 2px 9px; border-radius: 20px; color: var(--text-muted); }
+    .tag-chip.flagged { color: var(--accent-danger); border-color: #EBAFAF; }
+
+    .filter-row { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
+    .chip-filter { display: inline-flex; align-items: center; gap: 6px; padding: 7px 14px; border-radius: 999px; border: 1px solid var(--surface-border); background: var(--surface-card); color: var(--text-body); font-size: 12.5px; font-weight: 600; text-decoration: none; }
+    .chip-filter:hover { border-color: var(--luna-mid); color: var(--luna-mid); }
+    .chip-filter.active { background: var(--luna-mid); border-color: var(--luna-mid); color: #fff; }
 
     .empty-state { padding: 32px 20px; text-align: center; color: var(--text-muted); font-size: 13.5px; }
 
@@ -96,13 +104,17 @@
                     <i class="fa-solid fa-magnifying-glass"></i>
                     <input type="text" name="search" value="{{ $search }}" placeholder="Search topics..." class="form-control">
                 </div>
-                <select name="filter" class="form-select" onchange="this.form.submit()">
-                    <option value="all" {{ $filter === 'all' ? 'selected' : '' }}>Filter: All</option>
-                    <option value="open" {{ $filter === 'open' ? 'selected' : '' }}>Open</option>
-                    <option value="answered" {{ $filter === 'answered' ? 'selected' : '' }}>Answered</option>
-                    <option value="discussion" {{ $filter === 'discussion' ? 'selected' : '' }}>Discussion</option>
-                </select>
+                <input type="hidden" name="filter" value="{{ $filter }}" id="activeFilterField">
             </form>
+
+            <div class="filter-row">
+                @foreach(['all' => 'All', 'open' => 'Open', 'flagged' => 'Flagged', 'restricted' => 'Restricted audience'] as $key => $label)
+                    <a href="{{ route('groups.topics', array_filter(['group' => $group->GroupID, 'search' => $search, 'filter' => $key])) }}"
+                       class="chip-filter {{ $filter === $key ? 'active' : '' }}">
+                        {{ $label }} ({{ $filterCounts[$key] }})
+                    </a>
+                @endforeach
+            </div>
 
             <div class="panel">
                 @forelse($topics as $topic)
@@ -113,12 +125,18 @@
                                 <span class="badge bg-primary">Pinned</span>
                             @endif
                             <span class="badge {{ $meta['badge'] }}">{{ $meta['label'] }}</span>
+                            @if($topic->exclusions->isNotEmpty())
+                                <span class="tag-chip"><i class="fa-solid fa-eye-slash"></i> Restricted audience</span>
+                            @endif
+                            @if($topic->flagged_replies_count > 0)
+                                <span class="tag-chip flagged"><i class="fa-solid fa-flag"></i> {{ $topic->flagged_replies_count }} flagged {{ Str::plural('reply', $topic->flagged_replies_count) }}</span>
+                            @endif
                         </div>
                         <p class="title">{{ $topic->Title }}</p>
                         <div class="meta">
                             by {{ $topic->creator?->UserName ?? $topic->creator?->name ?? 'a member' }}
                             &bull; {{ $topic->posts_count }} {{ Str::plural('reply', $topic->posts_count) }}
-                            &bull; {{ $topic->CreatedAt->diffForHumans() }}
+                            &bull; last activity {{ ($topic->replies->max('CreatedAt') ?? $topic->CreatedAt)->diffForHumans() }}
                         </div>
                     </a>
                 @empty

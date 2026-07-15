@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Announcement;
+use App\Models\AnnouncementExclusion;
 use App\Models\Quiz;
 use App\Models\QuizResult;
 use App\Models\Group;
@@ -233,43 +235,90 @@ protected function participationSnapshot($userId)
 
     public function createAnnouncement()
     {
-        abort_unless(Auth::user()->Role === 'Lecturer', 403);
+        abort_unless(in_array(Auth::user()->Role, ['Lecturer', 'Administrator'], true), 403);
 
-        $groupIds = Quiz::where('LecturerID', Auth::id())->where('Status', 'scheduled')->distinct('GroupID')->pluck('GroupID');
-        $groups = Group::whereIn('GroupID', $groupIds)->get();
+        // A lecturer can announce to any group — there's no direct
+        // Group<->Lecturer link in this schema (lecturerDashboard() notes the
+        // same limitation), so unlike the old quiz-scheduled-only list, this
+        // is every group rather than an enforced "groups they teach" set.
+        // Admins additionally get a "Campus-wide" option (GroupID = null).
+        // students is populated per-group from the same cached
+        // Group::activeMembers() accessor createTopic() uses, instead of a
+        // fresh eager-loaded query every time this form is opened.
+        $groups = Group::orderBy('GroupName')
+            ->withCount(['students as member_count' => fn ($q) => $q->where('Status', 'active')])
+            ->get()
+            ->each(fn ($group) => $group->setRelation('students', $group->activeMembers()));
+        $isAdmin = Auth::user()->Role === 'Administrator';
 
-        return view('lecturer.announcement-create', compact('groups'));
+        return view('announcements.create', compact('groups', 'isAdmin'));
     }
 
     public function storeAnnouncement(Request $request)
     {
-        abort_unless(Auth::user()->Role === 'Lecturer', 403);
+        $user = Auth::user();
+        abort_unless(in_array($user->Role, ['Lecturer', 'Administrator'], true), 403);
+
+        $isAdmin = $user->Role === 'Administrator';
 
         $request->validate([
-            'GroupID' => 'required|exists:Group,GroupID',
+            'GroupID' => ($isAdmin ? 'nullable' : 'required') . '|exists:Group,GroupID',
             'message' => 'required|string|max:1000',
+            'exclude' => 'array',
+            'exclude.*' => 'exists:User,UserID',
         ]);
 
-        $groupIds = Quiz::where('LecturerID', Auth::id())->where('Status', 'scheduled')->distinct('GroupID')->pluck('GroupID');
-        abort_unless($groupIds->contains((int) $request->GroupID), 403);
+        $groupId = $request->filled('GroupID') ? (int) $request->GroupID : null;
+        abort_if($groupId === null && !$isAdmin, 403, 'Only an admin can send a campus-wide announcement.');
 
-        $studentIds = GroupStudent::where('GroupID', $request->GroupID)
-            ->where('Status', 'active')
-            ->pluck('UserID');
+        $excludeIds = collect($request->input('exclude', []))->map(fn ($id) => (int) $id)->unique();
 
-        $lecturerName = Auth::user()->UserName ?? Auth::user()->name ?? 'Your lecturer';
+        $studentIds = $groupId
+            ? GroupStudent::where('GroupID', $groupId)->where('Status', 'active')->pluck('UserID')
+            : GroupStudent::where('Status', 'active')->distinct()->pluck('UserID'); // campus-wide
+
+        $studentIds = $studentIds->diff($excludeIds);
+
+        $announcement = Announcement::create([
+            'AuthorID' => $user->UserID,
+            'GroupID' => $groupId,
+            'Message' => $request->message,
+        ]);
+
+        foreach ($excludeIds as $excludedUserId) {
+            AnnouncementExclusion::create([
+                'AnnouncementID' => $announcement->AnnouncementID,
+                'UserID' => $excludedUserId,
+            ]);
+        }
+
+        $authorName = $user->UserName ?? $user->name ?? 'An announcement';
 
         foreach ($studentIds as $studentId) {
             Notification::create([
                 'UserID' => $studentId,
-                'Message' => "{$lecturerName}: {$request->message}",
+                'Message' => "{$authorName}: {$request->message}",
                 'Status' => false,
                 'Type' => 'Announcement',
             ]);
         }
 
-        return redirect()->route('dashboard')
+        return redirect()->route('announcements.index')
             ->with('status', 'Announcement sent to ' . $studentIds->count() . ' student(s).');
+    }
+
+    public function announcementsIndex()
+    {
+        $user = Auth::user();
+        abort_unless(in_array($user->Role, ['Lecturer', 'Administrator'], true), 403);
+
+        $announcements = Announcement::with(['author', 'group'])
+            ->withCount('exclusions')
+            ->when($user->Role === 'Lecturer', fn ($q) => $q->where('AuthorID', $user->UserID))
+            ->latest('CreatedAt')
+            ->paginate(15);
+
+        return view('announcements.index', compact('announcements'));
     }
 
     protected function lecturerMarks()

@@ -1,0 +1,5 @@
+/* Font Awesome only, no Tailwind base/reset — for the standalone pages that
+   build their own full <html> document around Bootstrap rather than
+   extending layouts.app, so pulling in Tailwind's reset here would fight
+   their existing styling. See app.css for the full-layout equivalent. */
+@import '@fortawesome/fontawesome-free/css/all.min.css';

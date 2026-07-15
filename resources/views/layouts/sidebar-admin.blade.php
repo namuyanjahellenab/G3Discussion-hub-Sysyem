@@ -1,10 +1,3 @@
-<button id="sidebar-toggle-btn" onclick="toggleAppSidebar()" title="Toggle sidebar"
-    style="position: fixed; top: 16px; left: 16px; z-index: 1000; width: 36px; height: 36px;
-    background: #ffffff; border: 1px solid #e4e7ec; border-radius: 8px; cursor: pointer;
-    display: flex; align-items: center; justify-content: center; box-shadow: 0 1px 4px rgba(16,24,40,0.08);">
-    <i class="fa-solid fa-bars" style="color: #667085;"></i>
-</button>
-
 <style>
     body.sidebar-collapsed .sidebar-panel {
         width: 0 !important;
@@ -97,16 +90,21 @@
             <a href="{{ route('admin.blacklist') }}"><i class="fa-solid fa-ban"></i> Blacklist</a>
         </li>
         <li class="{{ request()->routeIs('admin.flagged-content.*') ? 'active' : '' }}">
-            <a href="{{ route('admin.flagged-content.index') }}"><i class="fa-solid fa-flag"></i> Flagged Content</a>
+            <a href="{{ route('admin.flagged-content.index') }}">
+                <i class="fa-solid fa-flag"></i> Flagged Content
+                @if($pendingFlagCount ?? 0)
+                    <span style="margin-left: auto; background: var(--accent-danger); color: #fff; font-size: 0.68rem; font-weight: 700; padding: 1px 7px; border-radius: 999px;">{{ $pendingFlagCount }}</span>
+                @endif
+            </a>
         </li>
         <li class="{{ request()->routeIs('admin.groups.index') ? 'active' : '' }}">
             <a href="{{ route('admin.groups.index') }}"><i class="fa-solid fa-people-group"></i> Groups</a>
         </li>
-        <li class="{{ request()->routeIs('admin.announcements') ? 'active' : '' }}">
-            <a href="#"><i class="fa-solid fa-bullhorn"></i> Announcements</a>
+        <li class="{{ request()->routeIs('announcements.*') ? 'active' : '' }}">
+            <a href="{{ route('announcements.index') }}"><i class="fa-solid fa-bullhorn"></i> Announcements</a>
         </li>
-        <li class="{{ request()->routeIs('admin.settings') ? 'active' : '' }}">
-            <a href="#"><i class="fa-solid fa-gear"></i> Settings</a>
+        <li class="{{ request()->routeIs('settings.index') ? 'active' : '' }}">
+            <a href="{{ route('settings.index') }}"><i class="fa-solid fa-gear"></i> Settings</a>
         </li>
         <li class="{{ request()->routeIs('admin.lecturer-staff.index') ? 'active' : '' }}">
             <a href="{{ route('admin.lecturer-staff.index') }}"><i class="fa-solid fa-id-card"></i> Lecturer Staff IDs</a>
@@ -114,11 +112,8 @@
     </ul>
 </div>
 
-<script>
-    function toggleAppSidebar() {
-        document.body.classList.toggle('sidebar-collapsed');
-    }
-</script>
+{{-- toggleAppSidebar() now lives once in layouts.app.blade.php, alongside
+     the toggle button itself. --}}
 
 @once
     @include('layouts.sidebar-notifications-script')

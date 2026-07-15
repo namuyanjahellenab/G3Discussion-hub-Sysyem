@@ -7,9 +7,9 @@
             <h2 class="fw-bold mb-1">Admin Panel</h2>
             <p class="text-muted mb-0">Global system overview and real-time community activity.</p>
         </div>
-        <button type="button" class="btn btn-outline-secondary btn-sm">
+        <a href="{{ route('admin.statistics.export') }}" class="btn btn-outline-secondary btn-sm">
             <i class="fa-solid fa-arrow-down-to-line"></i> Export Data
-        </button>
+        </a>
     </div>
 
     <div class="row g-3 mb-4">
@@ -56,7 +56,7 @@
             </a>
         </div>
         <div class="col-6 col-md-4 col-lg">
-            <a href="#" class="text-decoration-none">
+            <a href="{{ route('announcements.index') }}" class="text-decoration-none">
                 <div class="card shadow-sm h-100 border-0">
                     <div class="card-body">
                         <div class="rounded-2 bg-secondary bg-opacity-10 text-secondary d-inline-flex align-items-center justify-content-center mb-2"
@@ -70,7 +70,7 @@
             </a>
         </div>
         <div class="col-6 col-md-4 col-lg">
-            <a href="#" class="text-decoration-none">
+            <a href="{{ route('settings.index') }}" class="text-decoration-none">
                 <div class="card shadow-sm h-100 border-0">
                     <div class="card-body">
                         <div class="rounded-2 bg-secondary bg-opacity-10 text-secondary d-inline-flex align-items-center justify-content-center mb-2"

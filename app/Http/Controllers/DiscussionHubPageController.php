@@ -7,12 +7,18 @@ use App\Models\Post;
 use App\Models\Quiz;
 use App\Models\QuizResult;
 use App\Models\Recommendation;
+use App\Jobs\ClassifyTopicJob;
+use App\Jobs\ExportTopicPdfJob;
 use App\Models\Topic;
 use App\Models\TopicClassification;
+use App\Models\TopicExclusion;
+use App\Models\TopicExport;
 use App\Models\User;
 use App\Models\Group;
 use App\Models\Participation;
+use App\Services\AttachmentUploader;
 use App\Services\MlGatewayClient;
+use App\Services\ParticipationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -27,31 +33,18 @@ use App\Models\Reply;
 class DiscussionHubPageController extends Controller
 {
     /**
-     * Update participation score for a user based on their activity
+     * Recompute a user's participation score for a group. Criteria-driven
+     * (ParticipationCriteria, per-group or platform default) and recalculated
+     * from source on every call rather than incrementally patched — see
+     * ParticipationService for why.
      */
-    private function updateParticipationScore(int $userId, ?int $parentPostId): void
+    private function updateParticipationScore(int $userId, ?int $groupId): void
     {
-        $participation = Participation::where('UserID', $userId)->first();
-        
-        if (!$participation) {
-            $participation = new Participation();
-            $participation->UserID = $userId;
-            $participation->PostCount = 0;
-            $participation->ReplyCount = 0;
-            $participation->ParticipationScore = 0;
+        if (!$groupId) {
+            return;
         }
-        
-        if ($parentPostId) {
-            // This is a reply
-            $participation->ReplyCount++;
-        } else {
-            // This is a new post
-            $participation->PostCount++;
-        }
-        
-        // Calculate participation score: 2 points per post, 1 point per reply
-        $participation->ParticipationScore = ($participation->PostCount * 2) + ($participation->ReplyCount * 1);
-        $participation->save();
+
+        app(ParticipationService::class)->recalculate($userId, $groupId);
     }
 
     public function forum()
@@ -69,10 +62,13 @@ class DiscussionHubPageController extends Controller
         // don't have a prediction yet, so "Latest Topics" can show a category.
         $this->backfillClassifications($groupIds);
 
-        $totalTopicsCount = Topic::whereIn('GroupID', $groupIds)->count();
+        $totalTopicsCount = Topic::whereIn('GroupID', $groupIds)->visibleTo($user->UserID)->count();
 
         // Latest Topics feed: newest 5 only, including system-created topics.
+        // visibleTo() excludes topics this user was excluded from at the
+        // query level — they must not appear here even as a teaser row.
         $topics = Topic::whereIn('GroupID', $groupIds)
+            ->visibleTo($user->UserID)
             ->with(['creator', 'classification'])
             ->latest('CreatedAt')
             ->limit(5)
@@ -86,27 +82,22 @@ class DiscussionHubPageController extends Controller
      * a predicted category yet, and persist the result. Shared by the Latest
      * Topics feed and the recommendation generator so both stay in sync.
      */
+    /**
+     * Dispatches one ClassifyTopicJob per unclassified topic instead of
+     * calling the ML gateway synchronously in a loop on every page load.
+     * Topics without a category yet just render without one until the queue
+     * worker catches up — classification is enrichment, not blocking.
+     */
     private function backfillClassifications($groupIds, int $limit = 15): void
     {
-        $gateway = app(MlGatewayClient::class);
-
-        $unclassifiedTopics = Topic::whereIn('GroupID', $groupIds)
+        $unclassifiedTopicIds = Topic::whereIn('GroupID', $groupIds)
             ->whereDoesntHave('classification')
             ->latest('CreatedAt')
             ->limit($limit)
-            ->get();
+            ->pluck('TopicID');
 
-        foreach ($unclassifiedTopics as $topic) {
-            $result = $gateway->classify($topic->Title, $topic->TopicID);
-            if ($result && !empty($result['PredictedCategory'])) {
-                TopicClassification::updateOrCreate(
-                    ['TopicID' => $topic->TopicID],
-                    [
-                        'PredictedCategory' => $result['PredictedCategory'],
-                        'ConfidenceScore' => $result['ConfidenceScore'] ?? 0,
-                    ]
-                );
-            }
+        foreach ($unclassifiedTopicIds as $topicId) {
+            ClassifyTopicJob::dispatch($topicId);
         }
     }
 
@@ -202,8 +193,6 @@ class DiscussionHubPageController extends Controller
 
     public function storeMessage(Request $request)
     {
-        \Log::info('StoreMessage called:', $request->all());
-        
         // Auto-create or get topic_id if not provided - make topics completely transparent to users
         $topicId = $request->input('topic_id');
         $groupId = $request->input('group_id');
@@ -333,13 +322,9 @@ class DiscussionHubPageController extends Controller
         $attachmentType = null;
 
         if ($request->hasFile('attachment')) {
-            $file = $request->file('attachment');
-            $extension = strtolower($file->getClientOriginalExtension());
-            $attachmentPath = $file->store('discussions', 'public');
-            $attachmentType = match ($extension) {
-                'png', 'jpg', 'jpeg', 'gif', 'webp' => 'image',
-                default => 'file',
-            };
+            $stored = AttachmentUploader::store($request->file('attachment'));
+            $attachmentPath = $stored['path'];
+            $attachmentType = $stored['type'];
         }
 
         $post = Post::create([
@@ -366,8 +351,9 @@ if ($request->filled('parent_post_id')) {
         ]);
     }
 }
-        // Update participation points
-        $this->updateParticipationScore(Auth::id(), $request->input('parent_post_id'));
+        // Update participation points (derive the group from the topic itself,
+        // same pattern pollMessages() uses, rather than trusting client input)
+        $this->updateParticipationScore(Auth::id(), $post->topic?->GroupID);
 
         // For AJAX: return rendered bubble HTML (same structure as existing @foreach loop)
         if ($request->wantsJson() || $request->header('Accept') === 'application/json') {
@@ -566,31 +552,36 @@ if ($request->filled('parent_post_id')) {
 
     public function exportTopic(Topic $topic)
     {
-        // Primary generator is Python (Flask + xhtml2pdf). Falls back to the
-        // local Dompdf generator only if the ML gateway is unreachable, so
-        // export never dead-ends in an error page for the user.
-        $pdfBytes = app(MlGatewayClient::class)->exportTopicPdf($topic->TopicID);
+        // Generation (Python gateway, falling back to local Dompdf) used to
+        // run synchronously in this request — up to an 8s gateway timeout
+        // plus render time blocking the response. Now it's a queued job;
+        // the user gets a Notification with a download link once it's ready.
+        $export = TopicExport::create([
+            'TopicID' => $topic->TopicID,
+            'UserID' => Auth::id(),
+            'Status' => 'pending',
+        ]);
 
-        if ($pdfBytes === null) {
-            $posts = Post::with(['author', 'parent.author', 'replies.author'])
-                ->where('TopicID', $topic->TopicID)
-                ->orderBy('CreatedAt')
-                ->get();
+        ExportTopicPdfJob::dispatch($export->TopicExportID);
 
-            $html = view('messages.export_pdf', compact('topic', 'posts'))->render();
-            $dompdf = new Dompdf();
-            $dompdf->loadHtml($html);
-            $dompdf->setPaper('A4', 'portrait');
-            $dompdf->render();
-            $pdfBytes = $dompdf->output();
+        return back()->with('status', "Your PDF for \"{$topic->Title}\" is being generated — we'll notify you when it's ready to download.");
+    }
+
+    public function downloadTopicExport(TopicExport $topicExport)
+    {
+        abort_unless($topicExport->UserID === Auth::id(), 403);
+
+        if ($topicExport->Status === 'pending') {
+            return back()->with('status', 'Your PDF is still being generated. Check back in a moment.');
         }
 
-        $filename = Str::slug($topic->Title ?: 'discussion') . '-discussion.pdf';
+        if ($topicExport->Status === 'failed' || !$topicExport->FilePath) {
+            return back()->withErrors(['export' => 'PDF generation failed. Please try exporting again.']);
+        }
 
-        return response($pdfBytes, 200, [
-            'Content-Type' => 'application/pdf',
-            'Content-Disposition' => "attachment; filename=\"{$filename}\"",
-        ]);
+        $filename = Str::slug($topicExport->topic?->Title ?: 'discussion') . '-discussion.pdf';
+
+        return response()->download(Storage::disk('public')->path($topicExport->FilePath), $filename);
     }
 
     public function exportGroup(Request $request, Group $group)
@@ -824,6 +815,7 @@ if ($request->filled('parent_post_id')) {
 
         $candidateTopics = Topic::whereIn('GroupID', $groupIds)
             ->where('CreatedBy', '!=', $user->UserID)
+            ->visibleTo($user->UserID)
             ->withCount('posts')
             ->get();
 
@@ -926,13 +918,30 @@ if ($request->filled('parent_post_id')) {
     $search = $request->input('search');
     $filter = $request->input('filter', 'all');
 
+    $baseTopics = Topic::where('GroupID', $group->GroupID)->visibleTo(Auth::id());
+
+    $filterCounts = [
+        'all' => (clone $baseTopics)->count(),
+        'open' => (clone $baseTopics)->where('Status', 'open')->count(),
+        'flagged' => (clone $baseTopics)->whereHas('replies', fn ($q) => $q->where('Reply.IsFlagged', true))->count(),
+        'restricted' => (clone $baseTopics)->whereHas('exclusions')->count(),
+    ];
+
     $topics = Topic::where('GroupID', $group->GroupID)
+        ->visibleTo(Auth::id())
         ->withCount('posts')
-        ->with('creator')
+        ->with(['creator', 'exclusions', 'replies'])
+        ->withCount(['replies as flagged_replies_count' => fn ($q) => $q->where('Reply.IsFlagged', true)])
         ->when($search, function ($q) use ($search) {
             $q->where('Title', 'like', "%{$search}%");
         })
-        ->when($filter !== 'all', function ($q) use ($filter) {
+        ->when($filter === 'flagged', function ($q) {
+            $q->whereHas('replies', fn ($rq) => $rq->where('Reply.IsFlagged', true));
+        })
+        ->when($filter === 'restricted', function ($q) {
+            $q->whereHas('exclusions');
+        })
+        ->when(!in_array($filter, ['all', 'flagged', 'restricted'], true), function ($q) use ($filter) {
             $q->where('Status', $filter);
         })
         ->orderByDesc('IsPinned')
@@ -940,14 +949,20 @@ if ($request->filled('parent_post_id')) {
         ->paginate(5)
         ->withQueryString();
 
-    return view('forum.group', compact('group', 'topics', 'search', 'filter'))->with('showSidebar', true);
+    return view('forum.group', compact('group', 'topics', 'search', 'filter', 'filterCounts'))->with('showSidebar', true);
 
 
 }
 
 public function createTopic(Group $group)
 {
-    return view('topics.create', compact('group'))->with('showSidebar', false);
+    // Cached at the Group level (busted on join/leave) since the same
+    // membership list is reused by every member who opens this form or the
+    // announcement composer — filtering out the current user happens here,
+    // after the cache read, so the cached list itself stays shared.
+    $groupMembers = $group->activeMembers()->where('UserID', '!=', Auth::id())->values();
+
+    return view('topics.create', compact('group', 'groupMembers'))->with('showSidebar', false);
 }
 
 public function storeTopic(Request $request)
@@ -956,6 +971,10 @@ public function storeTopic(Request $request)
         'Title' => 'required|string|max:255',
         'GroupID' => 'required|exists:Group,GroupID',
         'Content' => 'required|string',
+        'attachment' => ['nullable', 'file', 'mimes:pdf,doc,docx,ppt,pptx,png,jpg,jpeg,zip', 'max:20480'],
+        'audience' => 'nullable|in:everyone,custom',
+        'exclude' => 'array',
+        'exclude.*' => 'exists:User,UserID',
     ]);
 
     if (app(MlGatewayClient::class)->isSpam($request->input('Content'))) {
@@ -974,19 +993,38 @@ public function storeTopic(Request $request)
         'Category' => $group->GroupName,
     ]);
 
+    $attachmentPath = null;
+    $attachmentType = null;
+
+    if ($request->hasFile('attachment')) {
+        $stored = AttachmentUploader::store($request->file('attachment'));
+        $attachmentPath = $stored['path'];
+        $attachmentType = $stored['type'];
+    }
+
     Post::create([
         'TopicID' => $topic->TopicID,
         'UserID' => Auth::id(),
         'Content' => $request->input('Content'),
+        'Attachment' => $attachmentPath,
+        'AttachmentType' => $attachmentType,
     ]);
+
+    if ($request->input('audience') === 'custom') {
+        foreach (collect($request->input('exclude', []))->unique() as $excludedUserId) {
+            TopicExclusion::create(['TopicID' => $topic->TopicID, 'UserID' => $excludedUserId]);
+        }
+    }
 
     return redirect()->route('topics.show', $topic->TopicID);
 }
 
 public function showTopic(Topic $topic)
 {
+    abort_if($topic->exclusions()->where('UserID', Auth::id())->exists(), 403);
+
     $mainPost = Post::where('TopicID', $topic->TopicID)
-        ->with(['author', 'replies.author'])
+        ->with(['author', 'replies.author', 'replies.flags', 'replies.parentReply.author'])
         ->oldest('CreatedAt')
         ->first();
 
@@ -1003,30 +1041,93 @@ public function showTopic(Topic $topic)
 
     $recommended = Topic::where('GroupID', $topic->GroupID)
         ->where('TopicID', '!=', $topic->TopicID)
+        ->visibleTo(Auth::id())
         ->withCount('posts')
         ->latest('CreatedAt')
         ->take(3)
         ->get();
 
-    // Share links are also Python-generated (Flask builds the URL/text/per-
-    // platform links). Unlike PDF export, this is a page-load render, not an
-    // explicit action — if the gateway is unreachable, just hide the button
-    // rather than erroring the whole page.
-    $shareLinks = app(MlGatewayClient::class)->topicShareLinks($topic->TopicID, url('/'));
+    // Share links are normally Python-generated (Flask builds the URL/text/
+    // per-platform links), but that's a "richer text" nicety, not a hard
+    // dependency — WhatsApp/X/Facebook/Email links only need the topic URL
+    // and title, both available here. If the gateway is unreachable (already
+    // logged inside MlGatewayClient), fall back to a plain PHP-built set
+    // instead of the Share button disappearing outright.
+    $shareLinks = app(MlGatewayClient::class)->topicShareLinks($topic->TopicID, url('/'))
+        ?? $this->buildFallbackShareLinks($topic);
 
     return view('topics.show', compact('topic', 'mainPost', 'participants', 'lastActivity', 'recommended', 'shareLinks'))->with('showSidebar', true);
 
 }
 
+/**
+ * PHP-only share-link builder used when the ML gateway is unreachable.
+ * Mirrors the shape/URLs Flask's share.py builds, just without the ability
+ * to enrich the text (e.g. reply count) that only the Python side computes.
+ */
+private function buildFallbackShareLinks(Topic $topic): array
+{
+    $shareUrl = route('topics.show', $topic);
+    $shareText = 'Check out "' . $topic->Title . '" on Discussion Hub';
+
+    return [
+        'TopicID' => $topic->TopicID,
+        'ShareUrl' => $shareUrl,
+        'ShareText' => $shareText,
+        'Links' => [
+            'whatsapp' => 'https://wa.me/?' . http_build_query(['text' => $shareText . ' ' . $shareUrl]),
+            'twitter' => 'https://twitter.com/intent/tweet?' . http_build_query(['text' => $shareText, 'url' => $shareUrl]),
+            'facebook' => 'https://www.facebook.com/sharer/sharer.php?' . http_build_query(['u' => $shareUrl]),
+            'email' => 'mailto:?' . http_build_query(['subject' => $topic->Title, 'body' => $shareText . ' ' . $shareUrl]),
+        ],
+    ];
+}
+
 public function storeReply(Request $request, Post $post)
 {
-    $request->validate(['ReplyContent' => 'required|string']);
+    $request->validate([
+        'ReplyContent' => 'required|string',
+        'parent_reply_id' => 'nullable|exists:Reply,ReplyID',
+        'attachment' => ['nullable', 'file', 'mimes:pdf,doc,docx,ppt,pptx,png,jpg,jpeg,zip', 'max:20480'],
+    ]);
+
+    $attachmentPath = null;
+    $attachmentType = null;
+
+    if ($request->hasFile('attachment')) {
+        $stored = AttachmentUploader::store($request->file('attachment'));
+        $attachmentPath = $stored['path'];
+        $attachmentType = $stored['type'];
+    }
 
     Reply::create([
         'PostID' => $post->PostID,
         'UserID' => Auth::id(),
         'ReplyContent' => $request->input('ReplyContent'),
+        'ParentReplyID' => $request->input('parent_reply_id'),
+        'Attachment' => $attachmentPath,
+        'AttachmentType' => $attachmentType,
     ]);
+
+    // Notify the topic's original poster — this is what "My Questions" reads
+    // to know a question has a new answer (same Type='Reply' pattern already
+    // used for group-chat post replies, nothing new invented).
+    if ($post->UserID !== Auth::id()) {
+        $replierName = Auth::user()->UserName ?? Auth::user()->name ?? 'Someone';
+        $snippet = \Illuminate\Support\Str::limit($request->input('ReplyContent'), 60);
+
+        Notification::create([
+            'UserID' => $post->UserID,
+            'Message' => "{$replierName} replied to your question: \"{$snippet}\"",
+            'Status' => false,
+            'Type' => 'Reply',
+        ]);
+    }
+
+    // Answering a question earns participation credit too — this used to
+    // only fire from storeMessage() (group chat), so replying in a topic
+    // thread earned nothing.
+    $this->updateParticipationScore(Auth::id(), $post->topic?->GroupID);
 
     // Auto-mark topic as answered if a lecturer replies
     if (Auth::user()->Role === 'Lecturer') {
@@ -1036,18 +1137,116 @@ public function storeReply(Request $request, Post $post)
     return redirect()->route('topics.show', $post->TopicID);
 }
 
-public function acceptAnswer(Reply $reply)
+public function flagPost(Request $request, Post $post)
 {
-    // Only a lecturer can accept an answer
-    if (Auth::user()->Role !== 'Lecturer') {
-        abort(403, 'Only a lecturer can mark an answer as accepted.');
+    $request->validate(['Reason' => 'nullable|string|max:250']);
+
+    $post->flagBy(Auth::id(), $request->input('Reason'));
+
+    if ($request->wantsJson()) {
+        return response()->json(['success' => true]);
     }
 
+    return back()->with('status', 'Post reported. A moderator will review it.');
+}
+
+public function flagReply(Request $request, Reply $reply)
+{
+    $request->validate(['Reason' => 'nullable|string|max:250']);
+
+    $reply->flagBy(Auth::id(), $request->input('Reason'));
+
+    if ($request->wantsJson()) {
+        return response()->json(['success' => true]);
+    }
+
+    return back()->with('status', 'Reply reported. A moderator will review it.');
+}
+
+/**
+ * The reply's own author, or a Lecturer/Administrator, can delete it. This
+ * is deliberately separate from AdminFlaggedContentController::destroyReply
+ * — that one is the moderation-queue action (admin-only middleware); this
+ * is the general "delete from the topic thread" action reachable by the
+ * author themselves, which the admin-only route can't serve.
+ */
+public function deleteReply(Reply $reply)
+{
+    $isOwner = $reply->UserID === Auth::id();
+    $isModerator = in_array(Auth::user()->Role, ['Lecturer', 'Administrator'], true);
+    abort_unless($isOwner || $isModerator, 403);
+
+    $userId = $reply->UserID;
+    $groupId = $reply->post?->topic?->GroupID;
+
+    $reply->delete();
+
+    if ($groupId) {
+        app(ParticipationService::class)->recalculate($userId, $groupId);
+    }
+
+    if (request()->wantsJson()) {
+        return response()->json(['success' => true]);
+    }
+
+    return back()->with('status', 'Reply deleted.');
+}
+
+/**
+ * Every topic/question the student has posted, across all their groups,
+ * with an Answered/Waiting status derived from Reply/IsAccepted plus the
+ * existing Notification mechanism (Type='Reply') for "new" vs "read" —
+ * Notification rows aren't tied to a specific topic ID, so "new" is an
+ * approximation (any unread reply notification marks all answered topics
+ * with replies as new) rather than a precise per-topic read receipt.
+ */
+public function myQuestions()
+{
+    $userId = Auth::id();
+    $hasUnreadReplyNotification = Notification::where('UserID', $userId)
+        ->where('Type', 'Reply')
+        ->where('Status', false)
+        ->exists();
+
+    // Accepted replies are eager-loaded (constrained to IsAccepted=true) in
+    // the same query set as everything else, instead of one Reply query per
+    // topic in the map() below. Paginated so a prolific asker's history
+    // doesn't load unbounded.
+    $myTopics = Topic::where('CreatedBy', $userId)
+        ->with(['group', 'replies' => fn ($q) => $q->where('IsAccepted', true)->with('author')])
+        ->withCount('replies')
+        ->latest('CreatedAt')
+        ->paginate(20)
+        ->through(function ($topic) use ($hasUnreadReplyNotification) {
+            $topic->acceptedReply = $topic->replies->first();
+            $topic->hasUnreadAnswer = $hasUnreadReplyNotification && $topic->replies_count > 0;
+
+            return $topic;
+        });
+
+    return view('topics.my-questions', compact('myTopics'))->with('showSidebar', true);
+}
+
+public function acceptAnswer(Reply $reply)
+{
     $post = $reply->post;
+
+    // The question's original poster or a lecturer can accept an answer —
+    // this was Lecturer-only in both the controller check and the button's
+    // visibility condition, silently excluding the person who actually
+    // asked the question from marking their own answer accepted.
+    $isOriginalPoster = Auth::id() === $post->UserID;
+    $isLecturer = Auth::user()->Role === 'Lecturer';
+    abort_unless($isOriginalPoster || $isLecturer, 403, 'Only the person who asked the question, or a lecturer, can mark an answer as accepted.');
 
     Reply::where('PostID', $post->PostID)->update(['IsAccepted' => false]);
     $reply->update(['IsAccepted' => true]);
     $post->topic()->update(['Status' => 'answered']);
+
+    // PointsPerAcceptedAnswer only takes effect once the accepting reply's
+    // author gets recalculated — do it now rather than waiting for their
+    // next post/reply.
+    $this->updateParticipationScore($reply->UserID, $post->topic?->GroupID);
 
     return redirect()->route('topics.show', $post->TopicID);
 }

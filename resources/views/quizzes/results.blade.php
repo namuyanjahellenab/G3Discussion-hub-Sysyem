@@ -3,10 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>Quiz Results | Discussion Hub</title>
     <link rel="preconnect" href="https://fonts.bunny.net">
     <link href="https://fonts.bunny.net/css?family=sora:400,500,600,700|inter:400,500,600,700&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.3/css/all.min.css" />
+    @vite(['resources/css/icons.css'])
     <link rel="stylesheet" href="{{ asset('css/admin-theme.css') }}">
     <style>
         * { box-sizing: border-box; }
@@ -141,10 +142,21 @@
                 </div>
 
                 <div class="topbar-right">
-                    <button class="icon-btn" type="button" title="Notifications" aria-label="Notifications">
-                        <i class="fa-regular fa-bell"></i>
-                        <span class="dot"></span>
-                    </button>
+                    <div id="notification-bell-wrapper" style="position: relative;">
+                        <button class="icon-btn" type="button" id="notification-bell" title="Notifications" aria-label="Notifications">
+                            <i class="fa-regular fa-bell"></i>
+                            <span id="notification-badge" style="display:none; position:absolute; top:2px; right:2px; background:var(--accent-danger); color:#fff; border-radius:50%; font-size:0.6rem; line-height:1; padding:2px 4px; font-weight:700;"></span>
+                        </button>
+                        <div id="notification-dropdown" style="display:none; position:absolute; right:0; top:44px; width:300px; max-height:380px; overflow-y:auto; background:#fff; border:1px solid #e4e7ec; border-radius:10px; box-shadow:0 8px 24px rgba(16,24,40,0.14); z-index:2000;">
+                            <div style="padding:12px 16px; border-bottom:1px solid #e4e7ec; display:flex; justify-content:space-between; align-items:center;">
+                                <strong style="font-size:0.85rem; color:#101828;">Notifications</strong>
+                                <span id="mark-all-read" style="font-size:0.75rem; cursor:pointer; font-weight:600;">Mark all read</span>
+                            </div>
+                            <div id="notification-list">
+                                <div style="padding:16px; font-size:0.8rem; color:#667085;">Loading...</div>
+                            </div>
+                        </div>
+                    </div>
                     <div class="user-chip" aria-label="Account menu">
                         <div class="avatar">{{ strtoupper(substr(auth()->user()->UserName ?? 'L', 0, 1)) }}</div>
                         <div class="meta">
@@ -167,7 +179,7 @@
                                 <span id="quizIdLabel"></span>
                             </p>
                         </div>
-                        <a href="#" class="btn-export" id="exportBtn">
+                        <a href="#" class="btn-export" id="exportBtn" style="pointer-events: none; opacity: 0.5;" aria-disabled="true" title="Exporting quiz results to PDF is not available yet">
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                 <path d="M12 10v6m0 0l-3-3m3 3l3-3"/>
                                 <rect x="3" y="3" width="18" height="14" rx="2"/>
@@ -240,7 +252,15 @@
             document.getElementById('quizTitle').textContent      = data.Title ?? 'Quiz Results';
             document.getElementById('totalMarksLabel').textContent = `Total Marks: ${parseFloat(data.TotalMarks).toFixed(2)}`;
             document.getElementById('quizIdLabel').textContent     = `· Quiz ID: ${data.QuizID}`;
-            document.getElementById('exportBtn').href              = `/quiz/${quizID}/export-pdf`;
+            // No PDF export endpoint exists for quiz results yet (unlike
+            // topic export) — disable with an explanation instead of
+            // pointing at a route that 404s.
+            const exportBtn = document.getElementById('exportBtn');
+            exportBtn.removeAttribute('href');
+            exportBtn.setAttribute('aria-disabled', 'true');
+            exportBtn.title = 'Exporting quiz results to PDF is not available yet';
+            exportBtn.style.pointerEvents = 'none';
+            exportBtn.style.opacity = '0.5';
 
             const results = data.Results ?? [];
 
@@ -309,5 +329,6 @@
 
     loadResults();
 </script>
+@include('layouts.sidebar-notifications-script')
 </body>
 </html>

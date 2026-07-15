@@ -32,4 +32,19 @@ class Topic extends Model
     {
         return $this->hasOne(TopicClassification::class, 'TopicID', 'TopicID');
     }
+
+    public function exclusions()
+    {
+        return $this->hasMany(TopicExclusion::class, 'TopicID', 'TopicID');
+    }
+
+    public function replies()
+    {
+        return $this->hasManyThrough(Reply::class, Post::class, 'TopicID', 'PostID', 'TopicID', 'PostID');
+    }
+
+    public function scopeVisibleTo($query, int $userId)
+    {
+        return $query->whereNotIn('TopicID', TopicExclusion::where('UserID', $userId)->pluck('TopicID'));
+    }
 }

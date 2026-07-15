@@ -143,7 +143,7 @@
 {{-- Add Manual Blacklist Modal --}}
 <div class="modal fade" id="addBlacklistModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog">
-        <form method="POST" action="{{ route('admin.blacklist.store') }}">
+        <form method="POST" action="{{ route('admin.blacklist.store') }}" onsubmit="return confirm('Blacklist this user? They will lose access until the blacklist period ends.');">
             @csrf
             <div class="modal-content">
                 <div class="modal-header">

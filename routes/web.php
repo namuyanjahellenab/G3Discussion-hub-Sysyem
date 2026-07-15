@@ -15,6 +15,11 @@ use App\Http\Controllers\GroupChatController;
 Route::get('/', function () {
     return redirect('/login');
 });
+
+// No auth middleware — monitoring tools/load balancers hit this without a
+// session. Laravel's built-in /up only confirms the app booted; this also
+// reports whether the (separate-process) ML gateway is actually reachable.
+Route::get('/health', [\App\Http\Controllers\HealthController::class, 'status'])->name('health');
 // Authentication Routes
 Route::middleware('guest')->group(function () {
     Route::get('/login', [AuthController::class, 'showLogin'])->name('login');
@@ -62,6 +67,9 @@ Route::get('/topics/create/{group}', [DiscussionHubPageController::class, 'creat
 Route::post('/topics', [DiscussionHubPageController::class, 'storeTopic'])
     ->middleware('verified')->name('topics.store');
 
+Route::get('/topics/my-questions', [DiscussionHubPageController::class, 'myQuestions'])
+    ->middleware('verified')->name('topics.my-questions');
+
 Route::get('/topics/{topic}', [DiscussionHubPageController::class, 'showTopic'])
     ->middleware('verified')->name('topics.show');
 
@@ -70,6 +78,15 @@ Route::post('/posts/{post}/reply', [DiscussionHubPageController::class, 'storeRe
 
 Route::post('/replies/{reply}/accept', [DiscussionHubPageController::class, 'acceptAnswer'])
     ->middleware('verified')->name('replies.accept');
+
+Route::post('/posts/{post}/flag', [DiscussionHubPageController::class, 'flagPost'])
+    ->middleware('verified')->name('posts.flag');
+
+Route::post('/replies/{reply}/flag', [DiscussionHubPageController::class, 'flagReply'])
+    ->middleware('verified')->name('replies.flag');
+
+Route::delete('/replies/{reply}', [DiscussionHubPageController::class, 'deleteReply'])
+    ->middleware('verified')->name('replies.destroy');
 
     Route::get('/dashboard', [DashboardController::class, 'index'])
         ->middleware('verified')
@@ -103,6 +120,10 @@ Route::post('/messages', [DiscussionHubPageController::class, 'storeMessage'])
         ->middleware('verified')
         ->name('topics.export');
 
+    Route::get('/topic-exports/{topicExport}/download', [DiscussionHubPageController::class, 'downloadTopicExport'])
+        ->middleware('verified')
+        ->name('topic-exports.download');
+
     Route::get('/marks', [DashboardController::class, 'marks'])
     ->middleware('verified')
     ->name('marks.index');
@@ -130,6 +151,10 @@ Route::post('/messages', [DiscussionHubPageController::class, 'storeMessage'])
     Route::post('/settings/logout-all-devices', [DiscussionHubPageController::class, 'logoutAllDevices'])
         ->middleware('verified')
         ->name('settings.logout-all-devices');
+
+    Route::get('/announcements', [DashboardController::class, 'announcementsIndex'])
+        ->middleware('verified')
+        ->name('announcements.index');
 
     Route::get('/announcements/create', [DashboardController::class, 'createAnnouncement'])
         ->middleware('verified')
@@ -230,6 +255,8 @@ Route::post('/warning', [\App\Http\Controllers\Admin\AdminWarningController::cla
     Route::post('/flagged-content/{post}/dismiss', [\App\Http\Controllers\Admin\AdminFlaggedContentController::class, 'dismiss'])->name('flagged-content.dismiss');
     Route::delete('/flagged-content/{post}', [\App\Http\Controllers\Admin\AdminFlaggedContentController::class, 'destroy'])->name('flagged-content.destroy');
     Route::post('/flagged-content/messages/{message}/dismiss', [\App\Http\Controllers\Admin\AdminFlaggedContentController::class, 'dismissMessage'])->name('flagged-content.messages.dismiss');
+    Route::post('/flagged-content/replies/{reply}/dismiss', [\App\Http\Controllers\Admin\AdminFlaggedContentController::class, 'dismissReply'])->name('flagged-content.replies.dismiss');
+    Route::delete('/flagged-content/replies/{reply}', [\App\Http\Controllers\Admin\AdminFlaggedContentController::class, 'destroyReply'])->name('flagged-content.replies.destroy');
 
 });
 

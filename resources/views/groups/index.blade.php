@@ -98,7 +98,7 @@
             View Forum <i class="bi bi-chevron-right ms-1 small"></i>
         </a>
     @elseif($group->userJoined)
-        <form method="POST" action="{{ route('groups.leave', $group->GroupID) }}">
+        <form method="POST" action="{{ route('groups.leave', $group->GroupID) }}" onsubmit="return confirm('Leave this group? You will lose access to its topics and chat.');">
             @csrf
             @method('DELETE')
             <button type="submit" class="btn btn-outline-danger w-100 py-2.5 rounded-3 fw-bold d-flex align-items-center justify-content-center" style="background-color: #FFF; border-color: #DC3545; font-size: 0.95rem;">

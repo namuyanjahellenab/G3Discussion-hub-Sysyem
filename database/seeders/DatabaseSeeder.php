@@ -15,9 +15,11 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
-        // Seed groups first, then topics
+        // Seed groups first, then topics, then demo users/content so a
+        // fresh clone is immediately demoable without manual data entry.
         $this->call(GroupSeeder::class);
         $this->call(TopicSeeder::class);
+        $this->call(DemoDataSeeder::class);
     }
 }
 

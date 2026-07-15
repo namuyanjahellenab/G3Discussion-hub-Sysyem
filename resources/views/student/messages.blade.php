@@ -1,5 +1,10 @@
 @extends('layouts.app') {{-- adjust to your actual layout name --}}
 
+{{-- This page renders its own inline #chat-error-banner for validation
+     errors — skip the layout's generic global banner to avoid showing the
+     same error twice. --}}
+@php($hideGlobalErrors = true)
+
 @section('content')
 <div class="chat-page">
 

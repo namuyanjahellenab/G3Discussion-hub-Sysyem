@@ -1,10 +1,3 @@
-<button id="sidebar-toggle-btn" onclick="toggleAppSidebar()" title="Toggle sidebar"
-    style="position: fixed; top: 16px; left: 16px; z-index: 1000; width: 36px; height: 36px;
-    background: #ffffff; border: 1px solid #e4e7ec; border-radius: 8px; cursor: pointer;
-    display: flex; align-items: center; justify-content: center; box-shadow: 0 1px 4px rgba(16,24,40,0.08);">
-    <i class="fa-solid fa-bars" style="color: #667085;"></i>
-</button>
-
 <style>
     body.sidebar-collapsed .sidebar-panel {
         width: 0 !important;
@@ -69,7 +62,7 @@
     @if($currentGroupId)
         <a href="{{ route('student.messages', ['groupId' => $currentGroupId]) }}"><i class="fa-regular fa-comments"></i> Group Chat</a>
     @else
-        <a href="#" class="disabled"><i class="fa-regular fa-comments"></i> Group Chat</a>
+        <a href="#" class="disabled" title="Join a group first to unlock its chat"><i class="fa-regular fa-comments"></i> Group Chat</a>
     @endif
 </li>
         <li class="{{ request()->routeIs('marks.index') ? 'active' : '' }}">
@@ -90,11 +83,8 @@
     </ul>
 </div>
 
-<script>
-    function toggleAppSidebar() {
-        document.body.classList.toggle('sidebar-collapsed');
-    }
-</script>
+{{-- toggleAppSidebar() now lives once in layouts.app.blade.php, alongside
+     the toggle button itself. --}}
 
 @once
     @include('layouts.sidebar-notifications-script')

@@ -21,6 +21,8 @@ class Post extends Model
     const CREATED_AT = 'CreatedAt';
     const UPDATED_AT = 'UpdatedAt';
 
+    protected $casts = ['IsFlagged' => 'boolean'];
+
     public function author()
     {
         return $this->belongsTo(User::class, 'UserID', 'UserID');
@@ -39,5 +41,34 @@ class Post extends Model
     public function parent()
     {
         return $this->belongsTo(Post::class, 'ParentPostID', 'PostID');
+    }
+
+    public function flags()
+    {
+        return $this->hasMany(PostFlag::class, 'PostID', 'PostID');
+    }
+
+    /**
+     * Record a flag from this user and escalate IsFlagged once the
+     * configured threshold of distinct flaggers is reached. Post.IsFlagged
+     * is a derived cache of the post_flags count, not the source of truth.
+     */
+    public function flagBy(int $userId, ?string $reason = null): PostFlag
+    {
+        $flag = $this->flags()->firstOrCreate(
+            ['FlaggedByUserID' => $userId],
+            ['Reason' => $reason]
+        );
+
+        $threshold = (int) config('moderation.flag_escalation_threshold', 2);
+        if ($this->flags()->count() >= $threshold && !$this->IsFlagged) {
+            $this->update(['IsFlagged' => true, 'FlaggedReason' => $reason]);
+
+            if ($this->topic?->GroupID) {
+                app(\App\Services\ParticipationService::class)->recalculate($this->UserID, $this->topic->GroupID);
+            }
+        }
+
+        return $flag;
     }
 }

@@ -628,3 +628,65 @@ button:focus-visible,
 @media (max-width: 768px) {
     .chat-layout { grid-template-columns: 1fr; }
 }
+
+/* ============================================================
+   Mobile sidebar — off-canvas drawer
+   Below lg (992px) the sidebar used to just be Bootstrap
+   `d-none`, full stop — no hamburger, no drawer, no way to open
+   it at all, so mobile had zero navigation. It's now always in
+   the DOM; below the breakpoint it's fixed off-screen and slides
+   in via body.mobile-sidebar-open (toggled by each sidebar's
+   existing #sidebar-toggle-btn, unchanged on desktop).
+   ============================================================ */
+.mobile-sidebar-backdrop { display: none; }
+
+@media (max-width: 991.98px) {
+    .app-sidebar-wrapper {
+        position: fixed;
+        top: 0;
+        left: 0;
+        bottom: 0;
+        width: 260px;
+        max-width: 80vw;
+        z-index: 1050;
+        transform: translateX(-100%);
+        transition: transform 0.25s ease;
+        box-shadow: var(--shadow-medium);
+    }
+
+    .app-sidebar-wrapper .sidebar-panel {
+        height: 100%;
+        padding-top: 64px;
+    }
+
+    body.mobile-sidebar-open .app-sidebar-wrapper {
+        transform: translateX(0);
+    }
+
+    .mobile-sidebar-backdrop {
+        display: none;
+        position: fixed;
+        inset: 0;
+        background: rgba(1, 28, 64, 0.45);
+        z-index: 1040;
+    }
+
+    body.mobile-sidebar-open .mobile-sidebar-backdrop {
+        display: block;
+    }
+
+    /* sidebar-collapsed is the desktop-only "hide the inline sidebar" state
+       (see each sidebar partial's toggle CSS) — it doesn't apply here since
+       the drawer is already off-screen by default below this breakpoint. */
+    body.sidebar-collapsed .app-sidebar-wrapper {
+        transform: translateX(-100%);
+    }
+
+    body.sidebar-collapsed.mobile-sidebar-open .app-sidebar-wrapper {
+        transform: translateX(0);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .app-sidebar-wrapper { transition: none; }
+}

@@ -27,8 +27,13 @@ class TopicSeeder extends Seeder
                 'UserName' => 'System',
                 'Email' => 'system@example.com',
                 'PasswordHash' => bcrypt('system123'),
-                'Role' => 'Admin',
+                // Every role check in this app is against the literal string
+                // 'Administrator' (EnsureUserIsAdmin middleware, announcement/
+                // moderation gates, etc.) — 'Admin' silently granted this
+                // account zero actual admin privileges.
+                'Role' => 'Administrator',
                 'Status' => 'Active',
+                'RulesAccepted' => true,
             ]);
         }
 

@@ -1,3 +1,9 @@
+/* Bundled locally instead of the cdnjs.cloudflare.com CDN link every view
+   used to load — an ad-blocker, corporate firewall, or CDN outage silently
+   dropped every icon app-wide (Back/Export/Share/nav/hover-action icons all
+   rendered as blank buttons) with nothing in the app itself indicating why. */
+@import '@fortawesome/fontawesome-free/css/all.min.css';
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;

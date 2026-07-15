@@ -50,6 +50,64 @@
     .replies-heading { font-weight: 700; color: var(--text-heading); margin: 24px 0 12px 0; font-size: 15px; }
     .empty-state { color: var(--text-muted); font-size: 0.88rem; }
 
+    .tag-chip { display: inline-flex; align-items: center; gap: 4px; font-size: 10.5px; font-weight: 600; background: #fff; border: 1px solid var(--surface-border); padding: 2px 9px; border-radius: 20px; color: var(--text-muted); }
+    .tag-chip.flagged { color: var(--accent-danger); border-color: #EBAFAF; }
+
+    /* Wallpaper panel behind the replies — dots/small-squares only, no
+       curved-line pattern (tried earlier and rejected). */
+    .chat-panel {
+        background-color: var(--surface-bg);
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160' viewBox='0 0 160 160'%3E%3Cg fill='%2326658C' fill-opacity='0.07'%3E%3Ccircle cx='18' cy='22' r='3'/%3E%3Ccircle cx='96' cy='14' r='2'/%3E%3Ccircle cx='134' cy='70' r='2.6'/%3E%3Ccircle cx='30' cy='120' r='2.2'/%3E%3Crect x='60' y='96' width='9' height='9' rx='2.5'/%3E%3Crect x='118' y='128' width='7' height='7' rx='2'/%3E%3Ccircle cx='108' cy='48' r='2'/%3E%3Ccircle cx='6' cy='70' r='2'/%3E%3Crect x='140' y='96' width='6' height='6' rx='1.5'/%3E%3Ccircle cx='70' cy='150' r='2'/%3E%3C/g%3E%3C/svg%3E");
+        background-size: 160px 160px;
+        border: 1px solid var(--surface-border); border-radius: var(--radius-lg);
+        padding: 14px 12px;
+    }
+
+    .reply-row { display: flex; gap: 12px; padding: 10px 8px; border-radius: var(--radius-md); position: relative; }
+    .reply-row:hover { background: rgba(255, 255, 255, 0.55); }
+    .reply-row:hover .hover-actions { opacity: 1; transform: translateY(0); }
+    .reply-row + .reply-row { margin-top: 4px; }
+
+    .reply-top { display: flex; align-items: baseline; gap: 8px; margin-bottom: 3px; }
+    .reply-name { font-weight: 700; font-size: 13.5px; color: var(--text-heading); }
+    .reply-time { font-size: 11.5px; color: var(--text-muted); }
+
+    .reply-bubble { background: #fff; border: 1px solid var(--surface-border); border-radius: 4px 14px 14px 14px; padding: 10px 14px; font-size: 13.5px; line-height: 1.5; display: inline-block; max-width: 600px; color: var(--text-body); }
+    .reply-row.answer .reply-bubble { border-color: var(--accent-success); background: var(--accent-success-bg); }
+    .reply-row.flagged .reply-bubble { background: var(--accent-danger-bg); border: 1px dashed #EBAFAF; }
+    .reply-answer-flag { display: flex; align-items: center; gap: 5px; color: var(--accent-success); font-weight: 700; font-size: 11.5px; margin-bottom: 5px; }
+
+    .quote-strip { border-left: 3px solid var(--luna-mid); background: var(--luna-lightest); border-radius: 6px; padding: 5px 10px; font-size: 11.5px; color: var(--luna-dark); margin-bottom: 6px; display: inline-block; }
+
+    .hover-actions { position: absolute; top: 4px; right: 4px; display: flex; gap: 3px; background: #fff; border: 1px solid var(--surface-border); border-radius: 9px; padding: 3px; box-shadow: var(--shadow-medium); opacity: 0; transform: translateY(-4px); transition: 0.15s; }
+    .hover-actions button { width: 26px; height: 26px; border: none; background: transparent; border-radius: 6px; cursor: pointer; font-size: 12.5px; color: var(--text-muted); }
+    .hover-actions button:hover { background: var(--surface-bg); color: var(--text-heading); }
+    .hover-actions button.danger:hover { background: var(--accent-danger-bg); color: var(--accent-danger); }
+    .hover-actions button.mark:hover { background: var(--accent-success-bg); color: var(--accent-success); }
+    .hover-actions .sep { width: 1px; background: var(--surface-border); margin: 3px 1px; }
+
+    /* Touch devices have no :hover, so opacity:0-until-hover would make
+       these actions permanently invisible/undiscoverable on mobile — show
+       them at reduced opacity by default instead of relying on hover. */
+    @media (hover: none) {
+        .hover-actions { opacity: 0.85; transform: none; position: static; margin-top: 6px; box-shadow: none; border: none; background: transparent; justify-content: flex-end; }
+        .hover-actions button { background: var(--surface-bg); }
+    }
+
+    .attach-file { display: flex; align-items: center; gap: 10px; background: var(--surface-bg); border: 1px solid var(--surface-border); border-radius: 10px; padding: 8px 12px; margin-top: 8px; max-width: 280px; text-decoration: none; }
+    .attach-file .icon { width: 32px; height: 32px; border-radius: 8px; background: var(--luna-mid); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 14px; flex-shrink: 0; }
+    .attach-file .fname { font-size: 12.5px; font-weight: 600; color: var(--text-heading); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .attach-img { margin-top: 8px; border-radius: 12px; overflow: hidden; border: 1px solid var(--surface-border); max-width: 260px; }
+    .attach-img img { width: 100%; display: block; }
+
+    .reply-context-bar { display: none; align-items: center; justify-content: space-between; background: var(--luna-lightest); border: 1px solid var(--luna-light); border-radius: var(--radius-md); padding: 8px 12px; font-size: 12.5px; color: var(--luna-dark); margin-bottom: 10px; }
+    .reply-context-bar.open { display: flex; }
+    .reply-context-bar button { background: none; border: none; color: var(--luna-dark); cursor: pointer; font-size: 14px; }
+
+    .composer-attach-row { display: flex; gap: 8px; margin: 8px 0; }
+    .composer-attach-row .btn-outline-secondary { font-size: 12px; padding: 0.4rem 0.75rem; }
+    .composer-attach-filename { font-size: 0.78rem; color: var(--text-muted); margin-bottom: 8px; }
+
     .reply-form textarea { width: 100%; border: 1px solid var(--surface-border); border-radius: var(--radius-md); padding: 14px; font-size: 0.9rem; resize: vertical; margin-bottom: 10px; font-family: var(--font-body); }
 
     .btn { display: inline-flex; align-items: center; gap: 8px; padding: 0.55rem 1rem; border-radius: var(--radius-md); font-size: 13px; font-weight: 600; text-decoration: none; border: 1px solid transparent; box-shadow: var(--shadow-soft); cursor: pointer; }
@@ -103,6 +161,9 @@
                 <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
                     <h1 class="thread-title">{{ $topic->Title }}</h1>
                     <span class="badge {{ $statusMeta['badge'] }}">{{ $statusMeta['label'] }}</span>
+                    @if($topic->exclusions->isNotEmpty())
+                        <span class="tag-chip"><i class="fa-solid fa-eye-slash"></i> Restricted audience</span>
+                    @endif
                 </div>
                 <div style="display: flex; align-items: center; gap: 8px;">
                     <a href="{{ route('topics.export', $topic) }}" class="btn btn-outline-secondary">
@@ -122,6 +183,14 @@
                                 <li><button type="button" class="dropdown-item" onclick="copyTopicShareLink()"><i class="fa-solid fa-link"></i> Copy Link</button></li>
                             </ul>
                         </div>
+                    @else
+                        {{-- Both the ML gateway and the PHP fallback failed to build share
+                             links (see DiscussionHubPageController::showTopic()) — show why
+                             instead of the button just vanishing. --}}
+                        <button type="button" class="btn btn-outline-secondary" disabled
+                                title="Sharing is temporarily unavailable" data-bs-toggle="tooltip">
+                            <i class="fa-solid fa-share-nodes"></i> Share
+                        </button>
                     @endif
                 </div>
             </div>
@@ -142,34 +211,100 @@
 
                 <h6 class="replies-heading">Replies</h6>
 
-                @forelse($mainPost->replies as $reply)
-                    <div class="post-card {{ $reply->IsAccepted ? 'accepted-card' : '' }}">
-                        <div class="post-avatar {{ $reply->author?->Role === 'Lecturer' ? 'lecturer' : '' }}">
-                            {{ Str::substr($reply->author?->UserName ?? $reply->author?->name ?? '?', 0, 1) }}
-                        </div>
-                        <div style="flex:1;">
-                            @if($reply->IsAccepted)
-                                <div class="accepted-tag"><i class="fa-solid fa-circle-check"></i> Accepted Answer</div>
-                            @endif
-                            <div class="post-author">{{ $reply->author?->UserName ?? $reply->author?->name ?? 'a member' }}</div>
-                            <div class="post-time">{{ $reply->CreatedAt->diffForHumans() }}</div>
-                            <div class="post-content">{{ $reply->ReplyContent }}</div>
+                <div class="chat-panel">
+                    @forelse($mainPost->replies as $reply)
+                        <div class="reply-row {{ $reply->IsAccepted ? 'answer' : '' }} {{ $reply->IsFlagged ? 'flagged' : '' }}" data-reply-id="{{ $reply->ReplyID }}" data-reply-author="{{ $reply->author?->UserName ?? $reply->author?->name ?? 'a member' }}">
+                            <div class="post-avatar {{ $reply->author?->Role === 'Lecturer' ? 'lecturer' : '' }}">
+                                {{ Str::substr($reply->author?->UserName ?? $reply->author?->name ?? '?', 0, 1) }}
+                            </div>
+                            <div style="flex:1;">
+                                <div class="reply-top">
+                                    <span class="reply-name">{{ $reply->author?->UserName ?? $reply->author?->name ?? 'a member' }}{{ $reply->UserID === auth()->id() ? ' (you)' : '' }}</span>
+                                    <span class="reply-time">{{ $reply->CreatedAt->diffForHumans() }}</span>
+                                </div>
 
-                            @if(!$reply->IsAccepted && auth()->user()->Role === 'Lecturer')
-                                <form method="POST" action="{{ route('replies.accept', $reply) }}">
-                                    @csrf
-                                    <button type="submit" class="accept-btn">Mark as Accepted Answer</button>
-                                </form>
-                            @endif
-                        </div>
-                    </div>
-                @empty
-                    <p class="empty-state">No replies yet. Be the first to respond.</p>
-                @endforelse
+                                @if($reply->parentReply)
+                                    <div class="quote-strip">
+                                        <i class="fa-solid fa-reply"></i> Replying to <strong>{{ $reply->parentReply->author?->UserName ?? $reply->parentReply->author?->name ?? 'a member' }}</strong>: {{ Str::limit($reply->parentReply->ReplyContent, 40) }}
+                                    </div>
+                                @endif
 
-                <form method="POST" action="{{ route('posts.reply', $mainPost->PostID) }}" class="reply-form" style="margin-top: 20px;">
+                                <div class="reply-bubble">
+                                    @if($reply->IsAccepted)
+                                        <div class="reply-answer-flag"><i class="fa-solid fa-circle-check"></i> Marked as answer</div>
+                                    @endif
+                                    @if($reply->IsFlagged)
+                                        <span class="tag-chip flagged" style="margin-bottom: 6px;"><i class="fa-solid fa-flag"></i> Flagged</span>
+                                    @endif
+                                    {{ $reply->ReplyContent }}
+
+                                    @if($reply->Attachment)
+                                        @if($reply->AttachmentType === 'image')
+                                            <div class="attach-img"><img src="{{ \Illuminate\Support\Facades\Storage::url($reply->Attachment) }}" alt="Attachment"></div>
+                                        @else
+                                            <a class="attach-file" href="{{ \Illuminate\Support\Facades\Storage::url($reply->Attachment) }}" target="_blank" rel="noopener">
+                                                <div class="icon"><i class="fa-solid fa-file"></i></div>
+                                                <div class="fname">{{ basename($reply->Attachment) }}</div>
+                                            </a>
+                                        @endif
+                                    @endif
+                                </div>
+                            </div>
+
+                            <div class="hover-actions">
+                                <button type="button" title="Reply" onclick="startThreadedReply({{ $reply->ReplyID }}, '{{ addslashes($reply->author?->UserName ?? $reply->author?->name ?? 'a member') }}')">
+                                    <i class="fa-solid fa-reply"></i>
+                                </button>
+                                @if($reply->UserID !== auth()->id())
+                                    <form method="POST" action="{{ route('replies.flag', $reply) }}" style="display:contents;">
+                                        @csrf
+                                        <button type="submit" title="Report"><i class="fa-solid fa-flag"></i></button>
+                                    </form>
+                                @endif
+                                @if($reply->UserID === auth()->id() || in_array(auth()->user()->Role, ['Lecturer', 'Administrator'], true))
+                                    <div class="sep"></div>
+                                    <form method="POST" action="{{ route('replies.destroy', $reply->ReplyID) }}" style="display:contents;" onsubmit="return confirm('Delete this reply?');">
+                                        @csrf
+                                        @method('DELETE')
+                                        <button type="submit" class="danger" title="Delete"><i class="fa-solid fa-trash"></i></button>
+                                    </form>
+                                @endif
+                                @if(!$reply->IsAccepted && (auth()->id() === $mainPost->UserID || auth()->user()->Role === 'Lecturer'))
+                                    <div class="sep"></div>
+                                    <form method="POST" action="{{ route('replies.accept', $reply) }}" style="display:contents;">
+                                        @csrf
+                                        <button type="submit" class="mark" title="Mark as answer"><i class="fa-solid fa-check"></i></button>
+                                    </form>
+                                @endif
+                            </div>
+                        </div>
+                    @empty
+                        <p class="empty-state" style="padding: 8px;">No replies yet. Be the first to respond.</p>
+                    @endforelse
+                </div>
+
+                <form method="POST" action="{{ route('posts.reply', $mainPost->PostID) }}" class="reply-form" style="margin-top: 20px;" enctype="multipart/form-data">
                     @csrf
+                    <input type="hidden" name="parent_reply_id" id="parentReplyId" value="">
+
+                    <div class="reply-context-bar" id="replyContextBar">
+                        <span>Replying to <strong id="replyContextName"></strong></span>
+                        <button type="button" onclick="cancelThreadedReply()">&times;</button>
+                    </div>
+
                     <textarea name="ReplyContent" rows="3" placeholder="Write your reply here..." required></textarea>
+
+                    <input type="file" name="attachment" id="replyAttachment" style="display:none;">
+                    <div class="composer-attach-row">
+                        <button type="button" class="btn btn-outline-secondary" onclick="document.getElementById('replyAttachment').removeAttribute('accept'); document.getElementById('replyAttachment').click()">
+                            <i class="fa-solid fa-paperclip"></i> Attach file
+                        </button>
+                        <button type="button" class="btn btn-outline-secondary" onclick="document.getElementById('replyAttachment').setAttribute('accept','image/*'); document.getElementById('replyAttachment').click()">
+                            <i class="fa-solid fa-image"></i> Attach image
+                        </button>
+                    </div>
+                    <div class="composer-attach-filename" id="replyAttachFilename"></div>
+
                     <button type="submit" class="btn btn-primary">Post Reply <i class="fa-solid fa-paper-plane"></i></button>
                 </form>
             @else
@@ -240,4 +375,22 @@ function copyTopicShareLink() {
 }
 </script>
 @endif
+
+<script>
+function startThreadedReply(replyId, authorName) {
+    document.getElementById('parentReplyId').value = replyId;
+    document.getElementById('replyContextName').textContent = authorName;
+    document.getElementById('replyContextBar').classList.add('open');
+    document.querySelector('.reply-form textarea[name="ReplyContent"]')?.focus();
+}
+
+function cancelThreadedReply() {
+    document.getElementById('parentReplyId').value = '';
+    document.getElementById('replyContextBar').classList.remove('open');
+}
+
+document.getElementById('replyAttachment')?.addEventListener('change', function () {
+    document.getElementById('replyAttachFilename').textContent = this.files[0] ? this.files[0].name : '';
+});
+</script>
 @endsection

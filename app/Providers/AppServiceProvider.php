@@ -5,6 +5,8 @@ namespace App\Providers;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Facades\View;
 use App\Models\GroupStudent;
+use App\Models\Post;
+use App\Models\Reply;
 use App\Models\Topic;
 
 use Illuminate\Cache\RateLimiting\Limit;
@@ -55,6 +57,11 @@ class AppServiceProvider extends ServiceProvider
 
         $view->with('currentGroupId', $currentGroupId);
     });
+
+        View::composer('layouts.sidebar-admin', function ($view) {
+            $view->with('pendingFlagCount', Post::where('IsFlagged', true)->count() + Reply::where('IsFlagged', true)->count());
+        });
+
         RateLimiter::for('forum-posts', function (Request $request) {
             return Limit::perMinute(5)->by($request->user()?->id ?: $request->ip());
         });
