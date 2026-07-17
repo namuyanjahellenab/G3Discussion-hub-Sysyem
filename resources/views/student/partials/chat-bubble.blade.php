@@ -1,7 +1,8 @@
 <div class="chat-bubble {{ $msg->user_id === auth()->id() ? 'chat-bubble--own' : '' }}"
+     data-message-id="{{ $msg->MessageID }}"
      data-user-id="{{ $msg->user_id }}"
      data-username="{{ $msg->user->UserName ?? 'Unknown' }}">
-    <div class="chat-bubble__avatar">{{ strtoupper(substr($msg->user->UserName ?? '?', 0, 1)) }}</div>
+    <div class="chat-bubble__avatar">{{ Str::initials($msg->user->UserName ?? '?') }}</div>
     <div class="chat-bubble__content">
         <div class="chat-bubble__meta">
             <strong>{{ $msg->user->UserName ?? 'Unknown' }}</strong>

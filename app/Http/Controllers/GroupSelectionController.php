@@ -36,20 +36,6 @@ class GroupSelectionController extends Controller
         return view('groups.select', compact('groups'))->with('showSidebar', false);
     }
 
-    public function join(Group $group): RedirectResponse
-    {
-        $user = Auth::user();
-
-        GroupStudent::firstOrCreate([
-            'GroupID' => $group->GroupID,
-            'UserID' => $user->UserID,
-        ], [
-            'Status' => 'active',
-        ]);
-
-        return redirect()->route('dashboard');
-    }
-
     public function joinMultiple(Request $request): RedirectResponse
     {
         $request->validate([

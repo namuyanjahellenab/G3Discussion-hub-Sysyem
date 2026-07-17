@@ -15,6 +15,10 @@ class QuizResult extends Model
         'QuizID', 'UserID', 'Score', 'SubmissionTime', 'IsAutoSubmit'
     ];
 
+    protected $casts = [
+        'SubmissionTime' => 'datetime',
+    ];
+
     public function quiz()
     {
         return $this->belongsTo(Quiz::class, 'QuizID', 'QuizID');

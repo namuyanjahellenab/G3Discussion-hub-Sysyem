@@ -120,7 +120,7 @@
                         @php
                             $palette = ['primary', 'success', 'warning'];
                             $color = $palette[$index % 3];
-                            $initials = collect(explode(' ', trim($member->UserName)))->map(fn($p) => strtoupper(substr($p, 0, 1)))->join('');
+                            $initials = Str::initials($member->UserName);
                         @endphp
                         <div class="d-flex align-items-center justify-content-between mb-3">
                             <div class="d-flex align-items-center gap-2">

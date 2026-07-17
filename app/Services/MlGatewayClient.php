@@ -24,26 +24,10 @@ class MlGatewayClient
     }
 
     /**
-     * Rank topic categories by relevance for a user's interests/recent activity.
-     * Returns null if the gateway is unreachable or misconfigured.
-     */
-    public function recommend(int $userId, array $interests = [], array $recentMessages = [], array $groupIds = []): ?array
-    {
-        $response = $this->post('/recommend', [
-            'UserID' => $userId,
-            'Interests' => array_values($interests),
-            'RecentMessages' => array_values($recentMessages),
-            'GroupIDs' => array_values($groupIds),
-        ]);
-
-        return $response;
-    }
-
-    /**
      * Rank specific candidate topics for a user by relevance. Each topic's
      * own title is scored individually against interests/recent activity,
      * instead of every topic in a category collapsing onto one identical
-     * score (see recommend()). Returns null if the gateway is unreachable.
+     * score. Returns null if the gateway is unreachable.
      *
      * @param array<int, array{TopicID: int, Title: ?string, Category: ?string}> $topics
      */

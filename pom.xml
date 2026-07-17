@@ -48,6 +48,11 @@
     <artifactId>json</artifactId>
     <version>20240303</version>
 </dependency>
+        <dependency>
+            <groupId>com.pusher</groupId>
+            <artifactId>pusher-java-client</artifactId>
+            <version>2.4.4</version>
+        </dependency>
     </dependencies>
 
     <build>

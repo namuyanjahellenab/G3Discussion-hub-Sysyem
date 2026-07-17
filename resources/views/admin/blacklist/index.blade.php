@@ -45,8 +45,7 @@
                         <tbody>
                             @forelse($blacklist as $entry)
                                 @php
-                                    $initials = collect(explode(' ', trim($entry->user?->UserName ?? '?')))
-                                        ->map(fn($p) => strtoupper(substr($p, 0, 1)))->join('');
+                                    $initials = Str::initials($entry->user?->UserName ?? '?');
                                     $isExpired = $entry->EndDate < now();
                                 @endphp
                                 <tr class="{{ $isExpired ? 'opacity-50' : '' }}">

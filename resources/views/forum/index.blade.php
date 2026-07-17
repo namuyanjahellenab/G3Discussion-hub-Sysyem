@@ -3,8 +3,7 @@
 @section('content')
 @php
     $displayName = auth()->user()->UserName ?? auth()->user()->name ?? 'Student User';
-    $nameParts = explode(' ', $displayName);
-    $initials = collect($nameParts)->filter()->map(fn($p) => mb_substr($p, 0, 1))->take(2)->implode('');
+    $initials = Str::initials($displayName);
 @endphp
 
 <style>
@@ -18,11 +17,11 @@
     .stat-card .label { font-size: 12px; color: var(--text-muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.4px; }
     .stat-card .value { font-size: 26px; font-weight: 800; color: var(--text-heading); margin-top: 6px; }
 
-    .groups-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; margin-bottom: 24px; }
-    .group-card { background: var(--surface-card); border: 1px solid var(--surface-border); border-radius: var(--radius-lg); box-shadow: var(--shadow-soft); padding: 24px; display: flex; flex-direction: column; align-items: center; text-align: center; }
-    .group-card-icon { width: 44px; height: 44px; background: var(--luna-lightest); color: var(--luna-dark); border-radius: 10px; display: flex; align-items: center; justify-content: center; margin-bottom: 16px; }
-    .group-card h5 { color: var(--text-heading); font-size: 1.1rem; font-weight: 700; margin: 0 0 6px 0; }
-    .group-card p { color: var(--text-muted); font-size: 0.9rem; margin: 0 0 16px 0; }
+    .groups-grid { display: grid; grid-template-columns: repeat(auto-fill, 220px); gap: 16px; margin-bottom: 24px; }
+    .group-card { width: 220px; height: 220px; box-sizing: border-box; background: var(--surface-bg); border: 1px solid var(--surface-border); border-radius: var(--radius-md); padding: 20px; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; }
+    .group-card-icon { width: 40px; height: 40px; background: var(--luna-lightest); color: var(--luna-dark); border-radius: 10px; display: flex; align-items: center; justify-content: center; margin-bottom: 12px; }
+    .group-card h5 { color: var(--text-heading); font-size: 1rem; font-weight: 700; margin: 0 0 2px 0; }
+    .group-card p { color: var(--text-muted); font-size: 0.8rem; margin: 0 0 16px 0; }
 
     .btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 0.55rem 1rem; border-radius: var(--radius-md); font-size: 13px; font-weight: 600; text-decoration: none; border: 1px solid transparent; box-shadow: var(--shadow-soft); width: 100%; }
     .btn-primary { background: var(--luna-mid); color: #fff; }
@@ -85,9 +84,9 @@
                     <div class="group-card">
                         <div class="group-card-icon"><i class="fa-solid fa-users"></i></div>
                         <h5>{{ $group->GroupName }}</h5>
-                        <p>{{ $group->Description ?? 'Joined discussion group' }}</p>
+                        <p>{{ $group->member_count ?? 0 }} members</p>
                         <a href="{{ route('groups.topics', $group) }}" class="btn btn-primary">
-                            Open Group Forum <i class="fa-solid fa-arrow-right" style="font-size: 0.75rem;"></i>
+                            View Forum <i class="fa-solid fa-arrow-right" style="font-size: 0.75rem;"></i>
                         </a>
                     </div>
                 @empty

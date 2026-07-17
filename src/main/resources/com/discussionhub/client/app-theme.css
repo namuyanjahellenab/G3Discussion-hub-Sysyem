@@ -1,0 +1,161 @@
+/* Desktop client theme - mirrors public/css/admin-theme.css's LUNA palette
+   (student role) exactly, so JavaFX and Blade render the same colors.
+   JavaFX CSS has no custom-property support, so the values are copied
+   literally here instead of referenced - keep this file in sync by hand
+   if the web palette ever changes. */
+
+.root {
+    -luna-lightest: #A7EBF2;
+    -luna-mid: #26658C;
+    -luna-dark: #023859;
+    -accent-amber: #D98E3D;
+    -accent-danger: #D9483D;
+    -accent-success: #3F9C6B;
+    -surface-bg: #F4F8FA;
+    -surface-card: #FFFFFF;
+    -surface-border: #E1E9ED;
+    -text-heading: #011C40;
+    -text-body: #33455A;
+    -text-muted: #6B8094;
+}
+
+.app-background {
+    -fx-background-color: -surface-bg;
+}
+
+/* ---- Sidebar, matching .sidebar-panel / .sidebar-menu li a ---- */
+
+.sidebar-panel {
+    -fx-background-color: -surface-card;
+    -fx-border-color: -surface-border;
+    -fx-border-width: 0 1 0 0;
+}
+
+.sidebar-link {
+    -fx-background-color: transparent;
+    -fx-text-fill: -text-body;
+    -fx-font-size: 13px;
+    -fx-background-radius: 8;
+    -fx-border-color: transparent transparent transparent -luna-mid;
+    -fx-border-width: 0 0 0 3;
+    -fx-padding: 9 20 9 17;
+    -fx-alignment: CENTER_LEFT;
+    -fx-cursor: hand;
+}
+
+.sidebar-link:hover {
+    -fx-background-color: -surface-bg;
+    -fx-text-fill: -luna-dark;
+}
+
+.sidebar-link-active {
+    -fx-background-color: -accent-amber;
+    -fx-text-fill: white;
+    -fx-font-weight: bold;
+    -fx-background-radius: 8;
+    -fx-padding: 9 20;
+    -fx-alignment: CENTER_LEFT;
+}
+
+/* ---- Cards / panels, matching .panel / .stat-card / .group-card ---- */
+
+.panel-card {
+    -fx-background-color: -surface-card;
+    -fx-background-radius: 14;
+    -fx-border-color: -surface-border;
+    -fx-border-radius: 14;
+    -fx-effect: dropshadow(gaussian, rgba(1,28,64,0.06), 10, 0, 0, 2);
+}
+
+.stat-card {
+    -fx-background-color: -surface-card;
+    -fx-border-color: -surface-border;
+    -fx-border-width: 3 1 1 1;
+    -fx-border-color: -luna-mid -surface-border -surface-border -surface-border;
+    -fx-background-radius: 14;
+    -fx-border-radius: 14;
+    -fx-effect: dropshadow(gaussian, rgba(1,28,64,0.06), 10, 0, 0, 2);
+}
+
+.stat-label {
+    -fx-text-fill: -text-muted;
+    -fx-font-size: 11px;
+    -fx-font-weight: bold;
+}
+
+.stat-value {
+    -fx-text-fill: -text-heading;
+    -fx-font-size: 24px;
+    -fx-font-weight: 800;
+}
+
+.group-card {
+    -fx-background-color: -surface-bg;
+    -fx-border-color: -surface-border;
+    -fx-background-radius: 10;
+    -fx-border-radius: 10;
+}
+
+.group-card-icon {
+    -fx-background-color: -luna-lightest;
+    -fx-text-fill: -luna-dark;
+    -fx-background-radius: 10;
+}
+
+.panel-heading {
+    -fx-text-fill: -text-heading;
+    -fx-font-size: 15px;
+    -fx-font-weight: bold;
+}
+
+.panel-link {
+    -fx-text-fill: -luna-mid;
+    -fx-font-size: 12.5px;
+    -fx-font-weight: bold;
+}
+
+.btn-primary {
+    -fx-background-color: -luna-mid;
+    -fx-text-fill: white;
+    -fx-font-weight: bold;
+    -fx-font-size: 12px;
+    -fx-background-radius: 8;
+    -fx-padding: 9 16;
+    -fx-cursor: hand;
+}
+
+.btn-primary:hover {
+    -fx-background-color: -luna-dark;
+}
+
+.btn-outline-danger {
+    -fx-background-color: transparent;
+    -fx-text-fill: -accent-danger;
+    -fx-border-color: -accent-danger;
+    -fx-border-radius: 8;
+    -fx-background-radius: 8;
+    -fx-font-weight: bold;
+    -fx-font-size: 12px;
+    -fx-padding: 9 16;
+    -fx-cursor: hand;
+}
+
+.btn-outline-danger:hover {
+    -fx-background-color: -accent-danger;
+    -fx-text-fill: white;
+}
+
+.announcement-banner {
+    -fx-background-color: -luna-mid;
+    -fx-background-radius: 14;
+}
+
+.muted-text {
+    -fx-text-fill: -text-muted;
+    -fx-font-size: 12px;
+}
+
+.heading-text {
+    -fx-text-fill: -text-heading;
+    -fx-font-weight: bold;
+}

@@ -22,4 +22,9 @@ public function topic()
 {
     return $this->belongsTo(Topic::class);
 }
+
+    public function conversation()
+    {
+        return $this->belongsTo(Conversation::class, 'ConversationID', 'ConversationID');
+    }
 }

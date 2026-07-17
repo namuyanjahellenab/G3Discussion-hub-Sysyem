@@ -74,31 +74,6 @@ def _fetch_user_recent_text(user_id: Any) -> list[str] | None:
     return [row["Text"] for row in posts] + [row["Text"] for row in replies]
 
 
-def _fetch_trending_categories(group_ids: list[Any]) -> list[dict[str, Any]] | None:
-    # Categories ranked by recent engagement, scoped to group_ids, falling back to platform-wide.
-    base_sql = """
-        SELECT t.Category AS Category,
-               COUNT(DISTINCT p.PostID) + COUNT(DISTINCT r.ReplyID) AS Engagement
-        FROM `Topic` t
-        LEFT JOIN `Post` p ON p.TopicID = t.TopicID AND p.CreatedAt >= NOW() - INTERVAL {window} DAY
-        LEFT JOIN `Reply` r ON r.PostID = p.PostID AND r.CreatedAt >= NOW() - INTERVAL {window} DAY
-        WHERE t.Category IS NOT NULL AND t.Category <> '' {group_filter}
-        GROUP BY t.Category
-        HAVING Engagement > 0
-        ORDER BY Engagement DESC
-    """.format(window=TRENDING_WINDOW_DAYS, group_filter="{group_filter}")
-
-    if group_ids:
-        placeholders = ",".join(["%s"] * len(group_ids))
-        rows = _run_query(base_sql.format(group_filter=f"AND t.GroupID IN ({placeholders})"), tuple(group_ids))
-        if rows is None:
-            return None
-        if rows:
-            return rows
-
-    return _run_query(base_sql.format(group_filter=""))
-
-
 def _fetch_trending_groups() -> list[dict[str, Any]] | None:
     # Every group with at least one real member, ranked by member count +
     # weighted recent activity (posts + replies in the last

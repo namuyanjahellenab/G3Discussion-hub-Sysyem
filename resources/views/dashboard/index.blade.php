@@ -3,8 +3,7 @@
 @section('content')
 @php
     $displayName = Auth::user()->UserName ?? Auth::user()->name ?? 'Student User';
-    $nameParts = explode(' ', $displayName);
-    $initials = collect($nameParts)->filter()->map(fn($p) => mb_substr($p, 0, 1))->take(2)->implode('');
+    $initials = Str::initials($displayName);
 @endphp
 
 <style>
@@ -25,8 +24,8 @@
     .panel-header h2 { font-size: 15px; font-weight: 700; margin: 0; }
     .panel-header a { font-size: 12.5px; color: var(--luna-mid); text-decoration: none; font-weight: 600; }
 
-    .groups-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 16px; padding: 20px; }
-    .group-card { background: var(--surface-bg); border: 1px solid var(--surface-border); border-radius: var(--radius-md); padding: 20px; display: flex; flex-direction: column; align-items: center; text-align: center; }
+    .groups-grid { display: grid; grid-template-columns: repeat(auto-fill, 220px); gap: 16px; padding: 20px; }
+    .group-card { width: 220px; height: 220px; box-sizing: border-box; background: var(--surface-bg); border: 1px solid var(--surface-border); border-radius: var(--radius-md); padding: 20px; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; }
     .group-card-icon { width: 40px; height: 40px; background: var(--luna-lightest); color: var(--luna-dark); border-radius: 10px; display: flex; align-items: center; justify-content: center; margin-bottom: 12px; }
     .group-card h5 { font-size: 1rem; font-weight: 700; margin: 0 0 2px 0; color: var(--text-heading); }
     .group-card p { color: var(--text-muted); font-size: 0.8rem; margin: 0 0 16px 0; }

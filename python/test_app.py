@@ -26,24 +26,6 @@ def testClampScoreNeverExceedsUnitRange():
     assert appModule._clamp_score(0.42) == 0.42
 
 
-def testRecommendScoresNeverExceedOne(monkeypatch):
-    monkeypatch.setattr(appModule, "_fetch_user_recent_text", lambda user_id: [])
-    monkeypatch.setattr(
-        appModule,
-        "_fetch_trending_categories",
-        lambda group_ids: [{"Category": "Algorithms", "Engagement": 999999}],
-    )
-
-    client = app.test_client()
-    resp = client.post(
-        "/recommend",
-        headers={"Authorization": "Bearer testtoken"},
-        json={"UserID": 999, "GroupIDs": [1]},
-    )
-    data = resp.get_json()
-    assert all(r["RelevanceScore"] <= 1.0 for r in data["Recommendations"])
-
-
 def testClassifySuccess():
     client = app.test_client()
     resp = client.post(
@@ -130,7 +112,6 @@ def testClassifyContentBlankTextReturnsDefaultVerdict():
     assert spam._classify_content("") == {"is_spam": False, "is_educational": True}
     assert spam._classify_content("   ") == {"is_spam": False, "is_educational": True}
     assert spam._is_spam("") is False
-    assert spam._is_educational("") is True
 
 
 def testIsSpamDetectsObviousSpam():
@@ -204,91 +185,6 @@ def testAuthFailure():
     assert resp.status_code == 401
 
 
-def testRecommendSuccess():
-    client = app.test_client()
-    resp = client.post(
-        "/recommend",
-        headers={"Authorization": "Bearer testtoken"},
-        json={"UserID": "user-123"},
-    )
-    assert resp.status_code == 200
-    data = resp.get_json()
-    assert data["UserID"] == "user-123"
-    assert isinstance(data["Recommendations"], list)
-
-
-def testRecommendDynamic():
-    client = app.test_client()
-    # User expresses interest in algorithms/data structures topics.
-    resp = client.post(
-        "/recommend",
-        headers={"Authorization": "Bearer testtoken"},
-        json={"UserID": "user-456", "Interests": ["Algorithms", "Recursion"], "RecentMessages": ["Looking for sorting and complexity examples"]},
-    )
-    assert resp.status_code == 200
-    data = resp.get_json()
-    # Expect the top recommendation to be Algorithms.
-    assert data["UserID"] == "user-456"
-    assert data["Recommendations"][0]["Category"] == "Algorithms"
-    assert data["Recommendations"][0]["RelevanceScore"] > 0
-
-
-def testRecommendUsesRecentMessagesWhenInterestsAreMissing():
-    client = app.test_client()
-    resp = client.post(
-        "/recommend",
-        headers={"Authorization": "Bearer testtoken"},
-        json={"UserID": "user-789", "RecentMessages": ["I need help with network sockets and tcp protocols"]},
-    )
-    assert resp.status_code == 200
-    data = resp.get_json()
-    assert data["UserID"] == "user-789"
-    assert data["Recommendations"][0]["Category"] == "Networks"
-    assert data["Recommendations"][0]["RelevanceScore"] > 0
-
-
-def testRecommendColdStartUsesTrending(monkeypatch):
-    # No DB activity for this user, but trending data exists - should rank by engagement.
-    monkeypatch.setattr(appModule, "_fetch_user_recent_text", lambda user_id: [])
-    monkeypatch.setattr(
-        appModule,
-        "_fetch_trending_categories",
-        lambda group_ids: [
-            {"Category": "Algorithms", "Engagement": 10},
-            {"Category": "Databases", "Engagement": 4},
-        ],
-    )
-
-    client = app.test_client()
-    resp = client.post(
-        "/recommend",
-        headers={"Authorization": "Bearer testtoken"},
-        json={"UserID": 999, "GroupIDs": [1, 2], "Interests": ["Algorithms"]},
-    )
-    assert resp.status_code == 200
-    data = resp.get_json()
-    assert data["Mode"] == "trending"
-    assert data["Recommendations"][0]["Category"] == "Algorithms"
-    assert data["Recommendations"][0]["RelevanceScore"] == 1.0
-    assert data["Recommendations"][1]["Category"] == "Databases"
-
-
-def testRecommendFallsBackToPersonalizedWhenNoTrendingSignal(monkeypatch):
-    # No trending signal either - should fall back to Interests/RecentMessages.
-    monkeypatch.setattr(appModule, "_fetch_user_recent_text", lambda user_id: [])
-    monkeypatch.setattr(appModule, "_fetch_trending_categories", lambda group_ids: [])
-
-    client = app.test_client()
-    resp = client.post(
-        "/recommend",
-        headers={"Authorization": "Bearer testtoken"},
-        json={"UserID": 999, "GroupIDs": [1], "RecentMessages": ["database schema design and sql joins"]},
-    )
-    assert resp.status_code == 200
-    data = resp.get_json()
-    assert data["Recommendations"][0]["Category"] == "Databases"
-
-
 def testRecommendTopicsScoresVaryByTitle():
     client = app.test_client()
     resp = client.post(
@@ -359,7 +255,12 @@ def testTrendingGroupsAuthFailure():
 
 
 def testTrendingGroupsDbUnavailableFallsBackToEmpty(monkeypatch):
-    monkeypatch.setattr(appModule, "_run_query", lambda *args, **kwargs: None)
+    # _run_query lives in db.py and is called from there internally, not
+    # imported into app.py - patching it on appModule was a no-op that
+    # happened to pass only because the test env's DB_HOST is already
+    # unreachable, not because of the patch.
+    import db
+    monkeypatch.setattr(db, "_run_query", lambda *args, **kwargs: None)
 
     client = app.test_client()
     resp = client.post("/trending-groups", headers={"Authorization": "Bearer testtoken"})

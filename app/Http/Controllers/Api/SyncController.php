@@ -7,6 +7,7 @@ use App\Models\GroupStudent;
 use App\Models\Notification;
 use App\Models\Post;
 use App\Models\Topic;
+use App\Services\GroupChatService;
 use App\Services\MlGatewayClient;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -87,6 +88,22 @@ class SyncController extends Controller
             ]);
 
             return response()->json(['PostID' => $post->PostID], 201);
+        }
+
+        if ($entityType === 'Message') {
+            // A chat message composed while offline: goes through the exact
+            // same exclusion-resolution/moderation/broadcast path a live
+            // POST /chat-messages would (GroupChatApiController::store())
+            // rather than a fourth, separately-maintained copy of that logic.
+            $message = app(GroupChatService::class)->send(
+                (int) ($payload['GroupID'] ?? 0),
+                $request->user()->UserID,
+                $payload['Body'] ?? '',
+                $payload['Exclude'] ?? [],
+                isset($payload['ConversationID']) ? (int) $payload['ConversationID'] : null
+            );
+
+            return response()->json(['MessageID' => $message->MessageID], 201);
         }
 
         return response()->json(['message' => 'Unknown entityType'], 422);

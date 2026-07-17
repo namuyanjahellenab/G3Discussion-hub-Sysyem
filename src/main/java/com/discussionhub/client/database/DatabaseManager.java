@@ -1,7 +1,6 @@
 package com.discussionhub.client.database;
 
 import com.discussionhub.client.model.SyncQueueItem;
-import com.discussionhub.client.model.TopicItem;
 
 import java.sql.Connection;
 import java.sql.DriverManager;
@@ -15,30 +14,11 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class DatabaseManager {
-    public Integer getLoggedInUserSession() {
-        String sql = "SELECT UserID FROM DeviceState LIMIT 1;";
-        try (Connection conn = DriverManager.getConnection(DB_URL);
-             PreparedStatement pstmt = conn.prepareStatement(sql);
-             ResultSet rs = pstmt.executeQuery()) {
-
-            if (rs.next()) {
-                return rs.getInt("UserID");
-            }
-        } catch (SQLException e) {
-            System.err.println("[DB] Error checking saved session: " + e.getMessage());
-        }
-        return null;
-    }
-
     private static final String DB_URL = "jdbc:sqlite:discussionhub.db";
     private int currentDeviceId = -1;
 
     public Connection connect() throws SQLException {
         return DriverManager.getConnection(DB_URL);
-    }
-
-    public int getCurrentDeviceId() {
-        return currentDeviceId;
     }
 
     public void initializeDatabase() {
@@ -101,6 +81,22 @@ public class DatabaseManager {
                 "    Type TEXT NOT NULL" +
                 ");";
 
+        // Local cache of Group Chat messages, keyed by ConversationID. Lets
+        // an offline desktop session show "saved information" instead of a
+        // hard error, and lets a message composed while offline be queued
+        // (IsPending=1) and shown immediately rather than lost, until the
+        // SyncQueue flush actually sends it.
+        String createMessageTable =
+            "CREATE TABLE IF NOT EXISTS Message (" +
+                "    MessageID INTEGER PRIMARY KEY AUTOINCREMENT," +
+                "    ConversationID INTEGER NOT NULL," +
+                "    UserID INTEGER NOT NULL," +
+                "    AuthorName TEXT," +
+                "    Body TEXT NOT NULL," +
+                "    CreatedAt TEXT NOT NULL," +
+                "    IsPending INTEGER NOT NULL DEFAULT 0" +
+                ");";
+
         try (Connection conn = this.connect();
              Statement stmt = conn.createStatement()) {
 
@@ -111,11 +107,12 @@ public class DatabaseManager {
             ensureTopicHasGroupIdColumn(stmt);
             stmt.execute(createPostTable);
             stmt.execute(createNotificationTable);
+            stmt.execute(createMessageTable);
 
             String insertDefaultUser = "INSERT OR IGNORE INTO User (Username, Password, FullName) VALUES ('student', 'password123', 'Sample Student');";
             stmt.execute(insertDefaultUser);
 
-            System.out.println("[DB] All local tables initialized (User, DeviceState, SyncQueue, Topic, Post, Notification).");
+            System.out.println("[DB] All local tables initialized (User, DeviceState, SyncQueue, Topic, Post, Notification, Message).");
 
         } catch (SQLException e) {
             System.err.println("[DB] Error initializing database tables: " + e.getMessage());
@@ -138,23 +135,6 @@ public class DatabaseManager {
             stmt.execute("ALTER TABLE Topic ADD COLUMN GroupID INTEGER;");
             System.out.println("[DB] Added missing GroupID column to local Topic table.");
         }
-    }
-
-    public int verifyUser(String username, String password) {
-        String sql = "SELECT UserID FROM User WHERE Username = ? AND Password = ? LIMIT 1;";
-        try (Connection conn = this.connect();
-             PreparedStatement pstmt = conn.prepareStatement(sql)) {
-            pstmt.setString(1, username);
-            pstmt.setString(2, password);
-            try (ResultSet rs = pstmt.executeQuery()) {
-                if (rs.next()) {
-                    return rs.getInt("UserID");
-                }
-            }
-        } catch (SQLException e) {
-            System.err.println("[DB] Error verifying user: " + e.getMessage());
-        }
-        return -1;
     }
 
     public int ensureDeviceState(int ownerUserId) {
@@ -239,130 +219,6 @@ public class DatabaseManager {
             System.err.println("[DB] Error reading last sync timestamp: " + e.getMessage());
         }
         return null;
-    }
-
-    public long insertLocalTopic(String title, String category, int createdByUserId, int groupId) {
-        String sql = "INSERT INTO Topic (Title, Category, CreatedBy, CreatedAt, GroupID) VALUES (?, ?, ?, ?, ?);";
-        String currentTimestamp = nowAsIsoString();
-
-        try (Connection conn = this.connect();
-             PreparedStatement pstmt = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
-
-            pstmt.setString(1, title);
-            pstmt.setString(2, category);
-            pstmt.setInt(3, createdByUserId);
-            pstmt.setString(4, currentTimestamp);
-            pstmt.setInt(5, groupId);
-
-            int affectedRows = pstmt.executeUpdate();
-
-            if (affectedRows > 0) {
-                try (ResultSet generatedKeys = pstmt.getGeneratedKeys()) {
-                    if (generatedKeys.next()) {
-                        return generatedKeys.getLong(1);
-                    }
-                }
-            }
-        } catch (SQLException e) {
-            System.err.println("[DB] Error saving topic to local SQLite table: " + e.getMessage());
-        }
-        return -1;
-    }
-
-    public List<String> getAllTopicTitles() {
-        List<String> titles = new ArrayList<>();
-        String sql = "SELECT Title FROM Topic ORDER BY CreatedAt DESC;";
-
-        try (Connection conn = this.connect();
-             PreparedStatement pstmt = conn.prepareStatement(sql);
-             ResultSet rs = pstmt.executeQuery()) {
-
-            while (rs.next()) {
-                titles.add(rs.getString("Title"));
-            }
-
-        } catch (SQLException e) {
-            System.err.println("[DB] Error reading topics: " + e.getMessage());
-        }
-        return titles;
-    }
-
-    public List<TopicItem> getAllTopicsWithDetails() {
-        List<TopicItem> topics = new ArrayList<>();
-        String sql = "SELECT t.TopicID, t.Title, t.Category, t.CreatedBy, t.CreatedAt, t.GroupID, " +
-            "COUNT(p.PostID) AS ReplyCount " +
-            "FROM Topic t " +
-            "LEFT JOIN Post p ON p.TopicID = t.TopicID " +
-            "GROUP BY t.TopicID " +
-            "ORDER BY t.CreatedAt DESC;";
-
-        try (Connection conn = this.connect();
-             PreparedStatement pstmt = conn.prepareStatement(sql);
-             ResultSet rs = pstmt.executeQuery()) {
-
-            while (rs.next()) {
-                topics.add(new TopicItem(
-                    rs.getInt("TopicID"),
-                    rs.getString("Title"),
-                    rs.getString("Category"),
-                    rs.getInt("CreatedBy"),
-                    rs.getString("CreatedAt"),
-                    rs.getInt("ReplyCount"),
-                    rs.getInt("GroupID")
-                ));
-            }
-
-        } catch (SQLException e) {
-            System.err.println("[DB] Error reading topics with details: " + e.getMessage());
-        }
-        return topics;
-    }
-
-    public long insertLocalPost(int topicId, int userId, String content) {
-        String sql = "INSERT INTO Post (TopicID, UserID, Content, CreatedAt) VALUES (?, ?, ?, ?);";
-        String currentTimestamp = nowAsIsoString();
-
-        try (Connection conn = this.connect();
-             PreparedStatement pstmt = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
-
-            pstmt.setInt(1, topicId);
-            pstmt.setInt(2, userId);
-            pstmt.setString(3, content);
-            pstmt.setString(4, currentTimestamp);
-
-            int affectedRows = pstmt.executeUpdate();
-
-            if (affectedRows > 0) {
-                try (ResultSet generatedKeys = pstmt.getGeneratedKeys()) {
-                    if (generatedKeys.next()) {
-                        return generatedKeys.getLong(1);
-                    }
-                }
-            }
-        } catch (SQLException e) {
-            System.err.println("[DB] Error saving post to local SQLite table: " + e.getMessage());
-        }
-        return -1;
-    }
-
-    public List<String> getPostsForTopic(int topicId) {
-        List<String> contents = new ArrayList<>();
-        String sql = "SELECT Content FROM Post WHERE TopicID = ? ORDER BY CreatedAt ASC;";
-
-        try (Connection conn = this.connect();
-             PreparedStatement pstmt = conn.prepareStatement(sql)) {
-
-            pstmt.setInt(1, topicId);
-            try (ResultSet rs = pstmt.executeQuery()) {
-                while (rs.next()) {
-                    contents.add(rs.getString("Content"));
-                }
-            }
-
-        } catch (SQLException e) {
-            System.err.println("[DB] Error reading posts for topic " + topicId + ": " + e.getMessage());
-        }
-        return contents;
     }
 
     public boolean logToSyncQueue(String entityType, long entityId, String operation, String payload) {
@@ -494,98 +350,124 @@ public class DatabaseManager {
         }
     }
 
-    public List<NotificationItem> getAllNotifications(int userId) {
-        List<NotificationItem> notifications = new ArrayList<>();
-        String sql = "SELECT * FROM Notification WHERE UserID = ? ORDER BY CreatedAt DESC;";
+    // Replaces the cached copy of a conversation's messages with what the
+    // server just returned. Never touches IsPending=1 rows (messages queued
+    // offline that haven't round-tripped through the server yet) so a
+    // refresh can't wipe out something still waiting to sync.
+    public void cacheMessages(int conversationId, List<ChatMessageItem> messages) {
+        String deleteSql = "DELETE FROM Message WHERE ConversationID = ? AND IsPending = 0;";
+        String insertSql = "INSERT INTO Message (ConversationID, UserID, AuthorName, Body, CreatedAt, IsPending) " +
+            "VALUES (?, ?, ?, ?, ?, 0);";
+
+        try (Connection conn = this.connect()) {
+            try (PreparedStatement del = conn.prepareStatement(deleteSql)) {
+                del.setInt(1, conversationId);
+                del.executeUpdate();
+            }
+            try (PreparedStatement ins = conn.prepareStatement(insertSql)) {
+                for (ChatMessageItem m : messages) {
+                    ins.setInt(1, conversationId);
+                    ins.setInt(2, m.getUserId());
+                    ins.setString(3, m.getAuthorName());
+                    ins.setString(4, m.getBody());
+                    ins.setString(5, m.getCreatedAt());
+                    ins.addBatch();
+                }
+                ins.executeBatch();
+            }
+        } catch (SQLException e) {
+            System.err.println("[DB] Error caching chat messages: " + e.getMessage());
+        }
+    }
+
+    public List<ChatMessageItem> getCachedMessages(int conversationId) {
+        List<ChatMessageItem> messages = new ArrayList<>();
+        String sql = "SELECT MessageID, ConversationID, UserID, AuthorName, Body, CreatedAt, IsPending " +
+            "FROM Message WHERE ConversationID = ? ORDER BY MessageID ASC;";
+
         try (Connection conn = this.connect();
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
-            pstmt.setInt(1, userId);
+            pstmt.setInt(1, conversationId);
             try (ResultSet rs = pstmt.executeQuery()) {
                 while (rs.next()) {
-                    notifications.add(new NotificationItem(
-                        rs.getInt("NotificationID"),
-                        rs.getInt("UserID"),
-                        rs.getString("Message"),
-                        rs.getInt("Status"),
-                        rs.getString("CreatedAt"),
-                        rs.getString("Type")
+                    messages.add(new ChatMessageItem(
+                        rs.getInt("MessageID"), rs.getInt("ConversationID"), rs.getInt("UserID"),
+                        rs.getString("AuthorName"), rs.getString("Body"), rs.getString("CreatedAt"),
+                        rs.getInt("IsPending") == 1
                     ));
                 }
             }
         } catch (SQLException e) {
-            System.err.println("[DB] Error fetching notifications: " + e.getMessage());
+            System.err.println("[DB] Error reading cached chat messages: " + e.getMessage());
         }
-        return notifications;
+        return messages;
     }
 
-    public void markAllNotificationsAsRead(int userId) {
-        String sql = "UPDATE Notification SET Status = 1 WHERE UserID = ?;";
+    // Composed while offline: cached locally so it shows up immediately
+    // (marked pending), and logged to the existing SyncQueue so the next
+    // successful sync actually sends it - reusing infrastructure that
+    // already exists rather than building a second queueing mechanism.
+    //
+    // localDisplayConversationId is whichever conversation the user was
+    // looking at (always known, used to show the pending bubble in the
+    // right thread locally). payloadConversationId is only set when
+    // replying into an *already-resolved* conversation (a restricted
+    // thread the user had open); when composing fresh from the main
+    // thread with new exclude checkboxes ticked, it's null and the
+    // exclude set travels instead, so the server resolves/creates the
+    // restricted conversation on sync exactly as it would for a live POST.
+    public long queuePendingMessage(int groupId, int localDisplayConversationId, int userId, String authorName,
+                                     String body, Integer payloadConversationId, String excludeIdsJsonArray) {
+        String sql = "INSERT INTO Message (ConversationID, UserID, AuthorName, Body, CreatedAt, IsPending) " +
+            "VALUES (?, ?, ?, ?, ?, 1);";
+        String currentTimestamp = nowAsIsoString();
+        long localId = -1;
+
+        try (Connection conn = this.connect();
+             PreparedStatement pstmt = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
+            pstmt.setInt(1, localDisplayConversationId);
+            pstmt.setInt(2, userId);
+            pstmt.setString(3, authorName);
+            pstmt.setString(4, body);
+            pstmt.setString(5, currentTimestamp);
+
+            int affectedRows = pstmt.executeUpdate();
+            if (affectedRows > 0) {
+                try (ResultSet generatedKeys = pstmt.getGeneratedKeys()) {
+                    if (generatedKeys.next()) {
+                        localId = generatedKeys.getLong(1);
+                    }
+                }
+            }
+        } catch (SQLException e) {
+            System.err.println("[DB] Error queueing offline chat message: " + e.getMessage());
+            return -1;
+        }
+
+        if (localId != -1) {
+            String jsonPayload = String.format(
+                "{\"GroupID\":%d,\"ConversationID\":%s,\"Body\":\"%s\",\"Exclude\":%s}",
+                groupId,
+                payloadConversationId != null ? String.valueOf(payloadConversationId) : "null",
+                escapeJson(body),
+                (excludeIdsJsonArray == null || excludeIdsJsonArray.isBlank()) ? "[]" : excludeIdsJsonArray
+            );
+            logToSyncQueue("Message", localId, "Create", jsonPayload);
+        }
+        return localId;
+    }
+
+    public void markMessageSynced(int localMessageId) {
+        String sql = "UPDATE Message SET IsPending = 0 WHERE MessageID = ?;";
         try (Connection conn = this.connect();
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
-            pstmt.setInt(1, userId);
+            pstmt.setInt(1, localMessageId);
             pstmt.executeUpdate();
         } catch (SQLException e) {
-            System.err.println("[DB] Error marking notifications as read: " + e.getMessage());
+            System.err.println("[DB] Error marking Message " + localMessageId + " as synced: " + e.getMessage());
         }
     }
 
-    public void handleTopicSubmission(String title, String category, int createdByUserId, int groupId, boolean isOnline) {
-        System.out.println("\n[Interceptor] Processing new topic entry...");
-
-        if (isOnline) {
-            System.out.println("[Interceptor] Connection detected: ONLINE. Direct routing to server...");
-        } else {
-            System.out.println("[Interceptor] Connection dropped: OFFLINE! Redirecting to local cache...");
-
-            long localId = insertLocalTopic(title, category, createdByUserId, groupId);
-
-            if (localId != -1) {
-                String jsonPayload = String.format(
-                    "{\"Title\":\"%s\",\"Category\":\"%s\",\"CreatedBy\":%d,\"GroupID\":%d}",
-                    escapeJson(title), escapeJson(category), createdByUserId, groupId
-                );
-
-                boolean queued = logToSyncQueue("Topic", localId, "Create", jsonPayload);
-
-                if (queued) {
-                    System.out.println("[Interceptor] Success: Topic cached locally and queued for sync.");
-                } else {
-                    System.err.println("[Interceptor] Failure: SyncQueue write rejected.");
-                }
-            } else {
-                System.err.println("[Interceptor] Failure: Local cache write rejected.");
-            }
-        }
-    }
-
-    public void handlePostSubmission(int topicId, int userId, String content, boolean isOnline) {
-        System.out.println("\n[Interceptor] Processing new post entry...");
-
-        if (isOnline) {
-            System.out.println("[Interceptor] Connection detected: ONLINE. Direct routing to server...");
-        } else {
-            System.out.println("[Interceptor] Connection dropped: OFFLINE! Redirecting to local cache...");
-
-            long localId = insertLocalPost(topicId, userId, content);
-
-            if (localId != -1) {
-                String jsonPayload = String.format(
-                    "{\"TopicID\":%d,\"UserID\":%d,\"Content\":\"%s\"}",
-                    topicId, userId, escapeJson(content)
-                );
-
-                boolean queued = logToSyncQueue("Post", localId, "Create", jsonPayload);
-
-                if (queued) {
-                    System.out.println("[Interceptor] Success: Post cached locally and queued for sync.");
-                } else {
-                    System.err.println("[Interceptor] Failure: SyncQueue write rejected.");
-                }
-            } else {
-                System.err.println("[Interceptor] Failure: Local cache write rejected.");
-            }
-        }
-    }
 
     private String nowAsIsoString() {
         return LocalDateTime.now().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME);

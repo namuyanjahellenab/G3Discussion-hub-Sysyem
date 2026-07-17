@@ -6,13 +6,13 @@
 <?import javafx.scene.text.Text?>
 
 <HBox xmlns:fx="http://javafx.com/fxml" fx:controller="com.discussionhub.client.RegisterController"
-      spacing="0" style="-fx-background-color: #e8eef7;">
+      spacing="0" style="-fx-background-color: linear-gradient(to bottom right, #E8F1FF, #D4E3FF);">
 
     <!-- LEFT PANEL -->
     <VBox HBox.hgrow="ALWAYS" spacing="15" style="-fx-background-color: white; -fx-padding: 30; -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.1), 10, 0, 0, 5);">
-        <Label text="CREATE AN ACCOUNT" style="-fx-text-fill: #1a73e8; -fx-font-size: 24; -fx-font-weight: bold;"/>
+        <Label text="CREATE AN ACCOUNT" style="-fx-text-fill: #0052CC; -fx-font-size: 24; -fx-font-weight: bold;"/>
         <Label text="Join the Discussion Hub community today." style="-fx-text-fill: grey;"/>
-        <Label text="Choose a role before continuing." style="-fx-text-fill: #1a73e8;"/>
+        <Label text="Choose a role before continuing." style="-fx-text-fill: #0052CC;"/>
 
         <ScrollPane fitToWidth="true" style="-fx-background-color: transparent; -fx-background: white;">
             <VBox spacing="10">
@@ -45,15 +45,15 @@
         </ScrollPane>
 
         <Label fx:id="statusBar" text="✓ STATUS: PENDING RULE ACCEPTANCE"
-               style="-fx-padding: 10; -fx-border-color: #1a73e8; -fx-border-radius: 6; -fx-text-fill: #1a73e8;"/>
+               style="-fx-padding: 10; -fx-border-color: #0052CC; -fx-border-radius: 6; -fx-text-fill: #0052CC;"/>
 
         <Button fx:id="completeRegistrationButton" text="COMPLETE REGISTRATION" onAction="#onCompleteRegistration"
                 disable="true" maxWidth="Infinity"
-                style="-fx-background-color: #1a73e8; -fx-text-fill: white; -fx-font-weight: bold; -fx-padding: 12; -fx-background-radius: 6;"/>
+                style="-fx-background-color: #0052CC; -fx-text-fill: white; -fx-font-weight: bold; -fx-padding: 12; -fx-background-radius: 6;"/>
 
         <HBox alignment="CENTER" spacing="5">
             <Label text="Already have an account?"/>
-            <Hyperlink text="Sign in" onAction="#onSignIn" style="-fx-text-fill: #1a73e8;"/>
+            <Hyperlink text="Sign in" onAction="#onSignIn" style="-fx-text-fill: #0052CC;"/>
         </HBox>
         <Label fx:id="errorLabel" text="" style="-fx-text-fill: red;" visible="false"/>
     </VBox>
@@ -73,9 +73,9 @@
 
         <Button fx:id="acceptRulesButton" text="ACCEPT RULES" onAction="#onAcceptRules"
                 disable="true" maxWidth="Infinity"
-                style="-fx-background-color: #1a73e8; -fx-text-fill: white; -fx-font-weight: bold; -fx-padding: 12; -fx-background-radius: 6;"/>
+                style="-fx-background-color: #0052CC; -fx-text-fill: white; -fx-font-weight: bold; -fx-padding: 12; -fx-background-radius: 6;"/>
 
-        <Hyperlink text="DECLINE" onAction="#onDecline" style="-fx-text-fill: #1a73e8;"/>
+        <Hyperlink text="DECLINE" onAction="#onDecline" style="-fx-text-fill: #0052CC;"/>
     </VBox>
 
 </HBox>

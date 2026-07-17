@@ -2,87 +2,105 @@
 
 <?import javafx.scene.control.*?>
 <?import javafx.scene.layout.*?>
-<?import javafx.geometry.Insets?>
 
-<VBox xmlns:fx="http://javafx.com/fxml"
+<!-- Mirrors resources/views/topics/show.blade.php: title + status/restricted
+     badges, Export PDF, original post, threaded replies with accept/flag/
+     delete actions, composer, and the right panel (profile, Topic Info,
+     Participants, Related Topics, tip banner). -->
+<HBox xmlns:fx="http://javafx.com/fxml"
       fx:controller="com.discussionhub.client.TopicController"
-      spacing="12" style="-fx-background-color: #f4f6f9; -fx-padding: 20;">
+      styleClass="app-background" stylesheets="@app-theme.css">
 
-    <!-- Header bar -->
-    <HBox alignment="CENTER_LEFT" spacing="12"
-          style="-fx-background-color: #1a73e8; -fx-padding: 14; -fx-background-radius: 8;">
-        <Button text="← Back" onAction="#onBack"
-                style="-fx-background-color: transparent; -fx-text-fill: white;
-                       -fx-font-weight: bold; -fx-padding: 4 10;"/>
-        <Label fx:id="topicTitleLabel" text="Topic Title"
-               style="-fx-text-fill: white; -fx-font-size: 16; -fx-font-weight: bold;"
-               wrapText="true" HBox.hgrow="ALWAYS"/>
-        <Region HBox.hgrow="ALWAYS"/>
-        <!-- Export to PDF button — per SDD figure 6.8 -->
-        <Button text="⬇ Export PDF" onAction="#onExportPdf"
-                style="-fx-background-color: white; -fx-text-fill: #1a73e8;
-                       -fx-font-weight: bold; -fx-padding: 6 14; -fx-background-radius: 6;"/>
-        <Label fx:id="syncStatusLabel" text="● OFFLINE"
-               style="-fx-text-fill: #ffcc00; -fx-font-size: 12; -fx-font-weight: bold;"/>
-    </HBox>
+    <fx:include fx:id="sidebar" source="sidebar.fxml"/>
 
-    <!-- Offline banner -->
-    <HBox fx:id="offlineBanner" alignment="CENTER_LEFT" spacing="10"
-          style="-fx-background-color: #fff4ce; -fx-padding: 10; -fx-background-radius: 6;"
-          visible="false" managed="false">
-        <Label text="⚠  Offline — your reply will be queued and uploaded when you reconnect."
-               style="-fx-text-fill: #7a5c00; -fx-font-size: 12;"/>
-    </HBox>
+    <ScrollPane fx:id="mainScrollPane" fitToWidth="true" HBox.hgrow="ALWAYS" style="-fx-background-color: transparent;">
+        <VBox spacing="16" style="-fx-padding: 28;">
 
-    <!-- Thread scroll area: original post + indented replies -->
-    <ScrollPane VBox.vgrow="ALWAYS" fitToWidth="true"
-                style="-fx-background-color: transparent; -fx-border-color: transparent;">
-        <VBox fx:id="threadContainer" spacing="10"
-              style="-fx-padding: 4;">
+            <HBox alignment="CENTER_LEFT" spacing="12">
+                <Button text="← Back" onAction="#onBack" styleClass="panel-link" style="-fx-background-color: transparent; -fx-padding: 0;"/>
+            </HBox>
 
-            <!-- Original post card — populated programmatically by TopicController -->
-            <VBox fx:id="originalPostCard" spacing="6"
-                  style="-fx-background-color: white; -fx-padding: 16;
-                         -fx-background-radius: 8;
-                         -fx-effect: dropshadow(gaussian, #cccccc, 4, 0, 0, 2);">
-                <HBox alignment="CENTER_LEFT" spacing="10">
-                    <Label fx:id="originalAuthorLabel" text="Author"
-                           style="-fx-font-weight: bold; -fx-text-fill: #1a73e8;"/>
-                    <Label fx:id="originalTimeLabel" text=""
-                           style="-fx-text-fill: #888; -fx-font-size: 11;"/>
-                    <Region HBox.hgrow="ALWAYS"/>
-                    <!-- Filter and Share per SDD figure 6.8 -->
-                    <Button text="Filter" onAction="#onFilterPost"
-                            style="-fx-padding: 4 10; -fx-background-radius: 4;"/>
-                    <Button text="Share" onAction="#onSharePost"
-                            style="-fx-padding: 4 10; -fx-background-radius: 4;"/>
-                </HBox>
-                <Label fx:id="originalContentLabel" text=""
-                       wrapText="true" style="-fx-font-size: 13;"/>
-            </VBox>
+            <HBox spacing="20">
+                <!-- MAIN -->
+                <VBox spacing="10" HBox.hgrow="ALWAYS" maxWidth="Infinity">
 
-            <!-- Replies are added dynamically by TopicController.loadReplies()
-                 Each reply is a VBox with left-margin indent (16px) to show threading.
-                 Accepted answers get a green border per SDD figure 6.8.
-                 TopicController.buildReplyCard(content, author, time, isAccepted)
-                 builds each card and adds it to threadContainer. -->
+                    <HBox alignment="CENTER_LEFT" spacing="10">
+                        <Label fx:id="topicTitleLabel" text="Topic" styleClass="heading-text" style="-fx-font-size: 22;" wrapText="true" HBox.hgrow="ALWAYS"/>
+                        <Label fx:id="statusBadgeLabel" text="Open" style="-fx-background-color: #E1E9ED; -fx-text-fill: #33455A; -fx-padding: 3 10; -fx-background-radius: 999; -fx-font-size: 11; -fx-font-weight: bold;"/>
+                        <Label fx:id="restrictedBadgeLabel" text="👁 Restricted audience" visible="false" managed="false"
+                               style="-fx-background-color: #F4F8FA; -fx-text-fill: #6B8094; -fx-padding: 3 10; -fx-background-radius: 999; -fx-font-size: 10.5; -fx-font-weight: bold;"/>
+                        <Button text="⬇ Export PDF" onAction="#onExportPdf"/>
+                        <Button text="🔗 Share" onAction="#onShare"/>
+                    </HBox>
+                    <Label fx:id="threadMetaLabel" text="" styleClass="muted-text"/>
 
+                    <VBox fx:id="mainPostCard" styleClass="panel-card" spacing="6" style="-fx-padding: 18 20;"/>
+
+                    <Label text="Replies" styleClass="panel-heading" style="-fx-padding: 10 0 0 0;"/>
+
+                    <VBox fx:id="repliesBox" spacing="14" style="-fx-background-color: -surface-bg; -fx-border-color: -surface-border; -fx-border-radius: 14; -fx-background-radius: 14; -fx-padding: 16;"/>
+
+                    <VBox styleClass="panel-card" spacing="8" style="-fx-padding: 16 18;">
+                        <Label fx:id="replyContextLabel" text="" visible="false" managed="false" styleClass="muted-text"/>
+                        <TextArea fx:id="replyInput" promptText="Write your reply here..." prefRowCount="3" wrapText="true"/>
+                        <HBox alignment="CENTER_LEFT" spacing="8">
+                            <Button text="📎 Attach" onAction="#onAttachFile" styleClass="panel-link" style="-fx-background-color: transparent; -fx-padding: 0;"/>
+                            <Label fx:id="attachedFileLabel" text="" visible="false" managed="false" styleClass="muted-text"/>
+                            <Button fx:id="removeAttachmentButton" text="✕" onAction="#onRemoveAttachment" visible="false" managed="false"
+                                    style="-fx-background-color: transparent; -fx-text-fill: #D9483D; -fx-padding: 0 0 0 2; -fx-font-size: 11;"/>
+                            <Region HBox.hgrow="ALWAYS"/>
+                            <Button text="Post Reply  ✈" onAction="#onPostReply" styleClass="btn-primary"/>
+                        </HBox>
+                    </VBox>
+                </VBox>
+
+                <!-- RIGHT -->
+                <VBox spacing="20" prefWidth="280" minWidth="280">
+                    <HBox styleClass="panel-card" alignment="CENTER_LEFT" spacing="10" style="-fx-padding: 16 20;">
+                        <Label fx:id="userInitialsLabel" text="S"
+                               style="-fx-background-color: #26658C; -fx-text-fill: white; -fx-font-weight: bold;
+                                      -fx-padding: 10 12; -fx-background-radius: 20; -fx-font-size: 13;"/>
+                        <VBox spacing="1">
+                            <Label fx:id="userNameLabel" text="Student" styleClass="heading-text" style="-fx-font-size: 13.5;"/>
+                            <Label text="Student Account" styleClass="muted-text" style="-fx-font-size: 11.5;"/>
+                        </VBox>
+                    </HBox>
+
+                    <VBox styleClass="panel-card">
+                        <HBox alignment="CENTER_LEFT" style="-fx-padding: 16 20; -fx-border-color: transparent transparent #E1E9ED transparent; -fx-border-width: 0 0 1 0;">
+                            <Label text="Topic Info" styleClass="panel-heading"/>
+                        </HBox>
+                        <VBox spacing="6" style="-fx-padding: 12 20;">
+                            <HBox><Label text="Group" styleClass="muted-text"/><Region HBox.hgrow="ALWAYS"/><Label fx:id="infoGroupLabel" text="—" styleClass="heading-text"/></HBox>
+                            <HBox><Label text="Status" styleClass="muted-text"/><Region HBox.hgrow="ALWAYS"/><Label fx:id="infoStatusLabel" text="—" styleClass="heading-text"/></HBox>
+                            <HBox><Label text="Last activity" styleClass="muted-text"/><Region HBox.hgrow="ALWAYS"/><Label fx:id="infoActivityLabel" text="—" styleClass="heading-text"/></HBox>
+                        </VBox>
+                    </VBox>
+
+                    <VBox styleClass="panel-card">
+                        <HBox alignment="CENTER_LEFT" style="-fx-padding: 16 20; -fx-border-color: transparent transparent #E1E9ED transparent; -fx-border-width: 0 0 1 0;">
+                            <Label fx:id="participantsHeadingLabel" text="Participants (0)" styleClass="panel-heading"/>
+                        </HBox>
+                        <FlowPane fx:id="participantsBox" hgap="6" vgap="6" style="-fx-padding: 12 20;"/>
+                    </VBox>
+
+                    <VBox styleClass="panel-card">
+                        <HBox alignment="CENTER_LEFT" style="-fx-padding: 16 20; -fx-border-color: transparent transparent #E1E9ED transparent; -fx-border-width: 0 0 1 0;">
+                            <Label text="Related Topics" styleClass="panel-heading"/>
+                        </HBox>
+                        <VBox fx:id="relatedTopicsBox"/>
+                    </VBox>
+
+                    <VBox styleClass="announcement-banner" spacing="8" style="-fx-padding: 18 20;">
+                        <Label text="📢 TIP" style="-fx-text-fill: white; -fx-font-size: 10.5; -fx-font-weight: bold;"/>
+                        <Label text="Lecturers can mark the most helpful reply as the accepted answer to close out a discussion."
+                               wrapText="true" style="-fx-text-fill: white; -fx-font-size: 12.5;"/>
+                    </VBox>
+                </VBox>
+            </HBox>
         </VBox>
     </ScrollPane>
 
-    <!-- Reply box at the bottom — per SDD figure 6.8 -->
-    <VBox spacing="8"
-          style="-fx-background-color: white; -fx-padding: 14; -fx-background-radius: 8;
-                 -fx-effect: dropshadow(gaussian, #cccccc, 4, 0, 0, 2);">
-        <Label text="Write a reply" style="-fx-font-weight: bold; -fx-text-fill: #555;"/>
-        <TextArea fx:id="replyInput" promptText="Type your reply here..."
-                  prefRowCount="3" wrapText="true"
-                  style="-fx-border-color: #ddd; -fx-border-radius: 6;"/>
-        <HBox alignment="CENTER_RIGHT">
-            <Button text="Post Reply" onAction="#onPostReply"
-                    style="-fx-background-color: #1a73e8; -fx-text-fill: white;
-                           -fx-font-weight: bold; -fx-padding: 8 22; -fx-background-radius: 6;"/>
-        </HBox>
-    </VBox>
+    <Label fx:id="syncStatusLabel" text="" visible="false" managed="false"/>
 
-</VBox>
+</HBox>

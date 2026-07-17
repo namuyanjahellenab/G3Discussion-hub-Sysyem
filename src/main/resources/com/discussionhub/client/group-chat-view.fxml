@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+
+<!-- Mirrors resources/views/student/messages.blade.php: a thread list
+     (main Group Chat + any Restricted Threads the user belongs to) on the
+     left, active thread's messages + composer with an inline "Exclude
+     members" panel on the right. -->
+<HBox xmlns:fx="http://javafx.com/fxml"
+      fx:controller="com.discussionhub.client.GroupChatController"
+      styleClass="app-background" stylesheets="@app-theme.css">
+
+    <fx:include fx:id="sidebar" source="sidebar.fxml"/>
+
+    <VBox spacing="0" HBox.hgrow="ALWAYS" style="-fx-background-color: #F4F8FA;">
+
+        <!-- Header bar -->
+        <HBox alignment="CENTER_LEFT" spacing="12"
+              style="-fx-background-color: #26658C; -fx-padding: 16 22;">
+            <VBox>
+                <Label fx:id="titleLabel" text="Group Chat"
+                       style="-fx-text-fill: white; -fx-font-size: 18; -fx-font-weight: bold;"/>
+                <Label fx:id="subtitleLabel" text=""
+                       style="-fx-text-fill: #D6E8F0; -fx-font-size: 11;"/>
+            </VBox>
+            <Region HBox.hgrow="ALWAYS"/>
+            <Label fx:id="syncStatusLabel" text="● OFFLINE"
+                   style="-fx-text-fill: #ffcc00; -fx-font-size: 12; -fx-font-weight: bold;"/>
+        </HBox>
+
+        <HBox VBox.vgrow="ALWAYS">
+
+            <!-- Thread list -->
+            <ScrollPane fitToWidth="true" prefWidth="230" minWidth="230" style="-fx-background-color: white;">
+                <VBox spacing="0" style="-fx-padding: 12 0;">
+                    <VBox fx:id="groupSwitcherBox" spacing="0"/>
+                    <VBox fx:id="threadListBox" spacing="0"/>
+                </VBox>
+            </ScrollPane>
+
+            <!-- Active thread -->
+            <VBox HBox.hgrow="ALWAYS">
+                <ScrollPane fx:id="scrollPane" fitToWidth="true" VBox.vgrow="ALWAYS" style="-fx-background-color: transparent;">
+                    <VBox fx:id="messagesBox" spacing="12" style="-fx-padding: 20;"/>
+                </ScrollPane>
+
+                <!-- Composer -->
+                <VBox style="-fx-background-color: white; -fx-padding: 14 20;
+                      -fx-border-color: #E1E9ED transparent transparent transparent; -fx-border-width: 1 0 0 0;">
+
+                    <VBox fx:id="excludePanel" visible="false" managed="false" spacing="6"
+                          style="-fx-padding: 0 0 12 0;">
+                        <Label text="Exclude members:" style="-fx-font-size: 11.5; -fx-font-weight: bold; -fx-text-fill: #6B8094;"/>
+                        <FlowPane fx:id="excludeCheckboxesBox" hgap="14" vgap="6"/>
+                        <Label fx:id="excludeHintLabel" wrapText="true"
+                               text="Checking someone here moves this message (and future ones with the same exclusion) into a separate restricted thread they can't see."
+                               style="-fx-font-size: 10.5; -fx-text-fill: #6B8094;"/>
+                    </VBox>
+
+                    <HBox spacing="10" alignment="CENTER">
+                        <TextField fx:id="messageField" promptText="Type a message…" onAction="#onSend"
+                                   HBox.hgrow="ALWAYS"
+                                   style="-fx-padding: 10; -fx-background-radius: 8; -fx-border-color: #E1E9ED; -fx-border-radius: 8;"/>
+                        <Button fx:id="excludeToggleButton" text="🚫 Exclude" onAction="#onToggleExclude"
+                                style="-fx-background-color: #F4F8FA; -fx-text-fill: #33455A; -fx-font-weight: bold;
+                                       -fx-background-radius: 8; -fx-padding: 10 14; -fx-border-color: #E1E9ED; -fx-border-radius: 8;"/>
+                        <Button text="Send" onAction="#onSend"
+                                style="-fx-background-color: #26658C; -fx-text-fill: white; -fx-font-weight: bold;
+                                       -fx-background-radius: 8; -fx-padding: 10 20;"/>
+                    </HBox>
+                </VBox>
+            </VBox>
+        </HBox>
+    </VBox>
+
+</HBox>

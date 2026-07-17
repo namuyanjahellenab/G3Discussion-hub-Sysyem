@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<?import javafx.geometry.Insets?>
+
+<!-- Shared left navigation column, included via <fx:include> on every
+     screen after login (matches the web's layouts/sidebar-student.blade.php,
+     which shows on every student page by default unless a controller
+     explicitly opts out - only New Topic creation and the onboarding Group
+     Selection screen do that). Single source of truth so screens can't
+     drift out of sync with each other the way they had before this existed. -->
+<VBox fx:id="root" xmlns:fx="http://javafx.com/fxml"
+      fx:controller="com.discussionhub.client.SidebarController"
+      prefWidth="230" minWidth="230" spacing="2" styleClass="sidebar-panel" style="-fx-padding: 18 0 18 0;">
+
+    <HBox alignment="CENTER_LEFT" spacing="8" style="-fx-padding: 0 20 22 20;">
+        <Label text="💬" styleClass="heading-text" style="-fx-font-size: 16;"/>
+        <Label text="DISCUSSION HUB" styleClass="heading-text" style="-fx-font-size: 14;"/>
+    </HBox>
+
+    <Button fx:id="dashboardBtn" text="⬜  Dashboard" onAction="#onOpenDashboard" maxWidth="Infinity" styleClass="sidebar-link">
+        <VBox.margin><Insets left="10" right="10"/></VBox.margin>
+    </Button>
+    <Button fx:id="forumBtn" text="📄  Topic Discussions" onAction="#onOpenForum" maxWidth="Infinity" styleClass="sidebar-link">
+        <VBox.margin><Insets left="10" right="10"/></VBox.margin>
+    </Button>
+    <Button fx:id="myQuestionsBtn" text="❓  My Questions" onAction="#onOpenMyQuestions" maxWidth="Infinity" styleClass="sidebar-link">
+        <VBox.margin><Insets left="10" right="10"/></VBox.margin>
+    </Button>
+    <Button fx:id="groupChatBtn" text="💬  Group Chat" onAction="#onOpenGroupChat" maxWidth="Infinity" styleClass="sidebar-link">
+        <VBox.margin><Insets left="10" right="10"/></VBox.margin>
+    </Button>
+    <Button fx:id="marksBtn" text="★  Marks" onAction="#onOpenMarks" maxWidth="Infinity" styleClass="sidebar-link">
+        <VBox.margin><Insets left="10" right="10"/></VBox.margin>
+    </Button>
+    <Button fx:id="quizzesBtn" text="📘  Quizzes" onAction="#onOpenQuizzes" maxWidth="Infinity" styleClass="sidebar-link">
+        <VBox.margin><Insets left="10" right="10"/></VBox.margin>
+    </Button>
+    <Button fx:id="recommendBtn" text="👍  Recommend" onAction="#onOpenRecommend" maxWidth="Infinity" styleClass="sidebar-link">
+        <VBox.margin><Insets left="10" right="10"/></VBox.margin>
+    </Button>
+    <Button fx:id="settingsBtn" text="⚙  Settings" onAction="#onOpenSettings" maxWidth="Infinity" styleClass="sidebar-link">
+        <VBox.margin><Insets left="10" right="10"/></VBox.margin>
+    </Button>
+
+    <Region VBox.vgrow="ALWAYS"/>
+</VBox>

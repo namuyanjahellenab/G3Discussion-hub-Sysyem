@@ -3,8 +3,7 @@
 @section('content')
 @php
     $displayName = auth()->user()->UserName ?? auth()->user()->name ?? 'Student User';
-    $nameParts = explode(' ', $displayName);
-    $initials = collect($nameParts)->filter()->map(fn($p) => mb_substr($p, 0, 1))->take(2)->implode('');
+    $initials = Str::initials($displayName);
 
     $statusMap = [
         'answered' => ['label' => 'Answered', 'badge' => 'bg-success-subtle'],
@@ -135,7 +134,7 @@
                         <p class="title">{{ $topic->Title }}</p>
                         <div class="meta">
                             by {{ $topic->creator?->UserName ?? $topic->creator?->name ?? 'a member' }}
-                            &bull; {{ $topic->posts_count }} {{ Str::plural('reply', $topic->posts_count) }}
+                            &bull; {{ $topic->replies->count() }} {{ Str::plural('reply', $topic->replies->count()) }}
                             &bull; last activity {{ ($topic->replies->max('CreatedAt') ?? $topic->CreatedAt)->diffForHumans() }}
                         </div>
                     </a>

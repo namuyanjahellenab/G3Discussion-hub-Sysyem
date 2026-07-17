@@ -11,6 +11,16 @@ use App\Http\Controllers\QuizController;
 
 
 Route::post('/login', [AuthController::class, 'apiLogin']);
+Route::post('/register', [AuthController::class, 'apiRegister']);
+
+// Deliberately outside auth:sanctum and every other middleware - the
+// desktop's NetworkUtil.isNetworkAvailable() probes this to answer "is the
+// server reachable at all", so it must not depend on auth state and must
+// resolve as fast as physically possible. Probing an authenticated route
+// (e.g. GET /api/login, which 405s) was taking 1.5-4s under the dev server
+// because it still boots the full Sanctum/session stack before rejecting
+// the method - long enough to trip the 2s timeout and show a false OFFLINE.
+Route::get('/ping', fn () => response()->json(['status' => 'ok']));
 Route::middleware('auth:sanctum')->get('/quiz/active-now', [QuizEngineController::class, 'activeNow']);
 Route::middleware('auth:sanctum')->post('/quiz/join', [QuizEngineController::class, 'join']);
 Route::middleware('auth:sanctum')->post('/quiz/submit', [QuizEngineController::class, 'submit']);
@@ -99,13 +109,49 @@ Route::middleware('auth:sanctum')->get('/topics', function (Request $request) {
     return response()->json($visibleTopics);
 });
 Route::middleware('auth:sanctum')->group(function () {
+    // The default /broadcasting/auth route (registered via the `channels`
+    // key in bootstrap/app.php) only accepts the `web` session guard, which
+    // covers the browser client. The desktop client authenticates with a
+    // Sanctum bearer token instead, so it needs its own auth endpoint under
+    // the same channel-authorization callbacks in routes/channels.php.
+    Route::post('/broadcasting/auth', fn (Request $request) => \Illuminate\Support\Facades\Broadcast::auth($request));
+
     Route::get('/groups', [App\Http\Controllers\Api\GroupApiController::class, 'index']);
+    Route::get('/groups/browse', [App\Http\Controllers\Api\GroupApiController::class, 'browse']);
+    Route::get('/groups/for-selection', [App\Http\Controllers\Api\GroupApiController::class, 'forSelection']);
     Route::post('/groups/{group}/join', [App\Http\Controllers\Api\GroupApiController::class, 'join']);
+    Route::delete('/groups/{group}/leave', [App\Http\Controllers\Api\GroupApiController::class, 'leave']);
     Route::post('/groups/{group}/mark-viewed', [App\Http\Controllers\Api\GroupApiController::class, 'markViewed']);
     Route::get('/sync/pull', [App\Http\Controllers\Api\SyncController::class, 'pull']);
     Route::post('/sync/push', [App\Http\Controllers\Api\SyncController::class, 'push']);
     Route::put('/settings', [App\Http\Controllers\Api\SettingsController::class, 'update']);
     Route::post('/logout', [App\Http\Controllers\Api\SettingsController::class, 'logout']);
+    Route::post('/logout-all-devices', [App\Http\Controllers\Api\SettingsController::class, 'logoutAllDevices']);
+
+    // Desktop-client equivalents of the web sidebar's My Questions, Marks,
+    // Recommend, and Quizzes pages, plus the Dashboard itself.
+    Route::get('/dashboard', [App\Http\Controllers\Api\StudentDataApiController::class, 'dashboard']);
+    Route::post('/notifications/{notification}/read', [App\Http\Controllers\Api\StudentDataApiController::class, 'markNotificationRead']);
+    Route::post('/notifications/read-all', [App\Http\Controllers\Api\StudentDataApiController::class, 'markAllNotificationsRead']);
+    Route::get('/forum', [App\Http\Controllers\Api\StudentDataApiController::class, 'forum']);
+    Route::get('/groups/{group}/topics', [App\Http\Controllers\Api\GroupTopicsApiController::class, 'index']);
+    Route::post('/groups/{group}/topics', [App\Http\Controllers\Api\GroupTopicsApiController::class, 'store']);
+
+    Route::get('/topics/{topic}', [App\Http\Controllers\Api\TopicApiController::class, 'show']);
+    Route::get('/topics/{topic}/export', [App\Http\Controllers\Api\TopicApiController::class, 'export']);
+    Route::get('/topics/{topic}/share-links', [App\Http\Controllers\Api\TopicApiController::class, 'shareLinks']);
+    Route::post('/posts/{post}/replies', [App\Http\Controllers\Api\TopicApiController::class, 'storeReply']);
+    Route::post('/replies/{reply}/flag', [App\Http\Controllers\Api\TopicApiController::class, 'flagReply']);
+    Route::delete('/replies/{reply}', [App\Http\Controllers\Api\TopicApiController::class, 'deleteReply']);
+    Route::post('/replies/{reply}/accept', [App\Http\Controllers\Api\TopicApiController::class, 'acceptAnswer']);
+    Route::get('/my-questions', [App\Http\Controllers\Api\StudentDataApiController::class, 'myQuestions']);
+    Route::get('/marks', [App\Http\Controllers\Api\StudentDataApiController::class, 'marks']);
+    Route::get('/recommend', [App\Http\Controllers\Api\StudentDataApiController::class, 'recommend']);
+    Route::get('/quizzes', [App\Http\Controllers\Api\StudentDataApiController::class, 'quizzes']);
+
+    // Desktop-client equivalent of the web's Group Chat (main conversation only).
+    Route::get('/groups/{groupId}/chat-messages', [App\Http\Controllers\Api\GroupChatApiController::class, 'index']);
+    Route::post('/groups/{groupId}/chat-messages', [App\Http\Controllers\Api\GroupChatApiController::class, 'store']);
 });
 
 // Route::middleware('auth')->group(function () {

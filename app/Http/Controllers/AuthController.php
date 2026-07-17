@@ -74,74 +74,46 @@ class AuthController extends Controller
     return redirect()->route('dashboard');
 }
     /**
-     * Handle login request.
-     */
-    // public function login(LoginRequest $request)
-    // {
-    //     $credentials = $request->validated();
-
-    //     // Log login attempt
-    //     Log::info('Login attempt', ['email' => $request->email]);
-
-    //     // Check if user exists
-    //     $user = User::where('Email', $credentials['email'])->first();
-
-    //     if (!$user) {
-    //         Log::warning('Login failed: User not found', ['email' => $request->email]);
-    //         return back()
-    //             ->withErrors(['email' => 'No account found with this email address.'])
-    //             ->withInput($request->only('email'));
-    //     }
-
-    //     // Check user status (blacklist check)
-    //     if ($user->status === 'blacklisted') {
-    //         Log::warning('Login failed: User blacklisted', ['user_id' => $user->id]);
-    //         return back()
-    //             ->withErrors(['email' => 'This account has been blacklisted. Please contact support.'])
-    //             ->withInput($request->only('email'));
-    //     }
-
-    //     if ($user->status === 'suspended') {
-    //         Log::warning('Login failed: User suspended', ['user_id' => $user->id]);
-    //         return back()
-    //             ->withErrors(['email' => 'This account has been suspended. Please contact support.'])
-    //             ->withInput($request->only('email'));
-    //     }
-
-    //     // Verify password
-    //     if (!Hash::check($credentials['password'], $user->password)) {
-    //         Log::warning('Login failed: Invalid password', ['email' => $request->email]);
-    //         return back()
-    //             ->withErrors(['password' => 'The password is incorrect.'])
-    //             ->withInput($request->only('email'));
-    //     }
-
-    //     // Check if rules were accepted
-    //     if (!$user->rules_accepted) {
-    //         Log::warning('Login failed: Rules not accepted', ['user_id' => $user->id]);
-    //         return back()
-    //             ->withErrors(['email' => 'Your account registration is incomplete. Please complete the registration process.'])
-    //             ->withInput($request->only('email'));
-    //     }
-
-    //     // Update last active timestamp
-    //     $user->update(['last_active' => now()]);
-
-    //     // Log successful login
-    //     Log::info('Login successful', ['user_id' => $user->id, 'email' => $user->email]);
-
-    //     // Login the user
-    //     Auth::login($user, $request->boolean('remember'));
-
-    //     // Flash success message
-    //     session()->flash('success', 'Welcome back! You have successfully logged in.');
-
-    //     return redirect()->route('dashboard');
-    // }
-    /**
  * API login for non-browser clients (e.g. JavaFX desktop app).
  * Returns a Sanctum token instead of a session cookie.
  */
+/**
+ * Desktop-client registration - the web flow is session-based (role
+ * selected on a separate screen before the details form), which doesn't
+ * translate to a stateless API call. This collects everything in one
+ * request instead and always registers as a Student, matching the
+ * desktop client's scope. Same validation/creation as AuthController::register().
+ */
+public function apiRegister(Request $request)
+{
+    $validated = $request->validate([
+        'full_name' => ['required', 'string', 'min:3', 'max:255'],
+        'email' => ['required', 'string', 'email', 'max:255', 'unique:User,Email'],
+        'username' => ['required', 'string', 'min:3', 'max:255', 'unique:User,Handle', 'alpha_dash'],
+        'password' => ['required', 'string', 'min:8', 'confirmed'],
+        'rules_accepted' => ['required', 'accepted'],
+    ]);
+
+    $user = User::create([
+        'UserName' => $validated['full_name'],
+        'Username' => $validated['username'],
+        'Handle' => $validated['username'],
+        'Email' => $validated['email'],
+        'PasswordHash' => Hash::make($validated['password']),
+        'Role' => 'Student',
+        'Status' => 'Active',
+        'RulesAccepted' => true,
+        'LastActive' => now(),
+    ]);
+
+    Log::info('User registered successfully via desktop client', [
+        'user_id' => $user->UserID,
+        'email' => $user->Email,
+    ]);
+
+    return response()->json(['message' => 'Account created successfully! Please log in to access your account.'], 201);
+}
+
 public function apiLogin(Request $request)
 {
     $credentials = $request->validate([
@@ -167,6 +139,7 @@ public function apiLogin(Request $request)
           'id'    => $user->UserID,
           'email' => $user->Email,
           'name'  => $user->UserName,
+          'theme_color' => $user->ThemeColor ?? 'luna',
       ],
   ]);
 }
@@ -210,61 +183,6 @@ public function apiLogin(Request $request)
          ]);
     }
 
-    // /**
-    //  * Handle registration request.
-    //  */
-    // public function register(RegisterRequest $request)
-    // {
-    //     // Check if role is stored in session
-    //     if (!session()->has('registration_role')) {
-    //         return redirect()->route('register.role')
-    //             ->with('error', 'Please select a role first.');
-    //     }
-
-    //     $validated = $request->validated();
-
-    //     // Get role from session
-    //     $role = session('registration_role');
-
-    //     try {
-    //         // Create new user
-    //         $user = User::create([
-    //             'name' => $validated['full_name'],
-    //             'full_name' => $validated['full_name'],
-    //             'email' => $validated['email'],
-    //             // 'username' => $validated['username'],
-    //             'Handle' => $validated['username'],
-    //             'password' => Hash::make($validated['password']),
-    //             'role' => $role,
-    //             'status' => 'active',
-    //             'rules_accepted' => true,
-    //             'last_active' => now(),
-    //         ]);
-
-    //         Log::info('User registered successfully', [
-    //             'user_id' => $user->id,
-    //             'email' => $user->email,
-    //             'role' => $role,
-    //         ]);
-
-    //         // Clear registration session
-    //         session()->forget('registration_role');
-
-    //         // Flash success message
-    //         session()->flash('success', 'Account created successfully! Please log in to access your account.');
-
-    //         return redirect()->route('login')->with('message', 'Registration successful! You can now log in.');
-    //     } catch (\Exception $e) {
-    //         Log::error('Registration failed', [
-    //             'email' => $validated['email'],
-    //             'error' => $e->getMessage(),
-    //         ]);
-
-    //         return back()
-    //             ->withErrors(['email' => 'An error occurred during registration. Please try again.'])
-    //             ->withInput($request->except('password', 'password_confirmation'));
-    //     }
-    // }
       public function register(RegisterRequest $request)
 {
     if (!session()->has('registration_role')) {

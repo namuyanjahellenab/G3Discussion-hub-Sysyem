@@ -3,8 +3,7 @@
 @section('content')
 @php
     $displayName = auth()->user()->UserName ?? auth()->user()->name ?? 'Lecturer';
-    $nameParts = explode(' ', $displayName);
-    $initials = collect($nameParts)->filter()->map(fn($p) => mb_substr($p, 0, 1))->take(2)->implode('');
+    $initials = Str::initials($displayName);
 
     $statusMap = [
         'answered' => ['label' => 'Answered', 'badge' => 'bg-success-subtle'],

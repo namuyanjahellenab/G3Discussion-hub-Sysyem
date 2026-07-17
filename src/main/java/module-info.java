@@ -6,6 +6,7 @@ module com.discussionhub.client {
     requires org.json;
     requires java.desktop;
     requires org.xerial.sqlitejdbc;
+    requires pusher.java.client;
 
     opens com.discussionhub.client to javafx.fxml;
 

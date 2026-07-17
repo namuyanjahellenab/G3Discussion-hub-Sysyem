@@ -11,7 +11,6 @@ use App\Models\Group;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\AdminLecturerStaffController;
 use App\Http\Controllers\GroupChatController;
-// use App\Http\Controllers\Auth\RegisteredUserController;
 Route::get('/', function () {
     return redirect('/login');
 });
@@ -28,11 +27,6 @@ Route::middleware('guest')->group(function () {
     Route::post('/register/role', [AuthController::class, 'storeRole'])->name('register.role.store');
     Route::get('/register/details', [AuthController::class, 'showRegisterDetails'])->name('register.details');
     Route::post('/register', [AuthController::class, 'register'])->name('register');
-    // Route::get('/register/role', [RegisteredUserController::class, 'showRoleSelection'])
-    // ->name('register.role');
-    // Route::get('/register', [RegisteredUserController::class, 'create'])
-    // ->name('register');
-    
 });
 
 Route::middleware('auth')->group(function () {

@@ -158,7 +158,7 @@
                         </div>
                     </div>
                     <div class="user-chip" aria-label="Account menu">
-                        <div class="avatar">{{ strtoupper(substr(auth()->user()->UserName ?? 'L', 0, 1)) }}</div>
+                        <div class="avatar">{{ Str::initials(auth()->user()->UserName ?? 'L') }}</div>
                         <div class="meta">
                             <div class="name">{{ auth()->user()->UserName ?? 'Lecturer' }}</div>
                             <div class="role">Lecturer</div>

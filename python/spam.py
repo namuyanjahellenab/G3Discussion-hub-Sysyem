@@ -199,7 +199,3 @@ def _classify_content(text: str, context: str | None = None) -> dict:
         is_educational = _is_generically_educational(text)
 
     return {"is_spam": is_spam, "is_educational": is_educational}
-
-
-def _is_educational(text: str) -> bool:
-    return _classify_content(text)["is_educational"]

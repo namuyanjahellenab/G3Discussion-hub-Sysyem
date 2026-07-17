@@ -128,6 +128,9 @@
 </div>
 
 <script>
+const currentUserId = {{ auth()->id() }};
+const activeConversationId = {{ $activeConversation->ConversationID }};
+
 function toggleExcludePanel() {
     document.getElementById('exclude-panel').classList.toggle('open');
 }
@@ -237,5 +240,57 @@ document.querySelectorAll('[data-chat-composer]').forEach((form) => {
         }
     });
 });
+
+// Real-time: messages sent by anyone else while this page is open appear
+// immediately, no reload needed. Our own sends are already appended
+// optimistically above, so skip re-appending those when the broadcast of
+// our own message echoes back.
+function buildRemoteBubble(e) {
+    const wrapper = document.createElement('div');
+    wrapper.innerHTML = `
+        <div class="chat-bubble" data-message-id="${e.id}" data-user-id="${e.user_id}" data-username="${e.author_name}">
+            <div class="chat-bubble__avatar">${(e.author_name || '?').charAt(0).toUpperCase()}</div>
+            <div class="chat-bubble__content">
+                <div class="chat-bubble__meta">
+                    <strong></strong>
+                    <span></span>
+                </div>
+                <p></p>
+            </div>
+            <div class="chat-bubble__actions">
+                <button type="button" class="chat-bubble__menu-toggle" aria-label="Message actions">
+                    <i class="fa-solid fa-ellipsis-vertical"></i>
+                </button>
+                <div class="chat-bubble__menu">
+                    <button type="button" class="chat-bubble__menu-item" data-action="reply">
+                        <i class="fa-solid fa-reply"></i> Reply
+                    </button>
+                    <button type="button" class="chat-bubble__menu-item" data-action="exclude">
+                        <i class="fa-solid fa-user-slash"></i> Exclude sender
+                    </button>
+                </div>
+            </div>
+        </div>
+    `;
+    const bubble = wrapper.firstElementChild;
+    bubble.querySelector('.chat-bubble__meta strong').textContent = e.author_name;
+    bubble.querySelector('.chat-bubble__meta span').textContent = e.created_at;
+    bubble.querySelector('.chat-bubble__content p').textContent = e.body;
+    return bubble;
+}
+
+if (window.Echo) {
+    window.Echo.private(`conversation.${activeConversationId}`)
+        .listen('.message.sent', (e) => {
+            if (e.user_id === currentUserId) return;
+
+            const chatWindow = document.getElementById('chat-window');
+            if (chatWindow.querySelector(`[data-message-id="${e.id}"]`)) return;
+
+            document.getElementById('chat-empty-state')?.remove();
+            chatWindow.appendChild(buildRemoteBubble(e));
+            chatWindow.scrollTop = chatWindow.scrollHeight;
+        });
+}
 </script>
 @endsection

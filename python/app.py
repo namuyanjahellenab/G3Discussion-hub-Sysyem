@@ -1,5 +1,5 @@
 # ML gateway for the Discussion Hub Laravel app.
-# Endpoints: /classify, /recommend, /recommend-topics, /trending-groups, /export-topic-pdf, /topic-share-links
+# Endpoints: /classify, /recommend-topics, /trending-groups, /export-topic-pdf, /topic-share-links
 # Classification/ranking uses TF-IDF + cosine similarity against a catalog rebuilt from live Topic data.
 # Helpers are imported by name so tests can keep monkeypatching them directly.
 
@@ -10,15 +10,13 @@ from dotenv import load_dotenv
 from flask import Flask, Response, jsonify, request
 from flask.typing import ResponseReturnValue
 
-from catalog import _build_catalog, _clamp_score, _classify_category, _rank_against_catalog, _rank_texts
-from config import GROUP_ACTIVITY_WEIGHT, _is_authorized, _recommendation_limit
+from catalog import _clamp_score, _classify_category, _rank_texts
+from config import GROUP_ACTIVITY_WEIGHT, _is_authorized
 from db import (
     _fetch_topic_export_data,
     _fetch_topic_share_data,
-    _fetch_trending_categories,
     _fetch_trending_groups,
     _fetch_user_recent_text,
-    _run_query,
 )
 from pdf import _build_topic_pdf, _slugify
 from share import _build_share_links
@@ -63,62 +61,10 @@ def classify() -> ResponseReturnValue:
     })
 
 
-@app.route("/recommend", methods=["POST"])
-def recommend() -> ResponseReturnValue:
-    # Rank categories for a user: personalized (real activity) or trending (cold-start).
-    if not _is_authorized(request):
-        return jsonify({"error": "unauthorized"}), 401
-
-    payload = request.get_json(silent=True) or {}
-    user_id = payload.get("UserID")
-    interests = payload.get("Interests") or []
-    recent_messages = payload.get("RecentMessages") or []
-    group_ids = payload.get("GroupIDs") or []
-    limit = _recommendation_limit()
-
-    # None = DB unreachable, fall back to Interests/RecentMessages. [] = real cold-start user.
-    db_recent_text = _fetch_user_recent_text(user_id)
-    cold_start = db_recent_text is not None and len(db_recent_text) == 0
-
-    if cold_start:
-        trending = _fetch_trending_categories(group_ids)
-        if trending:
-            max_engagement = max(row["Engagement"] for row in trending) or 1
-            recommendations = [
-                {
-                    "Category": row["Category"],
-                    "RelevanceScore": round(_clamp_score(row["Engagement"] / max_engagement), 4),
-                }
-                for row in trending[:limit]
-            ]
-            return jsonify({"UserID": user_id, "Recommendations": recommendations, "Mode": "trending"})
-
-    query_text = " ".join(
-        [str(part) for part in [*interests, *recent_messages, *(db_recent_text or [])]]
-    ).strip()
-
-    if not query_text:
-        catalog = _build_catalog()
-        recommendations = [
-            {"Category": item["Category"], "RelevanceScore": 0.0}
-            for item in catalog[:limit]
-        ]
-        return jsonify({"UserID": user_id, "Recommendations": recommendations})
-
-    catalog = _build_catalog()
-    ranked = sorted(_rank_against_catalog(query_text, catalog), key=lambda pair: pair[1], reverse=True)
-    recommendations = [
-        {"Category": item["Category"], "RelevanceScore": round(_clamp_score(score), 4)}
-        for item, score in ranked[:limit]
-    ]
-
-    return jsonify({"UserID": user_id, "Recommendations": recommendations, "Mode": "personalized"})
-
-
 @app.route("/recommend-topics", methods=["POST"])
 def recommend_topics() -> ResponseReturnValue:
-    # Rank specific candidate topics for a user by relevance. Unlike
-    # /recommend (which only ranks categories), this scores each topic's own
+    # Rank specific candidate topics for a user by relevance, scoring each
+    # topic's own
     # title text against the user's interests/activity, so topics sharing a
     # category no longer collapse onto one identical, duplicated score.
     if not _is_authorized(request):
@@ -139,7 +85,19 @@ def recommend_topics() -> ResponseReturnValue:
         topic_scores = [{"TopicID": topic.get("TopicID"), "RelevanceScore": 0.0} for topic in topics]
         return jsonify({"UserID": user_id, "TopicScores": topic_scores})
 
-    texts = [" ".join(filter(None, [topic.get("Title"), topic.get("Category")])) for topic in topics]
+    # Title repeated to outweigh Category, not Category dropped outright:
+    # most topics in a group share the same category, so weighting it
+    # equally with the title let that one repeated, generic token dominate
+    # the TF-IDF vector whenever titles were short - collapsing many
+    # unrelated topics in the same category onto the same near-identical
+    # score. Category alone still gives every topic *some* baseline signal
+    # (so an unrelated title doesn't score a flat 0 just because it shares
+    # no exact word with the query), but a title that actually overlaps the
+    # query's own vocabulary now dominates the ranking as it should.
+    texts = [
+        ((topic.get("Title") or "") + " ") * 3 + (topic.get("Category") or "")
+        for topic in topics
+    ]
     scores = _rank_texts(query_text, texts)
     topic_scores = [
         {"TopicID": topic.get("TopicID"), "RelevanceScore": round(score, 4)}

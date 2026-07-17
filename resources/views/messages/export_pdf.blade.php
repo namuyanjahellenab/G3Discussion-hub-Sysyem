@@ -37,7 +37,7 @@
         @endphp
         <div class="post">
             <div class="msg-header">
-                <span class="avatar">{{ strtoupper(substr($postAuthorName, 0, 1)) }}</span>
+                <span class="avatar">{{ Str::initials($postAuthorName) }}</span>
                 <span class="author-name">{{ $postAuthorName }}</span>
                 <span class="badge-op">ORIGINAL POST</span>
                 @if($post->CreatedAt)
@@ -54,7 +54,7 @@
                 @endphp
                 <div class="reply">
                     <div class="msg-header">
-                        <span class="avatar">{{ strtoupper(substr($replyAuthorName, 0, 1)) }}</span>
+                        <span class="avatar">{{ Str::initials($replyAuthorName) }}</span>
                         <span class="author-name">{{ $replyAuthorName }}</span>
                         @if($reply->CreatedAt)
                             <span class="timestamp">{{ $reply->CreatedAt->format('Y-m-d H:i') }}</span>

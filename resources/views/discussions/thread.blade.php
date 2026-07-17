@@ -82,7 +82,7 @@
         </a>
         <div class="nav-actions">
             <div style="display:flex;align-items:center;gap:10px;">
-                <span class="avatar">{{ strtoupper(substr(Auth::user()->name ?? 'U', 0, 1)) }}</span>
+                <span class="avatar">{{ Str::initials(Auth::user()->name ?? 'U') }}</span>
                 <span>{{ Auth::user()->name ?? 'User' }}</span>
             </div>
             <form method="POST" action="{{ route('logout') }}">

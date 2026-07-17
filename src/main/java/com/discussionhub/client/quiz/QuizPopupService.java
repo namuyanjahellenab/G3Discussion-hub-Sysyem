@@ -17,7 +17,6 @@ import javafx.stage.Modality;
 import javafx.stage.Stage;
 import javafx.stage.StageStyle;
 
-import java.awt.Desktop;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -59,7 +58,6 @@ public class QuizPopupService {
     private static final String BASE_URL = "http://127.0.0.1:8000";
     private static final String LOGIN_URL = BASE_URL + "/api/login";
     private static final String ACTIVE_QUIZ_URL = BASE_URL + "/api/quiz/active-now";
-    private static final String QUIZ_TAKE_BASE_URL = BASE_URL + "/quiz/";
 
     // Fallback credentials, only used if start(Stage) is called without a session token.
     // Prefer start(Stage, String token) wherever a logged-in session is available.
@@ -454,14 +452,4 @@ private static QuizJoinData parseJoinResponse(String json) {
 
     return data;
 }
-    private static void openQuizInBrowser(int quizId) {
-        try {
-            String url = QUIZ_TAKE_BASE_URL + quizId + "/take";
-            if (Desktop.isDesktopSupported()) {
-                Desktop.getDesktop().browse(URI.create(url));
-            }
-        } catch (Exception e) {
-            System.out.println("QuizPopupService: failed to open browser - " + e.getMessage());
-        }
-    }
 }

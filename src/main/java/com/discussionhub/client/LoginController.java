@@ -1,5 +1,7 @@
 package com.discussionhub.client;
 
+import com.discussionhub.client.utils.WindowUtil;
+
 import com.discussionhub.client.database.DatabaseManager;
 import com.discussionhub.client.quiz.QuizPopupService;
 import com.discussionhub.client.utils.DeltaSyncService;
@@ -27,7 +29,6 @@ public class LoginController {
     @FXML private Button showPasswordBtn;
     @FXML private CheckBox rememberMeCheck;
     @FXML private Label errorLabel;
-    @FXML private Label statusLabel;
 
     private DatabaseManager dbManager;
     private DeltaSyncService syncService;
@@ -71,11 +72,13 @@ public class LoginController {
                         String userIdStr = extractJsonValue(result, "id");
                         int userId = userIdStr.isEmpty() ? 1 : Integer.parseInt(userIdStr);
                         String name = extractJsonValue(result, "name");
+                        String themeColor = extractJsonValue(result, "theme_color");
 
                         SessionManager.token = token;
                         SessionManager.userId = userId;
                         SessionManager.userEmail = email;
                         SessionManager.fullName = name;
+                        SessionManager.currentTheme = themeColor.isEmpty() ? "luna" : themeColor;
 
                         dbManager.ensureDeviceState(SessionManager.userId);
 
@@ -138,13 +141,12 @@ public class LoginController {
     private void loadDashboard() {
         try {
             FXMLLoader loader = new FXMLLoader(getClass().getResource("dashboard-view.fxml"));
-            Scene scene = new Scene(loader.load(), 900, 650);
+            Scene scene = new Scene(loader.load());
             DashboardController controller = loader.getController();
             controller.setServices(dbManager, syncService);
 
             Stage stage = (Stage) emailField.getScene().getWindow();
-            stage.setScene(scene);
-            stage.setTitle("DiscussionHub — Dashboard");
+            WindowUtil.applyScene(stage, scene, "DiscussionHub — Dashboard");
 
             QuizPopupService.start(stage, SessionManager.token);
         } catch (Exception e) {
@@ -155,13 +157,12 @@ public class LoginController {
     private void loadGroupSelection() {
         try {
             FXMLLoader loader = new FXMLLoader(getClass().getResource("group-selection-view.fxml"));
-            Scene scene = new Scene(loader.load(), 800, 650);
+            Scene scene = new Scene(loader.load());
             GroupSelectionController controller = loader.getController();
             controller.setServices(dbManager, syncService);
 
             Stage stage = (Stage) emailField.getScene().getWindow();
-            stage.setScene(scene);
-            stage.setTitle("DiscussionHub — Select Group");
+            WindowUtil.applyScene(stage, scene, "DiscussionHub — Select Group");
 
             QuizPopupService.start(stage, SessionManager.token);
         } catch (Exception e) {
@@ -182,13 +183,12 @@ public class LoginController {
     public void onRegister() {
         try {
             FXMLLoader loader = new FXMLLoader(getClass().getResource("register-view.fxml"));
-            Scene scene = new Scene(loader.load(), 900, 700);
+            Scene scene = new Scene(loader.load());
             RegisterController controller = loader.getController();
             controller.setServices(dbManager, syncService);
 
             Stage stage = (Stage) emailField.getScene().getWindow();
-            stage.setScene(scene);
-            stage.setTitle("DiscussionHub — Register");
+            WindowUtil.applyScene(stage, scene, "DiscussionHub — Register");
         } catch (Exception e) {
             e.printStackTrace();
         }

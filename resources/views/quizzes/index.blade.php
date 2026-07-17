@@ -2,8 +2,7 @@
 
 @section('content')
 @php
-    $nameParts = explode(' ', auth()->user()->name ?? auth()->user()->UserName ?? '');
-    $initials = collect($nameParts)->filter()->map(fn($part) => mb_substr($part,0,1))->take(2)->implode('');
+    $initials = Str::initials(auth()->user()->name ?? auth()->user()->UserName ?? '');
 @endphp
 
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">

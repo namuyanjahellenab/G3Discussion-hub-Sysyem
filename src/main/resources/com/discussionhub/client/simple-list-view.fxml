@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+
+<!-- Shared shell for the four "list of things" screens (My Questions, Marks,
+     Quizzes, Recommend) - SimpleListController fills contentBox per screen
+     so all four share one consistent look instead of four bespoke ones. -->
+<HBox xmlns:fx="http://javafx.com/fxml"
+      fx:controller="com.discussionhub.client.SimpleListController"
+      styleClass="app-background" stylesheets="@app-theme.css">
+
+    <fx:include fx:id="sidebar" source="sidebar.fxml"/>
+
+    <VBox spacing="0" HBox.hgrow="ALWAYS" style="-fx-background-color: #F4F8FA;">
+
+        <!-- Header bar -->
+        <HBox alignment="CENTER_LEFT" spacing="12"
+              style="-fx-background-color: #26658C; -fx-padding: 16 22;">
+            <Button text="← Back" onAction="#onBack"
+                    style="-fx-background-color: transparent; -fx-text-fill: white;
+                           -fx-font-weight: bold; -fx-padding: 4 10;"/>
+            <Label fx:id="titleLabel" text="Screen Title"
+                   style="-fx-text-fill: white; -fx-font-size: 18; -fx-font-weight: bold;"/>
+            <Region HBox.hgrow="ALWAYS"/>
+            <Label fx:id="syncStatusLabel" text="● OFFLINE"
+                   style="-fx-text-fill: #ffcc00; -fx-font-size: 12; -fx-font-weight: bold;"/>
+        </HBox>
+
+        <ScrollPane fitToWidth="true" VBox.vgrow="ALWAYS" style="-fx-background-color: transparent;">
+            <VBox fx:id="contentBox" spacing="14" style="-fx-padding: 22;"/>
+        </ScrollPane>
+    </VBox>
+
+</HBox>

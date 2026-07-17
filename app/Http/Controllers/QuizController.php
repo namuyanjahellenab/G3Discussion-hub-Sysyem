@@ -200,18 +200,4 @@ $students = User::whereHas('groupMemberships', function ($q) use ($request) {
         return redirect()->route('quiz.drafts')->with('status', 'Draft deleted.');
     }
 
-    // ─── Load quiz list view ─────────────────────────────────────
-    public function index()
-    {
-        $quizzes = Quiz::all();
-        return view('quizzes.index', compact('quizzes'));
-    }
-
-    // ─── Load quiz taking view ───────────────────────────────────
-    public function take($id)
-    {
-        $quiz      = Quiz::findOrFail($id);
-        $questions = $quiz->questions;
-        return view('quizzes.take', compact('quiz', 'questions'));
-    }
 }

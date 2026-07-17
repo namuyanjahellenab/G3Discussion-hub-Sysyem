@@ -3,7 +3,6 @@
 import os
 
 DEFAULT_CATEGORY = "General Chat"
-DEFAULT_RECOMMENDATION_LIMIT = 10
 SIMILARITY_FLOOR = 0.05
 CATALOG_TTL_SECONDS = 60
 TRENDING_WINDOW_DAYS = 14
@@ -37,8 +36,3 @@ def _default_category() -> str:
     return os.environ.get("DEFAULT_CATEGORY", DEFAULT_CATEGORY)
 
 
-def _recommendation_limit() -> int:
-    try:
-        return max(1, int(os.environ.get("RECOMMENDATION_LIMIT", DEFAULT_RECOMMENDATION_LIMIT)))
-    except (TypeError, ValueError):
-        return DEFAULT_RECOMMENDATION_LIMIT

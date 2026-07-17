@@ -12,6 +12,7 @@ use App\Models\Notification;
 use App\Models\Post;
 use App\Models\Reply;
 use App\Models\Topic;
+use App\Services\ParticipationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -133,22 +134,9 @@ public function marks()
         return $this->lecturerMarks();
     }
 
-    $snapshot = $this->participationSnapshot($user->UserID);
+    $groups = app(\App\Services\MarksService::class)->marksBreakdownForUser($user->UserID);
 
-    $quizResults = DB::table('quizresult')
-        ->where('UserID', $user->UserID)
-        ->orderByDesc('SubmissionTime')
-        ->get();
-
-    $marks = [
-        'participation' => $snapshot['participation'],
-        'participation_details' => $snapshot['participation_details'],
-        'quiz_average' => $snapshot['quiz_average'],
-        'quizzes_taken' => $quizResults->count(),
-        'recent_quizzes' => $quizResults->take(5),
-    ];
-
-    return view('marks.index', compact('marks'));
+    return view('marks.index', compact('groups'));
 }
 
 
@@ -172,10 +160,10 @@ protected function participationSnapshot($userId)
         ->where('IsAccepted', 1)
         ->count();
 
-    $participationScore = round(
-        min(10, ($validPosts * 0.5) + ($replies * 0.3) + ($acceptedAnswers * 2)),
-        1
-    );
+    $curvedScores = app(ParticipationService::class)->curvedScoresForUser($userId);
+    $participationScore = $curvedScores->isNotEmpty()
+        ? round($curvedScores->avg('participation'), 1)
+        : 0.0;
 
     $quizAverage = DB::table('quizresult')
         ->where('UserID', $userId)

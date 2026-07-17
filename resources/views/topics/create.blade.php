@@ -104,7 +104,7 @@
                             @forelse($groupMembers as $membership)
                                 @php $memberUser = $membership->user; @endphp
                                 <div class="member-row" data-name="{{ strtolower($memberUser->UserName ?? $memberUser->name ?? '') }}">
-                                    <div class="avatar">{{ strtoupper(Str::substr($memberUser->UserName ?? $memberUser->name ?? '?', 0, 1)) }}</div>
+                                    <div class="avatar">{{ Str::initials($memberUser->UserName ?? $memberUser->name ?? '?') }}</div>
                                     <div class="meta">
                                         <div class="mname">{{ $memberUser->UserName ?? $memberUser->name ?? 'Member' }}</div>
                                     </div>

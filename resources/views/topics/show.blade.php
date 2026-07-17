@@ -3,8 +3,7 @@
 @section('content')
 @php
     $displayName = auth()->user()->UserName ?? auth()->user()->name ?? 'Student User';
-    $nameParts = explode(' ', $displayName);
-    $initials = collect($nameParts)->filter()->map(fn($p) => mb_substr($p, 0, 1))->take(2)->implode('');
+    $initials = Str::initials($displayName);
 
     $statusMap = [
         'answered' => ['label' => 'Answered', 'badge' => 'bg-success-subtle'],
@@ -73,11 +72,29 @@
     .reply-time { font-size: 11.5px; color: var(--text-muted); }
 
     .reply-bubble { background: #fff; border: 1px solid var(--surface-border); border-radius: 4px 14px 14px 14px; padding: 10px 14px; font-size: 13.5px; line-height: 1.5; display: inline-block; max-width: 600px; color: var(--text-body); }
-    .reply-row.answer .reply-bubble { border-color: var(--accent-success); background: var(--accent-success-bg); }
-    .reply-row.flagged .reply-bubble { background: var(--accent-danger-bg); border: 1px dashed #EBAFAF; }
     .reply-answer-flag { display: flex; align-items: center; gap: 5px; color: var(--accent-success); font-weight: 700; font-size: 11.5px; margin-bottom: 5px; }
 
     .quote-strip { border-left: 3px solid var(--luna-mid); background: var(--luna-lightest); border-radius: 6px; padding: 5px 10px; font-size: 11.5px; color: var(--luna-dark); margin-bottom: 6px; display: inline-block; }
+
+    /* WhatsApp/Telegram-style split: your own replies float right in the
+       theme accent color, everyone else's stay left in a plain card. Kept
+       as a distinct block (not folded into .reply-bubble above) so the
+       .answer/.flagged status colors below can still override it - status
+       always wins over own/other, since those rules are declared after
+       this block and match at the same specificity (3 classes each). */
+    .reply-content { flex: 1; min-width: 0; }
+    .reply-row.own { flex-direction: row-reverse; }
+    .reply-row.own .reply-content { text-align: right; }
+    .reply-row.own .reply-top { flex-direction: row-reverse; }
+    .reply-row.own .quote-strip { text-align: left; }
+    .reply-row.own .reply-bubble { background: var(--luna-mid); color: #fff; border: none; border-radius: 14px 4px 14px 14px; text-align: left; }
+    .reply-row.own .reply-bubble .attach-file { background: rgba(255,255,255,0.16); }
+    .reply-row.own .reply-bubble .attach-file .icon { background: rgba(255,255,255,0.3); }
+    .reply-row.own .reply-bubble .attach-file .fname { color: #fff; }
+    .reply-row.own .hover-actions { right: auto; left: 4px; }
+
+    .reply-row.answer .reply-bubble { border-color: var(--accent-success); background: var(--accent-success-bg); color: var(--text-body); }
+    .reply-row.flagged .reply-bubble { background: var(--accent-danger-bg); border: 1px dashed #EBAFAF; color: var(--text-body); }
 
     .hover-actions { position: absolute; top: 4px; right: 4px; display: flex; gap: 3px; background: #fff; border: 1px solid var(--surface-border); border-radius: 9px; padding: 3px; box-shadow: var(--shadow-medium); opacity: 0; transform: translateY(-4px); transition: 0.15s; }
     .hover-actions button { width: 26px; height: 26px; border: none; background: transparent; border-radius: 6px; cursor: pointer; font-size: 12.5px; color: var(--text-muted); }
@@ -202,7 +219,7 @@
                 </div>
 
                 <div class="post-card">
-                    <div class="post-avatar">{{ Str::substr($mainPost->author?->UserName ?? $mainPost->author?->name ?? '?', 0, 1) }}</div>
+                    <div class="post-avatar">{{ Str::initials($mainPost->author?->UserName ?? $mainPost->author?->name ?? '?') }}</div>
                     <div style="flex:1;">
                         <div class="post-author">{{ $mainPost->author?->UserName ?? $mainPost->author?->name ?? 'a member' }}</div>
                         <div class="post-content">{{ $mainPost->Content }}</div>
@@ -213,13 +230,18 @@
 
                 <div class="chat-panel">
                     @forelse($mainPost->replies as $reply)
-                        <div class="reply-row {{ $reply->IsAccepted ? 'answer' : '' }} {{ $reply->IsFlagged ? 'flagged' : '' }}" data-reply-id="{{ $reply->ReplyID }}" data-reply-author="{{ $reply->author?->UserName ?? $reply->author?->name ?? 'a member' }}">
+                        @php($isOwnReply = $reply->UserID === auth()->id())
+                        @php($canFlag = !$isOwnReply)
+                        @php($canDelete = $isOwnReply || in_array(auth()->user()->Role, ['Lecturer', 'Administrator'], true))
+                        @php($canAccept = !$reply->IsAccepted && (auth()->id() === $mainPost->UserID || auth()->user()->Role === 'Lecturer'))
+                        @php($replySignature = $reply->ReplyContent . '|' . ($reply->IsAccepted ? 'true' : 'false') . '|' . ($reply->IsFlagged ? 'true' : 'false') . '|' . ($canFlag ? 'true' : 'false') . '|' . ($canAccept ? 'true' : 'false') . '|' . ($canDelete ? 'true' : 'false'))
+                        <div class="reply-row {{ $isOwnReply ? 'own' : 'other' }} {{ $reply->IsAccepted ? 'answer' : '' }} {{ $reply->IsFlagged ? 'flagged' : '' }}" data-reply-id="{{ $reply->ReplyID }}" data-reply-author="{{ $reply->author?->UserName ?? $reply->author?->name ?? 'a member' }}" data-signature="{{ $replySignature }}">
                             <div class="post-avatar {{ $reply->author?->Role === 'Lecturer' ? 'lecturer' : '' }}">
-                                {{ Str::substr($reply->author?->UserName ?? $reply->author?->name ?? '?', 0, 1) }}
+                                {{ Str::initials($reply->author?->UserName ?? $reply->author?->name ?? '?') }}
                             </div>
-                            <div style="flex:1;">
+                            <div class="reply-content">
                                 <div class="reply-top">
-                                    <span class="reply-name">{{ $reply->author?->UserName ?? $reply->author?->name ?? 'a member' }}{{ $reply->UserID === auth()->id() ? ' (you)' : '' }}</span>
+                                    <span class="reply-name">{{ $isOwnReply ? 'You' : ($reply->author?->UserName ?? $reply->author?->name ?? 'a member') }}</span>
                                     <span class="reply-time">{{ $reply->CreatedAt->diffForHumans() }}</span>
                                 </div>
 
@@ -255,26 +277,16 @@
                                 <button type="button" title="Reply" onclick="startThreadedReply({{ $reply->ReplyID }}, '{{ addslashes($reply->author?->UserName ?? $reply->author?->name ?? 'a member') }}')">
                                     <i class="fa-solid fa-reply"></i>
                                 </button>
-                                @if($reply->UserID !== auth()->id())
-                                    <form method="POST" action="{{ route('replies.flag', $reply) }}" style="display:contents;">
-                                        @csrf
-                                        <button type="submit" title="Report"><i class="fa-solid fa-flag"></i></button>
-                                    </form>
+                                @if($canFlag)
+                                    <button type="button" title="Report" onclick="ajaxReplyAction({{ $reply->ReplyID }}, 'flag')"><i class="fa-solid fa-flag"></i></button>
                                 @endif
-                                @if($reply->UserID === auth()->id() || in_array(auth()->user()->Role, ['Lecturer', 'Administrator'], true))
+                                @if($canDelete)
                                     <div class="sep"></div>
-                                    <form method="POST" action="{{ route('replies.destroy', $reply->ReplyID) }}" style="display:contents;" onsubmit="return confirm('Delete this reply?');">
-                                        @csrf
-                                        @method('DELETE')
-                                        <button type="submit" class="danger" title="Delete"><i class="fa-solid fa-trash"></i></button>
-                                    </form>
+                                    <button type="button" class="danger" title="Delete" onclick="ajaxReplyAction({{ $reply->ReplyID }}, 'delete')"><i class="fa-solid fa-trash"></i></button>
                                 @endif
-                                @if(!$reply->IsAccepted && (auth()->id() === $mainPost->UserID || auth()->user()->Role === 'Lecturer'))
+                                @if($canAccept)
                                     <div class="sep"></div>
-                                    <form method="POST" action="{{ route('replies.accept', $reply) }}" style="display:contents;">
-                                        @csrf
-                                        <button type="submit" class="mark" title="Mark as answer"><i class="fa-solid fa-check"></i></button>
-                                    </form>
+                                    <button type="button" class="mark" title="Mark as answer" onclick="ajaxReplyAction({{ $reply->ReplyID }}, 'accept')"><i class="fa-solid fa-check"></i></button>
                                 @endif
                             </div>
                         </div>
@@ -336,7 +348,7 @@
                 <div class="panel-header"><h2>Participants ({{ $participants->count() }})</h2></div>
                 <div class="participant-avatars">
                     @foreach($participants->take(8) as $participant)
-                        <span title="{{ $participant->UserName ?? $participant->name }}">{{ strtoupper(Str::substr($participant->UserName ?? $participant->name ?? '?', 0, 1)) }}</span>
+                        <span title="{{ $participant->UserName ?? $participant->name }}">{{ Str::initials($participant->UserName ?? $participant->name ?? '?') }}</span>
                     @endforeach
                     @if($participants->isEmpty())
                         <span class="empty-state" style="padding: 0;">No participants yet.</span>
@@ -393,4 +405,200 @@ document.getElementById('replyAttachment')?.addEventListener('change', function 
     document.getElementById('replyAttachFilename').textContent = this.files[0] ? this.files[0].name : '';
 });
 </script>
+
+@if($mainPost)
+<script>
+// Polls the same JSON endpoint the desktop app uses (/api/topics/{id}) every
+// 2 seconds and diffs the result against what's already in the DOM instead of
+// reloading the page - an untouched reply is never removed or rebuilt, so
+// there's nothing to visibly blink whether you're typing or just reading
+// (mirrors the desktop client's TopicController).
+//
+// Sending/flagging/accepting/deleting your OWN reply used to be a plain
+// <form> POST, which still did a full page reload even after the polling
+// above stopped OTHER people's replies from causing one - that leftover
+// full-page round trip was the remaining "it still blinks" cause. All four
+// actions now go through fetch() + this same diff-render path instead,
+// matching how the desktop client's onPostReply/flagReply/acceptAnswer/
+// deleteReply already never trigger a full screen rebuild either.
+(function () {
+    const topicId = {{ $topic->TopicID }};
+    const chatPanel = document.querySelector('.chat-panel');
+    const replyTextarea = document.querySelector('.reply-form textarea[name="ReplyContent"]');
+    const replyForm = document.querySelector('.reply-form');
+    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '';
+    if (!chatPanel) return;
+
+    function escapeHtml(str) {
+        const div = document.createElement('div');
+        div.textContent = str ?? '';
+        return div.innerHTML;
+    }
+
+    function initials(name) {
+        const parts = (name || '').trim().split(/\s+/).filter(Boolean);
+        if (parts.length === 0) return '?';
+        let s = parts[0].charAt(0).toUpperCase();
+        if (parts.length > 1) s += parts[parts.length - 1].charAt(0).toUpperCase();
+        return s;
+    }
+
+    // "created_at" is deliberately excluded - it changes every cycle just
+    // from time passing, which would defeat the point of diffing (every row
+    // would look "changed" every 2 seconds). It gets its own always-updated
+    // path in applyUpdate() below instead, so the relative time still ticks
+    // without touching anything else about an otherwise untouched row.
+    function replySignature(r) {
+        return [r.content, r.is_accepted, r.is_flagged, r.can_flag, r.can_accept, r.can_delete].join('|');
+    }
+
+    function actionsHtmlFor(r) {
+        let html = `<button type="button" title="Reply" onclick="startThreadedReply(${r.id}, '${escapeHtml(r.author_name).replace(/'/g, "\\'")}')"><i class="fa-solid fa-reply"></i></button>`;
+        if (r.can_flag) {
+            html += `<button type="button" title="Report" onclick="ajaxReplyAction(${r.id}, 'flag')"><i class="fa-solid fa-flag"></i></button>`;
+        }
+        if (r.can_delete) {
+            html += `<div class="sep"></div><button type="button" class="danger" title="Delete" onclick="ajaxReplyAction(${r.id}, 'delete')"><i class="fa-solid fa-trash"></i></button>`;
+        }
+        if (r.can_accept) {
+            html += `<div class="sep"></div><button type="button" class="mark" title="Mark as answer" onclick="ajaxReplyAction(${r.id}, 'accept')"><i class="fa-solid fa-check"></i></button>`;
+        }
+        return html;
+    }
+
+    function buildReplyRow(r) {
+        const classes = ['reply-row', r.is_own ? 'own' : 'other'];
+        if (r.is_accepted) classes.push('answer');
+        if (r.is_flagged) classes.push('flagged');
+
+        const quoteHtml = r.parent_reply_author
+            ? `<div class="quote-strip"><i class="fa-solid fa-reply"></i> Replying to <strong>${escapeHtml(r.parent_reply_author)}</strong>: ${escapeHtml(r.parent_reply_snippet || '')}</div>`
+            : '';
+        const acceptedHtml = r.is_accepted
+            ? `<div class="reply-answer-flag"><i class="fa-solid fa-circle-check"></i> Marked as answer</div>` : '';
+        const flaggedHtml = r.is_flagged
+            ? `<span class="tag-chip flagged" style="margin-bottom: 6px;"><i class="fa-solid fa-flag"></i> Flagged</span>` : '';
+
+        let attachHtml = '';
+        if (r.attachment_url) {
+            attachHtml = r.attachment_type === 'image'
+                ? `<div class="attach-img"><img src="${escapeHtml(r.attachment_url)}" alt="Attachment"></div>`
+                : `<a class="attach-file" href="${escapeHtml(r.attachment_url)}" target="_blank" rel="noopener"><div class="icon"><i class="fa-solid fa-file"></i></div><div class="fname">${escapeHtml(r.attachment_name || '')}</div></a>`;
+        }
+
+        const row = document.createElement('div');
+        row.className = classes.join(' ');
+        row.dataset.replyId = r.id;
+        row.dataset.replyAuthor = r.author_name;
+        row.dataset.signature = replySignature(r);
+        row.innerHTML = `
+            <div class="post-avatar ${r.is_lecturer ? 'lecturer' : ''}">${escapeHtml(initials(r.author_name))}</div>
+            <div class="reply-content">
+                <div class="reply-top">
+                    <span class="reply-name">${r.is_own ? 'You' : escapeHtml(r.author_name)}</span>
+                    <span class="reply-time">${escapeHtml(r.created_at)}</span>
+                </div>
+                ${quoteHtml}
+                <div class="reply-bubble">
+                    ${acceptedHtml}
+                    ${flaggedHtml}
+                    ${escapeHtml(r.content)}
+                    ${attachHtml}
+                </div>
+            </div>
+            <div class="hover-actions">${actionsHtmlFor(r)}</div>
+        `;
+        return row;
+    }
+
+    function applyUpdate(json) {
+        const replies = json.replies || [];
+        const incomingIds = new Set(replies.map(r => String(r.id)));
+
+        chatPanel.querySelectorAll('.reply-row[data-reply-id]').forEach(row => {
+            if (!incomingIds.has(row.dataset.replyId)) row.remove();
+        });
+
+        const placeholder = chatPanel.querySelector(':scope > .empty-state');
+        if (replies.length && placeholder) placeholder.remove();
+
+        replies.forEach(r => {
+            const existing = chatPanel.querySelector(`.reply-row[data-reply-id="${r.id}"]`);
+
+            const timeEl = existing?.querySelector('.reply-time');
+            if (timeEl) timeEl.textContent = r.created_at;
+
+            const signature = replySignature(r);
+            if (existing && existing.dataset.signature === signature) {
+                return;
+            }
+            const newRow = buildReplyRow(r);
+            if (existing) {
+                existing.replaceWith(newRow);
+            } else {
+                chatPanel.appendChild(newRow);
+            }
+        });
+
+        if (!replies.length && !chatPanel.querySelector('.reply-row') && !chatPanel.querySelector(':scope > .empty-state')) {
+            const p = document.createElement('p');
+            p.className = 'empty-state';
+            p.style.padding = '8px';
+            p.textContent = 'No replies yet. Be the first to respond.';
+            chatPanel.appendChild(p);
+        }
+    }
+
+    function poll() {
+        if (replyTextarea && document.activeElement === replyTextarea && replyTextarea.value.trim() !== '') {
+            return;
+        }
+        fetch(`/api/topics/${topicId}`, { headers: { 'Accept': 'application/json' }, credentials: 'same-origin' })
+            .then(res => (res.ok ? res.json() : null))
+            .then(json => { if (json) applyUpdate(json); })
+            .catch(() => {});
+    }
+
+    window.ajaxReplyAction = function (replyId, action) {
+        if (action === 'delete' && !confirm('Delete this reply?')) return;
+        const url = action === 'flag' ? `/replies/${replyId}/flag`
+            : action === 'accept' ? `/replies/${replyId}/accept`
+            : `/replies/${replyId}`;
+        const method = action === 'delete' ? 'DELETE' : 'POST';
+        fetch(url, {
+            method,
+            headers: { 'X-CSRF-TOKEN': csrfToken, 'Accept': 'application/json' },
+            credentials: 'same-origin',
+        }).then(poll).catch(() => {});
+    };
+
+    if (replyForm) {
+        replyForm.addEventListener('submit', function (e) {
+            e.preventDefault();
+            const formData = new FormData(replyForm);
+            fetch(replyForm.action, {
+                method: 'POST',
+                body: formData,
+                headers: { 'Accept': 'application/json' },
+                credentials: 'same-origin',
+            }).then(res => {
+                if (!res.ok) {
+                    return res.json().then(body => {
+                        throw new Error(body.message || Object.values(body.errors || {}).flat()[0] || 'Could not post your reply.');
+                    });
+                }
+                replyTextarea.value = '';
+                document.getElementById('parentReplyId').value = '';
+                document.getElementById('replyContextBar').classList.remove('open');
+                document.getElementById('replyAttachment').value = '';
+                document.getElementById('replyAttachFilename').textContent = '';
+                return poll();
+            }).catch(err => alert(err.message));
+        });
+    }
+
+    setInterval(poll, 2000);
+})();
+</script>
+@endif
 @endsection

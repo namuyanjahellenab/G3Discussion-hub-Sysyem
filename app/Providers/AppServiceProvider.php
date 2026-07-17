@@ -4,6 +4,7 @@ namespace App\Providers;
 
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Facades\View;
+use Illuminate\Support\Str;
 use App\Models\GroupStudent;
 use App\Models\Post;
 use App\Models\Reply;
@@ -28,6 +29,22 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        // Avatar-circle initials used throughout the app: first letter of
+        // the first name + first letter of the last name (e.g. "Muyingo
+        // Star" -> "MS"), not just the first word - single-word names fall
+        // back to that one letter.
+        Str::macro('initials', function (?string $name): string {
+            $parts = array_values(array_filter(preg_split('/\s+/', trim((string) $name))));
+            if (empty($parts)) {
+                return '?';
+            }
+            $letters = mb_strtoupper(mb_substr($parts[0], 0, 1));
+            if (count($parts) > 1) {
+                $letters .= mb_strtoupper(mb_substr(end($parts), 0, 1));
+            }
+            return $letters;
+        });
+
         View::composer(['layouts.sidebar-lecturer', 'layouts.sidebar-student', 'layouts.sidebar-admin'], function ($view) {
         $userId = auth()->id();
 

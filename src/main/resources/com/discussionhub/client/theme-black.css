@@ -1,0 +1,9 @@
+/* Theme override, layered on top of app-theme.css when the user's saved
+   ThemeColor is "black". Mirrors public/css/admin-theme.css's
+   body[data-theme="black"] rule exactly - only the brand accent trio
+   changes, everything else (surfaces/semantic accents/text) stays put. */
+.root {
+    -luna-lightest: #D8D8D8;
+    -luna-mid: #2B2B2B;
+    -luna-dark: #171717;
+}

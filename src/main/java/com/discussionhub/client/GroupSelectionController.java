@@ -1,5 +1,7 @@
 package com.discussionhub.client;
 
+import com.discussionhub.client.utils.WindowUtil;
+
 import com.discussionhub.client.database.DatabaseManager;
 import com.discussionhub.client.utils.DeltaSyncService;
 import javafx.application.Platform;
@@ -49,7 +51,7 @@ public class GroupSelectionController {
     private void loadGroups() {
         new Thread(() -> {
             try {
-                URL url = URI.create("http://localhost:8000/api/groups").toURL();
+                URL url = URI.create("http://localhost:8000/api/groups/for-selection").toURL();
                 HttpURLConnection conn = (HttpURLConnection) url.openConnection();
                 conn.setRequestMethod("GET");
                 conn.setRequestProperty("Authorization", "Bearer " + SessionManager.token);
@@ -248,13 +250,12 @@ public class GroupSelectionController {
     private void loadDashboard() {
         try {
             FXMLLoader loader = new FXMLLoader(getClass().getResource("dashboard-view.fxml"));
-            Scene scene = new Scene(loader.load(), 900, 650);
+            Scene scene = new Scene(loader.load());
             DashboardController controller = loader.getController();
             controller.setServices(dbManager, syncService);
 
             Stage stage = (Stage) groupCardsContainer.getScene().getWindow();
-            stage.setScene(scene);
-            stage.setTitle("DiscussionHub — Dashboard");
+            WindowUtil.applyScene(stage, scene, "DiscussionHub — Dashboard");
         } catch (Exception e) {
             e.printStackTrace();
         }

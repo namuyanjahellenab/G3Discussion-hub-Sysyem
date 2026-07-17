@@ -11,4 +11,9 @@ class ConversationExclusion extends Model
     const UPDATED_AT = 'UpdatedAt';
 
     protected $fillable = ['ConversationID', 'UserID', 'ExcludedBy'];
+
+    public function user()
+    {
+        return $this->belongsTo(User::class, 'UserID', 'UserID');
+    }
 }

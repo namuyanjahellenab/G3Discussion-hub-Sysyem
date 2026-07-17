@@ -1,9 +1,13 @@
 package com.discussionhub.client;
 
+import com.discussionhub.client.utils.WindowUtil;
+
 import com.discussionhub.client.database.DatabaseManager;
-import com.discussionhub.client.database.NotificationItem;
 import com.discussionhub.client.utils.DeltaSyncService;
-import com.discussionhub.client.utils.NetworkUtil;
+import com.discussionhub.client.utils.TextUtil;
+import javafx.animation.Animation;
+import javafx.animation.KeyFrame;
+import javafx.animation.Timeline;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
@@ -11,407 +15,366 @@ import javafx.geometry.Pos;
 import javafx.scene.Scene;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
-import javafx.scene.control.ListView;
 import javafx.scene.layout.FlowPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
+import javafx.util.Duration;
+import org.json.JSONArray;
+import org.json.JSONObject;
+
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.URI;
 import java.net.URL;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 
-import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
-
+// Mirrors DashboardController::index() + dashboard/index.blade.php on the
+// web side: stat cards, My Groups panel, Notifications panel, profile mini,
+// Upcoming Quiz, and the latest announcement - all from one GET to
+// /api/dashboard. Nothing here that isn't on the web page.
 public class DashboardController {
+
+    private static final String BASE_URL = "http://127.0.0.1:8000";
+
     @FXML private Label userInitialsLabel;
     @FXML private Label userNameLabel;
-    @FXML private Label userRoleLabel;
+    @FXML private Label syncStatusLabel;
+    @FXML private Label lastSyncLabel;
+    @FXML private VBox pendingUploadsCard;
+    @FXML private Label pendingCountLabel;
     @FXML private FlowPane groupsFlowPane;
     @FXML private VBox recentNotificationsBox;
-    @FXML private HBox syncCompleteBanner;
-    @FXML private Label syncDetailLabel;
-    @FXML private VBox pendingUploadsCard;
-    @FXML private Label syncStatusLabel;
-    @FXML private Label connectionLabel;
-    @FXML private Label lastSyncLabel;
-    @FXML private Label pendingCountLabel;
-    @FXML private Label recentSyncLabel;
-    @FXML private HBox offlineBanner;
-    @FXML private ListView<String> syncLogList;
+
+    @FXML private Label statGroupsLabel;
+    @FXML private Label statNotificationsLabel;
+    @FXML private Label statParticipationLabel;
+    @FXML private Label statQuizAvgLabel;
+
+    @FXML private Label upcomingQuizTitleLabel;
+    @FXML private Label upcomingQuizMetaLabel;
+    @FXML private Button upcomingQuizButton;
+    @FXML private Label noUpcomingQuizLabel;
+
+    @FXML private VBox announcementBanner;
+    @FXML private Label announcementTagLabel;
+    @FXML private Label announcementBodyLabel;
+
+    @FXML private SidebarController sidebarController;
 
     private DatabaseManager dbManager;
     private DeltaSyncService syncService;
+    private List<GroupSummary> myGroups = new ArrayList<>();
 
-    @FXML
-    public void initialize() {
-        // Group cards and notifications are built in Java (createGroupCard(),
-        // createNotificationRow()) once real data arrives from loadMyGroups()/
-        // loadRecentNotifications() — nothing to wire up here at load time.
-    }
+    // Re-probes connectivity on a timer so the ONLINE/OFFLINE indicator
+    // self-heals - previously this only ran once on screen load, so a
+    // moment's slow response (or the dashboard just being left open) left it
+    // stuck showing OFFLINE until the user manually hit Retry Sync.
+    private static final Duration STATUS_REFRESH_INTERVAL = Duration.seconds(10);
+    private Timeline statusRefreshTimeline;
 
     public void setServices(DatabaseManager dbManager, DeltaSyncService syncService) {
         this.dbManager = dbManager;
         this.syncService = syncService;
-        refreshStatus();
+        sidebarController.setServices(dbManager, syncService);
+        sidebarController.setActive("dashboard");
+        sidebarController.setOnBeforeNavigate(this::stopStatusAutoRefresh);
         loadUserProfile();
-        loadMyGroups();
-        loadRecentNotifications();
+        loadDashboard();
+        refreshSyncStatus();
+        startStatusAutoRefresh();
     }
 
-    private void refreshStatus() {
-        boolean isOnline = NetworkUtil.isNetworkAvailable();
-
-        if (isOnline) {
-            syncStatusLabel.setText("● ONLINE");
-            syncStatusLabel.setStyle("-fx-text-fill: #90ee90; -fx-font-size: 12; -fx-font-weight: bold;");
-            connectionLabel.setText("Connected");
-            connectionLabel.setStyle("-fx-font-size: 15; -fx-font-weight: bold; -fx-text-fill: #2e7d32;");
-            offlineBanner.setVisible(false);
-            offlineBanner.setManaged(false);
-        } else {
-            syncStatusLabel.setText("● OFFLINE");
-            syncStatusLabel.setStyle("-fx-text-fill: #ffcc00; -fx-font-size: 12; -fx-font-weight: bold;");
-            connectionLabel.setText("No connection");
-            connectionLabel.setStyle("-fx-font-size: 15; -fx-font-weight: bold; -fx-text-fill: #c62828;");
-            offlineBanner.setVisible(true);
-            offlineBanner.setManaged(true);
+    private void startStatusAutoRefresh() {
+        if (statusRefreshTimeline == null) {
+            statusRefreshTimeline = new Timeline(new KeyFrame(STATUS_REFRESH_INTERVAL, e -> refreshSyncStatus()));
+            statusRefreshTimeline.setCycleCount(Animation.INDEFINITE);
         }
+        statusRefreshTimeline.playFromStart();
+    }
+
+    private void stopStatusAutoRefresh() {
+        if (statusRefreshTimeline != null) {
+            statusRefreshTimeline.stop();
+        }
+    }
+
+    // Desktop-only (SDD figure 6.7, "Desktop offline interface") - shows
+    // live connection state, last sync time, and pending offline changes.
+    // The network probe is a real HTTP call (up to ~2.5s on a timeout), so it
+    // runs off the FX thread - this used to block the UI on every dashboard
+    // load and every 10s tick.
+    private void refreshSyncStatus() {
+        new Thread(() -> {
+            boolean isOnline = com.discussionhub.client.utils.NetworkUtil.isNetworkAvailable();
+            Platform.runLater(() -> applySyncStatus(isOnline));
+        }).start();
+    }
+
+    private void applySyncStatus(boolean isOnline) {
+        syncStatusLabel.setText(isOnline ? "● ONLINE" : "● OFFLINE");
+        syncStatusLabel.setStyle("-fx-font-size: 12; -fx-font-weight: bold; -fx-text-fill: "
+            + (isOnline ? "#3F9C6B" : "#D9483D") + ";");
 
         String lastSync = dbManager.getLastSyncTimestamp();
-        lastSyncLabel.setText("Last sync: " + (lastSync != null ? lastSync : "never"));
+        lastSyncLabel.setText("Last synced: " + (lastSync != null ? lastSync : "never"));
 
         int pendingCount = dbManager.getPendingChanges().size();
-        pendingCountLabel.setText(pendingCount + (pendingCount == 1 ? " item" : " items"));
+        pendingCountLabel.setText(pendingCount + (pendingCount == 1 ? " item" : " items")
+            + " waiting to sync");
+        pendingUploadsCard.setVisible(pendingCount > 0 || !isOnline);
+        pendingUploadsCard.setManaged(pendingCount > 0 || !isOnline);
+    }
 
-        recentSyncLabel.setText(isOnline ? "Sync available" : "Sync paused — offline");
+    @FXML
+    protected void onRetrySync() {
+        pendingCountLabel.setText("Syncing…");
+        new Thread(() -> {
+            syncService.synchronizeLocalChanges();
+            Platform.runLater(() -> {
+                refreshSyncStatus();
+                loadDashboard();
+            });
+        }).start();
     }
 
     private void loadUserProfile() {
         String name = (SessionManager.fullName == null || SessionManager.fullName.isBlank())
             ? SessionManager.userEmail : SessionManager.fullName;
         userNameLabel.setText(name);
-        userInitialsLabel.setText(initialsOf(name));
+        userInitialsLabel.setText(TextUtil.initials(name));
     }
 
-    private String initialsOf(String name) {
-        StringBuilder sb = new StringBuilder();
-        for (String part : name.trim().split("\\s+")) {
-            if (!part.isEmpty()) sb.append(Character.toUpperCase(part.charAt(0)));
-            if (sb.length() >= 2) break;
-        }
-        return sb.length() > 0 ? sb.toString() : "?";
-    }
-
-    private void loadMyGroups() {
+    private void loadDashboard() {
         new Thread(() -> {
-            List<GroupSummary> myGroups = new ArrayList<>();
+            String body = get("/api/dashboard");
+            if (body == null) return;
             try {
-                URL url = URI.create("http://localhost:8000/api/groups").toURL();
-                HttpURLConnection conn = (HttpURLConnection) url.openConnection();
-                conn.setRequestMethod("GET");
-                conn.setRequestProperty("Authorization", "Bearer " + SessionManager.token);
-                conn.setRequestProperty("Accept", "application/json");
-
-                if (conn.getResponseCode() == 200) {
-                    BufferedReader in = new BufferedReader(new InputStreamReader(conn.getInputStream()));
-                    StringBuilder response = new StringBuilder();
-                    String line;
-                    while ((line = in.readLine()) != null) response.append(line);
-                    in.close();
-
-                    String json = response.toString().trim();
-                    if (json.startsWith("[") && json.endsWith("]") && json.length() > 2) {
-                        json = json.substring(1, json.length() - 1);
-                        for (String obj : json.split("\\},\\{")) {
-                            String cleaned = obj.replace("{", "").replace("}", "");
-                            boolean isMember = Boolean.parseBoolean(extractGroupValue(cleaned, "is_member"));
-                            if (isMember) {
-                                int groupId = Integer.parseInt(extractGroupValue(cleaned, "id"));
-                                String name = extractGroupValue(cleaned, "name");
-                                int memberCount = Integer.parseInt(extractGroupValue(cleaned, "member_count"));
-                                boolean hasNew = Boolean.parseBoolean(extractGroupValue(cleaned, "has_new"));
-                                myGroups.add(new GroupSummary(groupId, name, memberCount, hasNew));
-                            }
-                        }
-                    }
-                }
+                JSONObject json = new JSONObject(body);
+                Platform.runLater(() -> render(json));
             } catch (Exception e) {
-                System.err.println("[Dashboard] Error loading groups: " + e.getMessage());
+                System.err.println("[Dashboard] Parse error: " + e.getMessage());
             }
-            Platform.runLater(() -> {
-                groupsFlowPane.getChildren().clear();
-                for (GroupSummary group : myGroups) {
-                    groupsFlowPane.getChildren().add(createGroupCard(group));
-                }
-            });
         }).start();
     }
 
-    /**
-     * Builds one group card matching the web dashboard's style: centered icon,
-     * bold group name, member count, optional "new messages" pill, and a
-     * blue "VIEW FORUM →" button that does the actual navigation.
-     */
-    private VBox createGroupCard(GroupSummary group) {
-        VBox card = new VBox(10);
-        card.setAlignment(Pos.CENTER);
-        card.setPrefWidth(210);
-        card.setStyle("-fx-background-color: #fbfbfd; -fx-background-radius: 10; -fx-padding: 20 16; " +
-            "-fx-border-color: #eceef3; -fx-border-radius: 10;");
+    private void render(JSONObject json) {
+        JSONArray groups = json.getJSONArray("joined_groups");
+        myGroups = new ArrayList<>();
+        groupsFlowPane.getChildren().clear();
+        for (int i = 0; i < groups.length(); i++) {
+            JSONObject g = groups.getJSONObject(i);
+            GroupSummary group = new GroupSummary(g.getInt("id"), g.getString("name"), g.getInt("member_count"));
+            myGroups.add(group);
+            groupsFlowPane.getChildren().add(createGroupCard(group));
+        }
+        statGroupsLabel.setText(String.valueOf(groups.length()));
 
-        Label icon = new Label("👥");
-        icon.setStyle("-fx-background-color: #eaf1ff; -fx-text-fill: #2f5bea; " +
-            "-fx-padding: 10 14; -fx-background-radius: 10; -fx-font-size: 16;");
+        statNotificationsLabel.setText(String.valueOf(json.getInt("notifications_count")));
 
-        Label nameLabel = new Label(group.name);
-        nameLabel.setStyle("-fx-font-weight: bold; -fx-font-size: 15; -fx-text-fill: #1a1f36;");
-
-        Label memberLabel = new Label(group.memberCount + (group.memberCount == 1 ? " member" : " members"));
-        memberLabel.setStyle("-fx-text-fill: #8a90a0; -fx-font-size: 12;");
-
-        card.getChildren().addAll(icon, nameLabel, memberLabel);
-
-        if (group.hasNew) {
-            Label newPill = new Label("● new messages");
-            newPill.setStyle("-fx-background-color: #ffe6e6; -fx-text-fill: #d32f2f; " +
-                "-fx-padding: 3 8; -fx-background-radius: 10; -fx-font-size: 10.5; -fx-font-weight: bold;");
-            card.getChildren().add(newPill);
+        JSONArray notifications = json.getJSONArray("notifications");
+        recentNotificationsBox.getChildren().clear();
+        if (notifications.isEmpty()) {
+            recentNotificationsBox.getChildren().add(emptyState("No notifications yet."));
+        } else {
+            for (int i = 0; i < notifications.length(); i++) {
+                recentNotificationsBox.getChildren().add(createNotificationRow(notifications.getJSONObject(i)));
+            }
         }
 
-        Button viewForumBtn = new Button("VIEW FORUM  →");
-        viewForumBtn.setMaxWidth(Double.MAX_VALUE);
-        viewForumBtn.setStyle("-fx-background-color: #2f5bea; -fx-text-fill: white; -fx-font-weight: bold; " +
-            "-fx-background-radius: 6; -fx-padding: 9 16; -fx-font-size: 12;");
-        viewForumBtn.setOnAction(e -> openForumForGroup(group));
-        card.getChildren().add(viewForumBtn);
+        JSONObject snapshot = json.getJSONObject("snapshot");
+        statParticipationLabel.setText(snapshot.get("participation") + " / 10");
+        statQuizAvgLabel.setText(snapshot.isNull("quiz_average") ? "—" : String.valueOf(snapshot.get("quiz_average")));
 
+        boolean hasUpcomingQuiz = !json.isNull("upcoming_quiz");
+        upcomingQuizTitleLabel.setVisible(hasUpcomingQuiz);
+        upcomingQuizTitleLabel.setManaged(hasUpcomingQuiz);
+        upcomingQuizMetaLabel.setVisible(hasUpcomingQuiz);
+        upcomingQuizMetaLabel.setManaged(hasUpcomingQuiz);
+        upcomingQuizButton.setVisible(hasUpcomingQuiz);
+        upcomingQuizButton.setManaged(hasUpcomingQuiz);
+        noUpcomingQuizLabel.setVisible(!hasUpcomingQuiz);
+        noUpcomingQuizLabel.setManaged(!hasUpcomingQuiz);
+        if (hasUpcomingQuiz) {
+            JSONObject quiz = json.getJSONObject("upcoming_quiz");
+            upcomingQuizTitleLabel.setText(quiz.getString("title"));
+            upcomingQuizMetaLabel.setText(quiz.getString("start_time") + " · " + quiz.getInt("duration_minutes") + " min");
+        }
+
+        boolean hasAnnouncement = !json.isNull("latest_announcement");
+        announcementBanner.setVisible(hasAnnouncement);
+        announcementBanner.setManaged(hasAnnouncement);
+        if (hasAnnouncement) {
+            JSONObject announcement = json.getJSONObject("latest_announcement");
+            String groupName = announcement.optString("group_name", null);
+            announcementTagLabel.setText("📢 ANNOUNCEMENT" + (groupName != null ? " — " + groupName : ""));
+            announcementBodyLabel.setText(announcement.getString("message"));
+        }
+    }
+
+    /** Matches .group-card / .group-card-icon in dashboard/index.blade.php exactly. */
+    private VBox createGroupCard(GroupSummary group) {
+        VBox card = new VBox(10);
+        card.getStyleClass().add("group-card");
+        card.setAlignment(Pos.CENTER);
+        card.setPrefWidth(210);
+        card.setStyle("-fx-padding: 20 16;");
+
+        Label icon = new Label("👥");
+        icon.getStyleClass().add("group-card-icon");
+        icon.setStyle("-fx-padding: 10 14; -fx-font-size: 16;");
+
+        Label nameLabel = new Label(group.name);
+        nameLabel.getStyleClass().add("heading-text");
+        nameLabel.setStyle("-fx-font-size: 15;");
+
+        Label memberLabel = new Label(group.memberCount + (group.memberCount == 1 ? " member" : " members"));
+        memberLabel.getStyleClass().add("muted-text");
+
+        Button viewForumBtn = new Button("View Forum  →");
+        viewForumBtn.getStyleClass().add("btn-primary");
+        viewForumBtn.setMaxWidth(Double.MAX_VALUE);
+        viewForumBtn.setOnAction(e -> openForumForGroup(group));
+
+        card.getChildren().addAll(icon, nameLabel, memberLabel, viewForumBtn);
         return card;
     }
 
-    private String extractGroupValue(String json, String key) {
-        String pattern = "\"" + key + "\":";
-        int start = json.indexOf(pattern);
-        if (start == -1) return "0";
-        start += pattern.length();
-        int end;
-        if (json.charAt(start) == '"') {
-            start++;
-            end = json.indexOf('"', start);
-        } else {
-            end = json.indexOf(',', start);
-            if (end == -1) end = json.length();
-        }
-        return json.substring(start, end).replace("\"", "");
-    }
+    private VBox createNotificationRow(JSONObject n) {
+        boolean isRead = n.optBoolean("is_read", false);
 
-    /**
-     * Reads the local Notification table (already-built dbManager.getAllNotifications())
-     * and shows the 3 most recent as a small list, matching the web dashboard's
-     * "Recent Notifications" card. No new backend calls — purely front-end display
-     * of data your app already fetches during sync.
-     */
-    private void loadRecentNotifications() {
-        recentNotificationsBox.getChildren().clear();
-        List<NotificationItem> notifications = dbManager.getAllNotifications(SessionManager.userId);
+        VBox row = new VBox(2);
+        row.setStyle("-fx-padding: 13 20; -fx-border-color: transparent transparent #E1E9ED transparent; " +
+            "-fx-border-width: 0 0 1 0;" + (isRead ? "" : " -fx-cursor: hand;"));
 
-        if (notifications.isEmpty()) {
-            Label empty = new Label("No notifications yet.");
-            empty.setStyle("-fx-text-fill: #9aa0ab; -fx-font-size: 12;");
-            recentNotificationsBox.getChildren().add(empty);
-            return;
-        }
-
-        int shown = 0;
-        for (NotificationItem n : notifications) {
-            if (shown >= 3) break;
-            recentNotificationsBox.getChildren().add(createNotificationRow(n));
-            shown++;
-        }
-    }
-
-    private VBox createNotificationRow(NotificationItem n) {
-        VBox row = new VBox(4);
-        row.setStyle("-fx-padding: 0 0 10 0; -fx-border-color: transparent transparent #eceef3 transparent; " +
-            "-fx-border-width: 0 0 1 0;");
-
-        HBox topRow = new HBox(8);
-        topRow.setAlignment(Pos.CENTER_LEFT);
+        HBox topRow = new HBox(10);
+        topRow.setAlignment(Pos.TOP_LEFT);
 
         Label dot = new Label("●");
-        dot.setStyle("-fx-text-fill: #2f5bea; -fx-font-size: 11;");
+        dot.setStyle("-fx-text-fill: " + (isRead ? "#E1E9ED" : "#26658C") + "; -fx-font-size: 8;");
 
-        Label message = new Label(n.getMessage());
+        VBox textCol = new VBox(2);
+        Label type = new Label(n.optString("type", "Notification"));
+        type.getStyleClass().add("heading-text");
+        type.setStyle("-fx-font-size: 13;");
+        Label message = new Label(n.optString("message", ""));
         message.setWrapText(true);
-        message.setStyle("-fx-font-weight: bold; -fx-font-size: 13; -fx-text-fill: #1a1f36;");
+        message.getStyleClass().add("muted-text");
+        Label time = new Label(n.optString("time", ""));
+        time.getStyleClass().add("muted-text");
+        textCol.getChildren().addAll(type, message, time);
 
-        Region spacer = new Region();
-        HBox.setHgrow(spacer, Priority.ALWAYS);
-
-        Label time = new Label(n.getCreatedAt());
-        time.setStyle("-fx-text-fill: #b0b5c0; -fx-font-size: 11;");
-
-        topRow.getChildren().addAll(dot, message, spacer, time);
+        HBox.setHgrow(textCol, Priority.ALWAYS);
+        topRow.getChildren().addAll(dot, textCol);
         row.getChildren().add(topRow);
+
+        if (!isRead && n.has("id")) {
+            row.setOnMouseClicked(e -> markNotificationRead(n.getInt("id")));
+        }
         return row;
     }
 
-    @FXML
-    protected void onSyncNow() {
-        if (!NetworkUtil.isNetworkAvailable()) {
-            addLogEntry("Sync skipped — no connection.");
-            return;
-        }
-        addLogEntry("Syncing...");
-        dbManager.updateDeviceSyncStatus("Syncing");
-
+    private void markNotificationRead(int notificationId) {
         new Thread(() -> {
-            syncService.synchronizeLocalChanges();
-            Platform.runLater(() -> {
-                refreshStatus();
-                loadMyGroups();
-                loadRecentNotifications();
-                addLogEntry("Sync completed at " + nowString());
-            });
+            post("/api/notifications/" + notificationId + "/read");
+            Platform.runLater(this::loadDashboard);
         }).start();
     }
 
-    @FXML
-    protected void onOpenForum() {
+    private void post(String path) {
         try {
-            FXMLLoader loader = new FXMLLoader(getClass().getResource("forum-view.fxml"));
-            Scene scene = new Scene(loader.load(), 800, 600);
-            ForumController controller = loader.getController();
-            controller.setServices(dbManager, syncService);
-
-            Stage stage = (Stage) syncStatusLabel.getScene().getWindow();
-            stage.setScene(scene);
-            stage.setTitle("DiscussionHub — Forum");
+            URL url = URI.create(BASE_URL + path).toURL();
+            HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+            conn.setRequestMethod("POST");
+            conn.setRequestProperty("Authorization", "Bearer " + SessionManager.token);
+            conn.setRequestProperty("Accept", "application/json");
+            conn.getResponseCode();
         } catch (Exception e) {
-            System.err.println("[Dashboard] Error opening forum: " + e.getMessage());
+            System.err.println("[Dashboard] POST " + path + " failed: " + e.getMessage());
         }
     }
 
-    @FXML
-    protected void onOpenGroupSelection() {
+    private Label emptyState(String text) {
+        Label l = new Label(text);
+        l.getStyleClass().add("muted-text");
+        l.setStyle("-fx-padding: 24 20;");
+        return l;
+    }
+
+    private String get(String path) {
         try {
-            FXMLLoader loader = new FXMLLoader(getClass().getResource("group-selection-view.fxml"));
-            Scene scene = new Scene(loader.load(), 800, 650);
-            GroupSelectionController controller = loader.getController();
+            URL url = URI.create(BASE_URL + path).toURL();
+            HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+            conn.setRequestMethod("GET");
+            conn.setRequestProperty("Authorization", "Bearer " + SessionManager.token);
+            conn.setRequestProperty("Accept", "application/json");
+            if (conn.getResponseCode() != 200) return null;
+            BufferedReader in = new BufferedReader(new InputStreamReader(conn.getInputStream(), StandardCharsets.UTF_8));
+            StringBuilder response = new StringBuilder();
+            String line;
+            while ((line = in.readLine()) != null) response.append(line);
+            in.close();
+            return response.toString();
+        } catch (Exception e) {
+            System.err.println("[Dashboard] Request error: " + e.getMessage());
+            return null;
+        }
+    }
+
+    // Distinct from the sidebar's own Quizzes button - this is the "Upcoming
+    // Quiz" card's "View Details" button, which needs the same destination.
+    @FXML
+    protected void onOpenQuizzes() {
+        sidebarController.onOpenQuizzes();
+    }
+
+    // "See all" on the My Groups panel - mirrors the web's route('groups.index')
+    // ("View Discussion Groups": search, Trending Groups, every group with a
+    // real derived course code), distinct from the onboarding group-picker
+    // that only LoginController opens for brand-new members.
+    @FXML
+    protected void onOpenGroupBrowse() {
+        try {
+            FXMLLoader loader = new FXMLLoader(getClass().getResource("group-browse-view.fxml"));
+            Scene scene = new Scene(loader.load());
+            GroupBrowseController controller = loader.getController();
             controller.setServices(dbManager, syncService);
 
             Stage stage = (Stage) syncStatusLabel.getScene().getWindow();
-            stage.setScene(scene);
-            stage.setTitle("DiscussionHub — Select Group");
+            WindowUtil.applyScene(stage, scene, "DiscussionHub — View Discussion Groups");
         } catch (Exception e) {
-            System.err.println("[Dashboard] Error opening group selection: " + e.getMessage());
+            System.err.println("[Dashboard] Error opening group browse: " + e.getMessage());
         }
     }
 
     private void openForumForGroup(GroupSummary group) {
         try {
-            FXMLLoader loader = new FXMLLoader(getClass().getResource("forum-view.fxml"));
-            Scene scene = new Scene(loader.load(), 800, 600);
-            ForumController controller = loader.getController();
+            FXMLLoader loader = new FXMLLoader(getClass().getResource("group-topics-view.fxml"));
+            Scene scene = new Scene(loader.load());
+            GroupTopicsController controller = loader.getController();
             controller.setServices(dbManager, syncService);
             controller.setGroupContext(group.id, group.name);
 
             Stage stage = (Stage) syncStatusLabel.getScene().getWindow();
-            stage.setScene(scene);
-            stage.setTitle("DiscussionHub — " + group.name);
+            WindowUtil.applyScene(stage, scene, "DiscussionHub — " + group.name);
         } catch (Exception e) {
             System.err.println("[Dashboard] Error opening group forum: " + e.getMessage());
         }
-    }
-
-    @FXML
-    protected void onOpenNotifications() {
-        try {
-            FXMLLoader loader = new FXMLLoader(getClass().getResource("notifications-view.fxml"));
-            Scene scene = new Scene(loader.load(), 800, 600);
-            NotificationsController controller = loader.getController();
-            controller.setServices(dbManager, syncService);
-
-            Stage stage = (Stage) syncStatusLabel.getScene().getWindow();
-            stage.setScene(scene);
-            stage.setTitle("DiscussionHub — Notifications");
-        } catch (Exception e) {
-            System.err.println("[Dashboard] Error opening notifications: " + e.getMessage());
-            e.printStackTrace();
-        }
-    }
-    @FXML
-    protected void onOpenSettings() {
-        try {
-            FXMLLoader loader = new FXMLLoader(getClass().getResource("settings-view.fxml"));
-            Scene scene = new Scene(loader.load(), 800, 600);
-            SettingsController controller = loader.getController();
-            controller.setServices(dbManager, syncService);
-
-            Stage stage = (Stage) syncStatusLabel.getScene().getWindow();
-            stage.setScene(scene);
-            stage.setTitle("DiscussionHub — Settings");
-        } catch (Exception e) {
-            System.err.println("[Dashboard] Error opening settings: " + e.getMessage());
-        }
-    }
-
-    @FXML
-    protected void onTestQuiz() {
-        try {
-            FXMLLoader loader = new FXMLLoader(getClass().getResource("quiz-modal.fxml"));
-            Scene scene = new Scene(loader.load(), 620, 520);
-            QuizModalController controller = loader.getController();
-
-            java.util.List<String> questions = java.util.List.of(
-                "What does SQL stand for?",
-                "Which Java keyword creates a new object?",
-                "What does HTTP stand for?"
-            );
-            java.util.List<String[]> options = java.util.List.of(
-                new String[]{"Structured Query Language","Simple Query Logic","Standard Query List","Structured Question Language"},
-                new String[]{"create","new","build","make"},
-                new String[]{"HyperText Transfer Protocol","High Transfer Text Protocol","Hyperlink Text Protocol","HyperText Transport Process"}
-            );
-            java.util.List<Integer> questionIds = java.util.List.of(-1, -2, -3);
-            controller.setQuizData("-1", "Sample Quiz - Week 2 Topics (PREVIEW)", questions, options, questionIds, 2);
-
-            Stage modalStage = new Stage();
-            modalStage.initModality(javafx.stage.Modality.APPLICATION_MODAL);
-            modalStage.initStyle(javafx.stage.StageStyle.UNDECORATED);
-            modalStage.initOwner(syncStatusLabel.getScene().getWindow());
-            modalStage.setScene(scene);
-            modalStage.show();
-        } catch (Exception e) {
-            System.err.println("[Dashboard] Error opening quiz: " + e.getMessage());
-            e.printStackTrace();
-        }
-    }
-
-    private void addLogEntry(String message) {
-        syncLogList.getItems().add(0, nowString() + "  " + message);
-    }
-
-    private String nowString() {
-        return LocalDateTime.now().format(DateTimeFormatter.ofPattern("HH:mm:ss"));
     }
 
     private static class GroupSummary {
         final int id;
         final String name;
         final int memberCount;
-        final boolean hasNew;
-        GroupSummary(int id, String name, int memberCount, boolean hasNew) {
+        GroupSummary(int id, String name, int memberCount) {
             this.id = id;
             this.name = name;
             this.memberCount = memberCount;
-            this.hasNew = hasNew;
         }
     }
 }

@@ -13,10 +13,10 @@ use App\Models\TopicClassification;
 use App\Models\TopicExclusion;
 use App\Models\User;
 use App\Models\Group;
-use App\Models\Participation;
 use App\Services\AttachmentUploader;
 use App\Services\MlGatewayClient;
 use App\Services\ParticipationService;
+use App\Services\RecommendationScorer;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -364,16 +364,10 @@ if ($request->filled('parent_post_id')) {
             $post->load('author');
 
             // Determine mine wrapper (frontend logic uses AuthorID/isMine)
-           //$isMine = (string) $post->AuthorID === (string) Auth::id();
            $isMine = (string) $post->UserID === (string) Auth::id();
            $senderName = $post->author?->UserName ?? $post->author?->name ?? 'Student';
 
-            $loopParts = explode(' ', $senderName);
-            $loopInitials = collect($loopParts)
-                ->filter()
-                ->map(fn($p) => mb_substr($p, 0, 1))
-                ->take(2)
-                ->implode('');
+            $loopInitials = Str::initials($senderName);
 
             // Basic escaping to keep JSON safe; markup matches bubble wrapper content
             $content = e($post->Content ?? '');
@@ -496,11 +490,9 @@ if ($request->filled('parent_post_id')) {
         foreach ($posts as $post) {
             $post->load('author');
             $isMine = (string) $post->UserID === (string) Auth::id();
-           // $isMine = (string)$post->AuthorID === (string)Auth::id();
             $senderName = $post->author?->UserName ?? $post->author?->name ?? 'Student';
 
-            $loopParts = explode(' ', $senderName);
-            $loopInitials = collect($loopParts)->filter()->map(fn($p) => mb_substr($p,0,1))->take(2)->implode('');
+            $loopInitials = Str::initials($senderName);
 
             $content = e($post->Content ?? '');
 
@@ -583,44 +575,6 @@ if ($request->filled('parent_post_id')) {
         ]);
     }
 
-    public function exportGroup(Request $request, Group $group)
-    {
-        $userId = Auth::id();
-        
-        // Verify user is a member of this group
-        $isMember = GroupStudent::where('GroupID', $group->GroupID)
-            ->where('UserID', $userId)
-            ->exists();
-
-        if (!$isMember) {
-            abort(403, 'You are not a member of this group.');
-        }
-
-        // Get all topics for this group
-        $topics = Topic::where('GroupID', $group->GroupID)->get();
-        $topicIds = $topics->pluck('TopicID');
-
-        // Get all posts from all topics in this group
-        $posts = Post::with(['author', 'parent.author', 'replies.author'])
-            ->whereIn('TopicID', $topicIds)
-            ->orderBy('CreatedAt')
-            ->get();
-
-        $html = view('messages.export_pdf', compact('group', 'posts'))->render();
-        $dompdf = new Dompdf();
-        $dompdf->loadHtml($html);
-        $dompdf->setPaper('A4', 'portrait');
-        $dompdf->render();
-
-        $filename = Str::slug($group->GroupName ?: 'group') . '-discussion.pdf';
-        $path = 'discussions/' . $filename;
-        Storage::disk('public')->put($path, $dompdf->output());
-
-        return response()->download(Storage::disk('public')->path($path), $filename, [
-            'Content-Type' => 'application/pdf',
-        ]);
-    }
-
     public function deleteMessage(Post $post)
     {
         $userId = Auth::id();
@@ -644,35 +598,6 @@ if ($request->filled('parent_post_id')) {
 
         return back()->with('status', 'Message deleted successfully.');
     }
-
-    public function marks()
-{
-    if (Auth::user()->Role === 'Lecturer') {
-        return redirect()->route('dashboard');
-    }
-
-    $user = Auth::user();
-    
-    // Get participation data
-    $participation = Participation::where('UserID', $user->UserID)->first();
-    $participationScore = $participation ? $participation->ParticipationScore : 0;
-    $participationMarks = min(10, $participationScore); // Cap at 10 marks
-    
-    $marks = [
-        'coursework' => 78,
-        'cats' => 84,
-        'exams' => 81,
-        'gpa' => 4.2,
-        'participation' => $participationMarks,
-        'participation_details' => [
-            'posts' => $participation->PostCount ?? 0,
-            'replies' => $participation->ReplyCount ?? 0,
-            'score' => $participationScore,
-        ],
-    ];
-
-    return view('marks.index', compact('marks'));
-}
 
     public function quizzes()
 {
@@ -790,23 +715,7 @@ if ($request->filled('parent_post_id')) {
             ->values()
             ->all();
 
-        $recentMessages = Post::where('UserID', $user->UserID)
-            ->latest('CreatedAt')
-            ->limit(5)
-            ->pluck('Content')
-            ->filter()
-            ->values()
-            ->all();
-
-        if (empty($recentMessages)) {
-            $recentMessages = Topic::whereIn('GroupID', $groupIds)
-                ->latest('CreatedAt')
-                ->limit(5)
-                ->pluck('Title')
-                ->filter()
-                ->values()
-                ->all();
-        }
+        $recentMessages = app(RecommendationScorer::class)->buildRecentMessages($user->UserID, $groupIds);
 
         $candidateTopics = Topic::whereIn('GroupID', $groupIds)
             ->where('CreatedBy', '!=', $user->UserID)
@@ -825,19 +734,15 @@ if ($request->filled('parent_post_id')) {
             : null;
         $topicScores = collect($ranked['TopicScores'] ?? [])->pluck('RelevanceScore', 'TopicID');
 
-        if ($topicScores->isNotEmpty() && $topicScores->sum() > 0) {
-            $topics = $candidateTopics
-                ->sortBy([
-                    fn ($a, $b) => $topicScores->get($b->TopicID, 0) <=> $topicScores->get($a->TopicID, 0),
-                    fn ($a, $b) => $b->posts_count <=> $a->posts_count,
-                    fn ($a, $b) => $b->CreatedAt <=> $a->CreatedAt,
-                ])
-                ->values();
-        } else {
-            $topics = $candidateTopics->sortByDesc('CreatedAt')->values();
-        }
-
-        $topics = $topics->take(10); // max topics recommended to a user
+        // Blend text relevance with real engagement (replies + distinct
+        // repliers) so a topic that's actually "vibing" with discussion
+        // outranks one that only happens to share vocabulary with the
+        // user's interests. Degrades gracefully if the ML gateway is down:
+        // every text score defaults to 0, so topics still rank by
+        // engagement alone rather than falling back to plain recency.
+        $topics = app(RecommendationScorer::class)
+            ->score($candidateTopics, $topicScores)
+            ->take(10); // max topics recommended to a user
 
         Recommendation::where('UserID', $user->UserID)->delete();
 
@@ -845,10 +750,10 @@ if ($request->filled('parent_post_id')) {
             Recommendation::create([
                 'UserID' => $user->UserID,
                 'TopicID' => $topic->TopicID,
-                // Clamp defensively: the gateway score is meant to be 0-1, but
-                // never trust an external service's math to persist a
-                // percentage the UI treats as a hard 0-100 range.
-                'RelevanceScore' => min(round($topicScores->get($topic->TopicID, 0) * 100, 2), 100),
+                // Clamp defensively: the blended score is meant to be 0-1,
+                // but never trust the math to persist a percentage the UI
+                // treats as a hard 0-100 range.
+                'RelevanceScore' => min(round($topic->relevance_score * 100, 2), 100),
             ]);
         }
     }
@@ -1101,27 +1006,6 @@ public function storeReply(Request $request, Post $post)
         'parent_reply_id' => 'nullable|exists:Reply,ReplyID',
         'attachment' => ['nullable', 'file', 'mimes:pdf,doc,docx,ppt,pptx,png,jpg,jpeg,zip', 'max:20480'],
     ]);
-
-    // Replies are judged against the thread they're replying to (topic +
-    // original question), not just "is this educational in general" — a
-    // reply can be on-topic for the course yet irrelevant to this thread.
-    $threadContext = trim(($post->topic?->Title ?? '') . "\n" . ($post->Content ?? ''));
-    $moderation = app(MlGatewayClient::class)->moderateContent(
-        $request->input('ReplyContent'),
-        $threadContext !== '' ? $threadContext : null
-    );
-
-    if ($moderation['isSpam']) {
-        return back()
-            ->withErrors(['ReplyContent' => 'Your reply looks like spam and was not posted.'])
-            ->withInput();
-    }
-
-    if (!$moderation['isEducational']) {
-        return back()
-            ->withErrors(['ReplyContent' => "Your reply doesn't seem relevant to this discussion and was not posted."])
-            ->withInput();
-    }
 
     $attachmentPath = null;
     $attachmentType = null;

@@ -6,6 +6,8 @@ use App\Models\Participation;
 use App\Models\ParticipationCriteria;
 use App\Models\Post;
 use App\Models\Reply;
+use App\Models\User;
+use Illuminate\Support\Collection;
 
 class ParticipationService
 {
@@ -49,5 +51,54 @@ class ParticipationService
             ['UserID' => $userId, 'GroupID' => $groupId],
             ['PostCount' => $postCount, 'ReplyCount' => $replyCount, 'ParticipationScore' => $score]
         );
+    }
+
+    /**
+     * The single highest raw ParticipationScore recorded anywhere on the
+     * platform - any user, in any group. This is the "10" every group's
+     * curve is measured against, deliberately global rather than per-group:
+     * the intent is competitive pressure between groups (be the platform's
+     * most active participant to top your own group's marks), not a curve
+     * that's trivially easy to max out by being the only active person in
+     * a quiet group.
+     */
+    public function globalMaxScore(): float
+    {
+        return (float) (Participation::max('ParticipationScore') ?? 0);
+    }
+
+    /**
+     * A user's participation in every group they belong to, curved against
+     * the platform-wide top scorer. Square-root rather than linear scaling
+     * softens the effect of one outlier's raw score setting the ceiling -
+     * a group of solidly-active students shouldn't get crushed toward 0
+     * just because one person elsewhere posts 10x more than anyone else.
+     */
+    public function curvedScoresForUser(int $userId): Collection
+    {
+        $groups = User::findOrFail($userId)->groups()->get();
+        $globalMax = $this->globalMaxScore();
+
+        $participations = Participation::where('UserID', $userId)
+            ->whereIn('GroupID', $groups->pluck('GroupID'))
+            ->get()
+            ->keyBy('GroupID');
+
+        return $groups->map(function ($group) use ($participations, $globalMax) {
+            $p = $participations->get($group->GroupID);
+            $raw = (float) ($p->ParticipationScore ?? 0);
+            $curved = $globalMax > 0
+                ? min(10.0, round(10 * sqrt($raw / $globalMax), 1))
+                : 0.0;
+
+            return [
+                'group_id' => $group->GroupID,
+                'group_name' => $group->GroupName,
+                'participation' => $curved,
+                'raw_score' => $raw,
+                'post_count' => $p->PostCount ?? 0,
+                'reply_count' => $p->ReplyCount ?? 0,
+            ];
+        });
     }
 }

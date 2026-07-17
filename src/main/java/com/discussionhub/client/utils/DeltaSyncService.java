@@ -67,6 +67,9 @@ public class DeltaSyncService {
 
             if (success) {
                 dbManager.markSyncQueueItemAsSynced(item.getSyncQueueId());
+                if ("Message".equals(item.getEntityType())) {
+                    dbManager.markMessageSynced((int) item.getEntityId());
+                }
             } else {
                 System.err.println("[Sync] Push failed for queue id " + item.getSyncQueueId());
                 return false;
@@ -83,6 +86,7 @@ public class DeltaSyncService {
             conn.setRequestMethod("POST");
             conn.setRequestProperty("Content-Type", "application/json; utf-8");
             conn.setRequestProperty("Accept", "application/json");
+            conn.setRequestProperty("Authorization", "Bearer " + com.discussionhub.client.SessionManager.token);
             conn.setDoOutput(true);
             conn.setConnectTimeout(CONNECT_TIMEOUT_MS);
             conn.setReadTimeout(READ_TIMEOUT_MS);
@@ -100,8 +104,13 @@ public class DeltaSyncService {
             }
 
             int responseCode = conn.getResponseCode();
-            return (responseCode == HttpURLConnection.HTTP_OK
-                || responseCode == HttpURLConnection.HTTP_CREATED);
+            boolean success = responseCode == HttpURLConnection.HTTP_OK
+                || responseCode == HttpURLConnection.HTTP_CREATED;
+
+            if (!success) {
+                System.err.println("[Sync] Push rejected (HTTP " + responseCode + "): " + readErrorBody(conn));
+            }
+            return success;
 
         } catch (Exception e) {
             System.err.println("[Sync] Network error while pushing payload: " + e.getMessage());
@@ -137,11 +146,13 @@ public class DeltaSyncService {
 
             conn.setRequestMethod("GET");
             conn.setRequestProperty("Accept", "application/json");
+            conn.setRequestProperty("Authorization", "Bearer " + com.discussionhub.client.SessionManager.token);
             conn.setConnectTimeout(CONNECT_TIMEOUT_MS);
             conn.setReadTimeout(READ_TIMEOUT_MS);
 
             int responseCode = conn.getResponseCode();
             if (responseCode != HttpURLConnection.HTTP_OK) {
+                System.err.println("[Sync] Pull rejected (HTTP " + responseCode + "): " + readErrorBody(conn));
                 return null;
             }
 
@@ -158,6 +169,18 @@ public class DeltaSyncService {
         } catch (Exception e) {
             System.err.println("[Sync] Network error while pulling changes: " + e.getMessage());
             return null;
+        }
+    }
+
+    private String readErrorBody(HttpURLConnection conn) {
+        try (BufferedReader reader = new BufferedReader(
+                new InputStreamReader(conn.getErrorStream(), StandardCharsets.UTF_8))) {
+            StringBuilder sb = new StringBuilder();
+            String line;
+            while ((line = reader.readLine()) != null) sb.append(line);
+            return sb.toString();
+        } catch (Exception e) {
+            return "(no error body)";
         }
     }
 

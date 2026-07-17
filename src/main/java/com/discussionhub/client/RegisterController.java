@@ -1,5 +1,7 @@
 package com.discussionhub.client;
 
+import com.discussionhub.client.utils.WindowUtil;
+
 import com.discussionhub.client.database.DatabaseManager;
 import com.discussionhub.client.utils.DeltaSyncService;
 import javafx.application.Platform;
@@ -107,21 +109,30 @@ public class RegisterController {
             return;
         }
 
+        if (!rulesAccepted) {
+            showError("You must accept the platform rules to proceed.");
+            return;
+        }
+
         new Thread(() -> {
             try {
                 URL url = URI.create("http://localhost:8000/api/register").toURL();
                 HttpURLConnection conn = (HttpURLConnection) url.openConnection();
                 conn.setRequestMethod("POST");
                 conn.setRequestProperty("Content-Type", "application/json");
+                conn.setRequestProperty("Accept", "application/json");
                 conn.setDoOutput(true);
 
-                String json = String.format(
-                        "{\"name\":\"%s\",\"email\":\"%s\",\"username\":\"%s\",\"password\":\"%s\",\"role\":\"student\"}",
-                        name, email, username, password
-                );
+                org.json.JSONObject payload = new org.json.JSONObject();
+                payload.put("full_name", name);
+                payload.put("email", email);
+                payload.put("username", username);
+                payload.put("password", password);
+                payload.put("password_confirmation", confirm);
+                payload.put("rules_accepted", true);
 
                 try (OutputStream os = conn.getOutputStream()) {
-                    os.write(json.getBytes(StandardCharsets.UTF_8));
+                    os.write(payload.toString().getBytes(StandardCharsets.UTF_8));
                 }
 
                 int code = conn.getResponseCode();
@@ -134,7 +145,9 @@ public class RegisterController {
                         onSignIn();
                     });
                 } else {
-                    Platform.runLater(() -> showError("Server error: " + code));
+                    String errorBody = readErrorBody(conn);
+                    String message = extractFirstError(errorBody);
+                    Platform.runLater(() -> showError(message));
                 }
             } catch (Exception e) {
                 Platform.runLater(() -> showError("Network error: " + e.getMessage()));
@@ -142,17 +155,43 @@ public class RegisterController {
         }).start();
     }
 
+    private String readErrorBody(HttpURLConnection conn) {
+        try (java.io.BufferedReader in = new java.io.BufferedReader(
+                new java.io.InputStreamReader(conn.getErrorStream(), StandardCharsets.UTF_8))) {
+            StringBuilder sb = new StringBuilder();
+            String line;
+            while ((line = in.readLine()) != null) sb.append(line);
+            return sb.toString();
+        } catch (Exception e) {
+            return "";
+        }
+    }
+
+    /** Laravel validation errors come back as {"errors": {"field": ["message"]}}. */
+    private String extractFirstError(String body) {
+        try {
+            org.json.JSONObject json = new org.json.JSONObject(body);
+            if (json.has("errors")) {
+                org.json.JSONObject errors = json.getJSONObject("errors");
+                String firstKey = errors.keys().next();
+                return errors.getJSONArray(firstKey).getString(0);
+            }
+            return json.optString("message", "Registration failed.");
+        } catch (Exception e) {
+            return "Registration failed.";
+        }
+    }
+
     @FXML
     public void onSignIn() {
         try {
             FXMLLoader loader = new FXMLLoader(getClass().getResource("login-view.fxml"));
-            Scene scene = new Scene(loader.load(), 800, 600);
+            Scene scene = new Scene(loader.load());
             LoginController controller = loader.getController();
             controller.setServices(dbManager, syncService);
 
             Stage stage = (Stage) fullNameField.getScene().getWindow();
-            stage.setScene(scene);
-            stage.setTitle("DiscussionHub — Login");
+            WindowUtil.applyScene(stage, scene, "DiscussionHub — Login");
         } catch (Exception e) {
             e.printStackTrace();
         }
