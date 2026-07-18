@@ -34,6 +34,9 @@
                     <strong>Group Chat</strong>
                     <span>Everyone in the group</span>
                 </div>
+                @if($activeConversation->ConversationID !== $mainConversation->ConversationID && ($threadUnreadCounts[$mainConversation->ConversationID] ?? 0) > 0)
+                    <span class="unread-badge">{{ $threadUnreadCounts[$mainConversation->ConversationID] > 99 ? '99+' : $threadUnreadCounts[$mainConversation->ConversationID] }}</span>
+                @endif
             </a>
 
             @if($restrictedThreads->count())
@@ -46,6 +49,9 @@
                             <strong>Restricted Thread</strong>
                             <span>Some members excluded</span>
                         </div>
+                        @if($activeConversation->ConversationID !== $thread->ConversationID && ($threadUnreadCounts[$thread->ConversationID] ?? 0) > 0)
+                            <span class="unread-badge">{{ $threadUnreadCounts[$thread->ConversationID] > 99 ? '99+' : $threadUnreadCounts[$thread->ConversationID] }}</span>
+                        @endif
                     </a>
                 @endforeach
             @endif
@@ -74,7 +80,13 @@
             <div class="alert alert-danger" id="chat-error-banner" style="{{ $errors->any() ? '' : 'display:none;' }}">{{ $errors->first() }}</div>
 
             <div class="chat-window card" id="chat-window">
+                @php($unreadDividerShown = false)
                 @forelse($messages as $msg)
+                    {{-- Receiver-only, WhatsApp-style: never shown for the viewer's own messages. --}}
+                    @if(!$unreadDividerShown && (string) $msg->user_id !== (string) auth()->id() && $lastReadMessageId > 0 && $msg->MessageID > $lastReadMessageId)
+                        @php($unreadDividerShown = true)
+                        <div class="unread-divider"><span>NEW MESSAGES</span></div>
+                    @endif
                     @include('student.partials.chat-bubble', ['msg' => $msg, 'canExclude' => $activeConversation->Type !== 'restricted'])
                 @empty
                     <div class="chat-empty" id="chat-empty-state">

@@ -41,8 +41,10 @@
     .topic-row:last-child { border-bottom: none; }
     .topic-row:hover { background: var(--surface-bg); }
     .topic-row .badges { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+    .topic-row .title-row { display: flex; align-items: center; gap: 8px; }
     .topic-row .title { color: var(--text-heading); font-weight: 700; font-size: 13.5px; margin: 0; }
     .topic-row .meta { color: var(--text-muted); font-size: 12px; }
+    .unread-badge { display: inline-flex; align-items: center; justify-content: center; min-width: 18px; height: 18px; padding: 0 6px; border-radius: 999px; background: var(--accent-danger); color: #fff; font-size: 10.5px; font-weight: 700; }
 
     .tag-chip { display: inline-flex; align-items: center; gap: 4px; font-size: 10.5px; font-weight: 600; background: #fff; border: 1px solid var(--surface-border); padding: 2px 9px; border-radius: 20px; color: var(--text-muted); }
     .tag-chip.flagged { color: var(--accent-danger); border-color: #EBAFAF; }
@@ -55,10 +57,10 @@
     .empty-state { padding: 32px 20px; text-align: center; color: var(--text-muted); font-size: 13.5px; }
 
     .pagination-row { display: flex; justify-content: space-between; align-items: center; margin-top: 16px; color: var(--text-muted); font-size: 12.5px; flex-wrap: wrap; gap: 10px; }
-    .pagination { margin: 0; }
-    .pagination .page-link { color: var(--luna-mid); border-color: var(--surface-border); }
-    .pagination .page-item.active .page-link { background-color: var(--luna-mid); border-color: var(--luna-mid); }
-    .pagination .page-link:hover { color: var(--luna-dark); }
+    .simple-pager { display: flex; gap: 8px; }
+    .pager-btn { display: inline-flex; align-items: center; padding: 6px 14px; border-radius: 999px; border: 1px solid var(--surface-border); background: var(--surface-card); color: var(--text-body); font-size: 12.5px; font-weight: 600; text-decoration: none; }
+    .pager-btn:hover { border-color: var(--luna-mid); color: var(--luna-mid); }
+    .pager-btn.disabled { color: var(--text-muted); opacity: 0.5; pointer-events: none; }
 
     .right-info-panel { display: flex; flex-direction: column; gap: 20px; max-width: 300px; }
     .profile-mini { display: flex; align-items: center; gap: 10px; padding: 16px 20px; }
@@ -131,7 +133,12 @@
                                 <span class="tag-chip flagged"><i class="fa-solid fa-flag"></i> {{ $topic->flagged_replies_count }} flagged {{ Str::plural('reply', $topic->flagged_replies_count) }}</span>
                             @endif
                         </div>
-                        <p class="title">{{ $topic->Title }}</p>
+                        <div class="title-row">
+                            <p class="title">{{ $topic->Title }}</p>
+                            @if($topic->unreadRepliesCount > 0)
+                                <span class="unread-badge">{{ $topic->unreadRepliesCount > 99 ? '99+' : $topic->unreadRepliesCount }}</span>
+                            @endif
+                        </div>
                         <div class="meta">
                             by {{ $topic->creator?->UserName ?? $topic->creator?->name ?? 'a member' }}
                             &bull; {{ $topic->replies->count() }} {{ Str::plural('reply', $topic->replies->count()) }}
@@ -145,7 +152,18 @@
 
             <div class="pagination-row">
                 <span>Showing {{ $topics->firstItem() ?? 0 }}-{{ $topics->lastItem() ?? 0 }} of {{ $topics->total() }} topics</span>
-                {{ $topics->links() }}
+                <div class="simple-pager">
+                    @if($topics->onFirstPage())
+                        <span class="pager-btn disabled">&larr; Prev</span>
+                    @else
+                        <a href="{{ $topics->previousPageUrl() }}" class="pager-btn">&larr; Prev</a>
+                    @endif
+                    @if($topics->hasMorePages())
+                        <a href="{{ $topics->nextPageUrl() }}" class="pager-btn">Next &rarr;</a>
+                    @else
+                        <span class="pager-btn disabled">Next &rarr;</span>
+                    @endif
+                </div>
             </div>
         </div>
 

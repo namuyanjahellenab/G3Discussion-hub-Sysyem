@@ -170,23 +170,44 @@ public class SidebarController {
         }
     }
 
+    private static final String NOTIFICATIONS_ENDPOINT = "/api/notifications/poll";
+
     private void pollNotifications() {
         new Thread(() -> {
-            String body = get("/api/notifications/poll");
-            if (body == null) return;
+            String body = get(NOTIFICATIONS_ENDPOINT);
+            if (body != null) {
+                try {
+                    JSONObject json = new JSONObject(body);
+                    if (dbManager != null) dbManager.cacheApiResponse(NOTIFICATIONS_ENDPOINT, body);
+                    applyNotifications(json);
+                    return;
+                } catch (Exception e) {
+                    System.err.println("[Sidebar] Notification poll error: " + e.getMessage());
+                }
+            }
+
+            // Offline (or unreachable): fall back to the last successfully
+            // polled snapshot so the bell/badge/list still show real data
+            // on a cold start, not just an empty "no notifications" state.
+            if (dbManager == null) return;
+            String cached = dbManager.getCachedApiResponse(NOTIFICATIONS_ENDPOINT);
+            if (cached == null) return;
             try {
-                JSONObject json = new JSONObject(body);
-                int unread = json.optInt("unread_count", 0);
-                JSONArray notifications = json.optJSONArray("notifications");
-                lastNotifications = notifications != null ? notifications : new JSONArray();
-                Platform.runLater(() -> {
-                    updateBadge(unread);
-                    if (notificationListBox != null) renderNotificationList(notificationListBox);
-                });
+                applyNotifications(new JSONObject(cached));
             } catch (Exception e) {
-                System.err.println("[Sidebar] Notification poll error: " + e.getMessage());
+                System.err.println("[Sidebar] Cached notification parse error: " + e.getMessage());
             }
         }).start();
+    }
+
+    private void applyNotifications(JSONObject json) {
+        int unread = json.optInt("unread_count", 0);
+        JSONArray notifications = json.optJSONArray("notifications");
+        lastNotifications = notifications != null ? notifications : new JSONArray();
+        Platform.runLater(() -> {
+            updateBadge(unread);
+            if (notificationListBox != null) renderNotificationList(notificationListBox);
+        });
     }
 
     private void updateBadge(int unread) {
@@ -449,13 +470,33 @@ public class SidebarController {
 
     @FXML
     protected void onOpenGroupChat() {
+        // Only needs a live call to pick WHICH group's chat to default
+        // into - once open, GroupChatController already has its own
+        // offline handling (loadConversation() -> getCachedMessages(),
+        // queuePendingMessage() for sending). This used to hard-refuse to
+        // even navigate there at all when offline, which meant that
+        // already-working offline chat experience was completely
+        // unreachable from a cold, offline app launch.
+        if (!com.discussionhub.client.utils.NetworkUtil.isNetworkAvailable()) {
+            if (SessionManager.lastGroupId != -1) {
+                openGroupChat(SessionManager.lastGroupId, SessionManager.lastGroupName);
+            } else {
+                showNoConnection();
+            }
+            return;
+        }
+
         groupChatBtn.setDisable(true);
         new Thread(() -> {
             String body = get("/api/dashboard");
             Platform.runLater(() -> {
                 groupChatBtn.setDisable(false);
                 if (body == null) {
-                    showNoConnection();
+                    if (SessionManager.lastGroupId != -1) {
+                        openGroupChat(SessionManager.lastGroupId, SessionManager.lastGroupName);
+                    } else {
+                        showNoConnection();
+                    }
                     return;
                 }
                 try {
@@ -477,6 +518,8 @@ public class SidebarController {
 
     private void openGroupChat(int groupId, String groupName) {
         navigate();
+        SessionManager.lastGroupId = groupId;
+        SessionManager.lastGroupName = groupName;
         try {
             FXMLLoader loader = new FXMLLoader(getClass().getResource("group-chat-view.fxml"));
             Scene scene = new Scene(loader.load());
@@ -490,7 +533,8 @@ public class SidebarController {
     }
 
     private void showNoConnection() {
-        Alert alert = new Alert(Alert.AlertType.WARNING, "Group Chat needs an internet connection.");
+        Alert alert = new Alert(Alert.AlertType.WARNING,
+            "Group Chat needs an internet connection the first time, to know which of your groups to open.");
         alert.setHeaderText(null);
         alert.showAndWait();
     }

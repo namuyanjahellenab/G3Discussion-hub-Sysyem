@@ -18,8 +18,13 @@
              link this used to be — that CDN was silently unreachable for at
              least one real user, blanking every icon app-wide. --}}
         @vite(['resources/css/app.css', 'resources/js/app.js'])
-        <link rel="stylesheet" href="{{ asset('css/style.css') }}">
-        <link rel="stylesheet" href="{{ asset('css/admin-theme.css') }}">
+        {{-- filemtime query strings bust the browser cache whenever these
+             plain public/css/ files change (no Vite build step covers them) -
+             without this, a browser that already cached an older copy kept
+             running it indefinitely after an edit, same issue quiz-alert.js
+             below already had to work around. --}}
+        <link rel="stylesheet" href="{{ asset('css/style.css') }}?v={{ filemtime(public_path('css/style.css')) }}">
+        <link rel="stylesheet" href="{{ asset('css/admin-theme.css') }}?v={{ filemtime(public_path('css/admin-theme.css')) }}">
         @stack('styles')
     </head>
     <body class="bg-light" data-theme="{{ auth()->user()->ThemeColor ?? 'luna' }}">
@@ -32,25 +37,18 @@
 
             <div class="d-flex">
                 @if(!isset($showSidebar) || $showSidebar !== false)
-                    {{-- Deliberately a sibling of .app-sidebar-wrapper, not a child: that
-                         wrapper gets `transform` below lg (the off-canvas slide), and a
-                         `transform` on an ancestor creates a new containing block for any
-                         position:fixed descendant — this button would slide off-screen with
-                         the drawer instead of staying pinned to the real viewport. --}}
-                    <button id="sidebar-toggle-btn" onclick="toggleAppSidebar()" title="Toggle sidebar"
-                        style="position: fixed; top: 16px; left: 16px; z-index: 1100; width: 36px; height: 36px;
-                        background: #ffffff; border: 1px solid #e4e7ec; border-radius: 8px; cursor: pointer;
-                        display: flex; align-items: center; justify-content: center; box-shadow: 0 1px 4px rgba(16,24,40,0.08);">
-                        <i class="fa-solid fa-bars" style="color: #667085;"></i>
+                    {{-- Deliberately OUTSIDE .app-sidebar-wrapper, not inside it: that
+                         wrapper collapses to width:0/overflow:hidden when toggled off,
+                         so a button living inside it would vanish along with the
+                         sidebar - leaving no way to bring it back. position:fixed keeps
+                         it visible/clickable regardless of collapse state. --}}
+                    <button id="sidebar-toggle-btn" onclick="toggleAppSidebar()" title="Toggle sidebar">
+                        <i class="fa-solid fa-bars"></i>
                     </button>
 
                     <div class="app-sidebar-wrapper">
                         @include('layouts.sidebar')
                     </div>
-                    {{-- Below lg, the sidebar is an off-canvas drawer (see admin-theme.css)
-                         toggled by the button above. This backdrop closes it on an outside
-                         tap, same as any standard mobile nav drawer. --}}
-                    <div class="mobile-sidebar-backdrop" onclick="document.body.classList.remove('mobile-sidebar-open')"></div>
                 @endif
 
                 <div class="flex-fill">
@@ -99,19 +97,12 @@
              copy would keep running it indefinitely after an edit. --}}
         <script src="/js/quiz-alert.js?v={{ filemtime(public_path('js/quiz-alert.js')) }}"></script>
         <script>
+            // One collapse behavior at every screen width - the desktop client
+            // has no separate "mobile" layout to branch on, so this doesn't
+            // either. Toggling just hides/shows .app-sidebar-wrapper (see
+            // admin-theme.css) to give the main content the freed-up space.
             function toggleAppSidebar() {
-                // Desktop (>=992px) collapses the inline sidebar via
-                // sidebar-collapsed; mobile slides the off-canvas drawer via
-                // mobile-sidebar-open. These can't both be toggled together —
-                // sidebar-collapsed's `.sidebar-panel { width: 0 !important }`
-                // isn't scoped to a desktop-only media query, so toggling it
-                // while opening the mobile drawer collapsed the panel to
-                // zero width even though the wrapper had slid on-screen.
-                if (window.matchMedia('(max-width: 991.98px)').matches) {
-                    document.body.classList.toggle('mobile-sidebar-open');
-                } else {
-                    document.body.classList.toggle('sidebar-collapsed');
-                }
+                document.body.classList.toggle('sidebar-collapsed');
             }
         </script>
     </body>

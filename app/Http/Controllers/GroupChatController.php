@@ -6,6 +6,7 @@ use App\Models\Conversation;
 use App\Models\ConversationMember;
 use App\Models\GroupStudent;
 use App\Models\Message;
+use App\Models\ReadState;
 use App\Services\GroupChatService;
 use Illuminate\Http\Request;
 
@@ -66,9 +67,37 @@ class GroupChatController extends Controller
         // being stuck on whichever group the link happened to point at.
         $userGroups = auth()->user()->groups()->get();
 
+        // Local "unread" tracking (see ReadState), mirroring the desktop
+        // client's - lastReadMessageId is frozen BEFORE markRead() below, so
+        // the NEW MESSAGES divider (student.messages.blade.php) reflects
+        // "unread since your last visit", not "unread since this request".
+        // threadUnreadCounts covers every OTHER thread in this group (the
+        // active one is never badged - you're already looking at it).
+        $allConversationIds = collect([$mainConversation->ConversationID])
+            ->merge($restrictedThreads->pluck('ConversationID'));
+        $lastReadByConversation = ReadState::where('UserID', $userId)
+            ->where('EntityType', 'Conversation')
+            ->whereIn('EntityID', $allConversationIds)
+            ->pluck('LastReadItemId', 'EntityID');
+
+        $threadUnreadCounts = [];
+        foreach ($allConversationIds as $convId) {
+            $lastRead = $lastReadByConversation[$convId] ?? 0;
+            $threadUnreadCounts[$convId] = Message::where('ConversationID', $convId)
+                ->where('MessageID', '>', $lastRead)
+                ->count();
+        }
+
+        $lastReadMessageId = $lastReadByConversation[$activeConversation->ConversationID] ?? 0;
+        $maxMessageId = $messages->max('MessageID') ?? 0;
+        if ($maxMessageId > 0) {
+            ReadState::markRead($userId, 'Conversation', $activeConversation->ConversationID, $maxMessageId);
+        }
+
         return view('student.messages', compact(
             'groupId', 'mainConversation', 'restrictedThreads',
-            'activeConversation', 'messages', 'groupMembers', 'userGroups'
+            'activeConversation', 'messages', 'groupMembers', 'userGroups',
+            'threadUnreadCounts', 'lastReadMessageId'
         ));
     }
 

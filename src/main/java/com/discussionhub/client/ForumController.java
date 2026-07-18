@@ -66,14 +66,61 @@ public class ForumController {
     private void loadForum() {
         new Thread(() -> {
             String body = get("/api/forum");
-            if (body == null) return;
-            try {
-                JSONObject json = new JSONObject(body);
-                Platform.runLater(() -> render(json));
-            } catch (Exception e) {
-                System.err.println("[Forum] Parse error: " + e.getMessage());
+            if (body != null) {
+                try {
+                    JSONObject json = new JSONObject(body);
+                    Platform.runLater(() -> render(json));
+                    return;
+                } catch (Exception e) {
+                    System.err.println("[Forum] Parse error: " + e.getMessage());
+                }
             }
+            // This overview's own stats/group-membership list isn't cached
+            // anywhere locally, so there's nothing to reconstruct for most
+            // of this screen - but the single most common case (getting
+            // back into the group you were just looking at) doesn't need
+            // that: GroupTopicsController/TopicController already have a
+            // real offline cache once you're inside them, this is just
+            // about getting back in the door.
+            Platform.runLater(this::renderOfflineFallback);
         }).start();
+    }
+
+    private void renderOfflineFallback() {
+        statGroupsLabel.setText("—");
+        statTopicsLabel.setText("—");
+        groupsFlowPane.getChildren().clear();
+        latestTopicsBox.getChildren().clear();
+
+        if (SessionManager.lastGroupId != -1) {
+            VBox card = new VBox(10);
+            card.getStyleClass().add("group-card");
+            card.setAlignment(Pos.CENTER);
+            card.setPrefWidth(210);
+            card.setStyle("-fx-padding: 20 16;");
+            Label icon = new Label("👥");
+            icon.getStyleClass().add("group-card-icon");
+            icon.setStyle("-fx-padding: 10 14; -fx-font-size: 16;");
+            Label nameLabel = new Label(SessionManager.lastGroupName);
+            nameLabel.getStyleClass().add("heading-text");
+            nameLabel.setStyle("-fx-font-size: 15;");
+            Label offlineLabel = new Label("Saved topics available offline");
+            offlineLabel.getStyleClass().add("muted-text");
+            Button openBtn = new Button("View Forum  →");
+            openBtn.getStyleClass().add("btn-primary");
+            openBtn.setMaxWidth(Double.MAX_VALUE);
+            openBtn.setOnAction(e -> openGroupTopics(SessionManager.lastGroupId, SessionManager.lastGroupName));
+            card.getChildren().addAll(icon, nameLabel, offlineLabel, openBtn);
+            groupsFlowPane.getChildren().add(card);
+        }
+
+        Label empty = new Label(SessionManager.lastGroupId != -1
+            ? "You're offline — only your most recently viewed group is available until you reconnect."
+            : "You're offline, and no group has been viewed yet on this device to show a saved copy of.");
+        empty.getStyleClass().add("muted-text");
+        empty.setWrapText(true);
+        empty.setStyle("-fx-padding: 24 20;");
+        latestTopicsBox.getChildren().add(empty);
     }
 
     private void render(JSONObject json) {
@@ -162,6 +209,12 @@ public class ForumController {
     }
 
     private void openGroupTopics(int groupId, String groupName) {
+        // Same field Group Chat remembers its last-opened group in -
+        // reused here so there's still a way into a group's (now genuinely
+        // cached) topic list on a later offline launch, when this screen's
+        // own group cards below have nothing live to render.
+        SessionManager.lastGroupId = groupId;
+        SessionManager.lastGroupName = groupName;
         try {
             FXMLLoader loader = new FXMLLoader(getClass().getResource("group-topics-view.fxml"));
             Scene scene = new Scene(loader.load());

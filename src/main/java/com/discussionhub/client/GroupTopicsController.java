@@ -109,17 +109,102 @@ public class GroupTopicsController {
     private void loadTopics() {
         String search = searchField.getText().trim();
         new Thread(() -> {
+            boolean online = com.discussionhub.client.utils.NetworkUtil.isNetworkAvailable();
+            // Opportunistic: flushes any queued topics/replies and pulls
+            // fresh Topic/Post rows into the local cache whenever we
+            // actually have a connection, so the cache used below is never
+            // more stale than "last time this screen was open while online".
+            if (online) syncService.synchronizeLocalChanges();
+
             String path = "/api/groups/" + groupId + "/topics?filter=" + currentFilter + "&page=" + currentPage
                 + (search.isEmpty() ? "" : "&search=" + java.net.URLEncoder.encode(search, StandardCharsets.UTF_8));
-            String body = get(path);
-            if (body == null) return;
-            try {
-                JSONObject json = new JSONObject(body);
-                Platform.runLater(() -> render(json));
-            } catch (Exception e) {
-                System.err.println("[GroupTopics] Parse error: " + e.getMessage());
+            String body = online ? get(path) : null;
+
+            if (body != null) {
+                try {
+                    JSONObject json = new JSONObject(body);
+                    Platform.runLater(() -> { markOnline(); render(json); });
+                    return;
+                } catch (Exception e) {
+                    System.err.println("[GroupTopics] Parse error: " + e.getMessage());
+                }
             }
+
+            // Offline, or the live call failed anyway - fall back to
+            // whatever was last cached for this group. Search/filter/
+            // pagination aren't reproducible against the local cache, so
+            // this shows everything cached instead, unfiltered.
+            List<com.discussionhub.client.database.CachedTopicItem> cached = dbManager.getCachedTopics(groupId);
+            Platform.runLater(() -> { markOffline(); renderCached(cached); });
         }).start();
+    }
+
+    private void markOnline() {
+        syncStatusLabel.setText("● ONLINE");
+        syncStatusLabel.setStyle("-fx-text-fill: #3F9C6B; -fx-font-size: 12; -fx-font-weight: bold;");
+    }
+
+    private void markOffline() {
+        syncStatusLabel.setText("● OFFLINE — showing saved topics");
+        syncStatusLabel.setStyle("-fx-text-fill: #D9483D; -fx-font-size: 12; -fx-font-weight: bold;");
+    }
+
+    private void renderCached(List<com.discussionhub.client.database.CachedTopicItem> topics) {
+        filterRow.getChildren().clear();
+        topicsBox.getChildren().clear();
+        if (topics.isEmpty()) {
+            Label empty = new Label("No saved topics for this group yet — connect once to cache them for offline use.");
+            empty.getStyleClass().add("muted-text");
+            empty.setWrapText(true);
+            empty.setStyle("-fx-padding: 32 20;");
+            topicsBox.getChildren().add(empty);
+        } else {
+            for (com.discussionhub.client.database.CachedTopicItem t : topics) {
+                topicsBox.getChildren().add(createCachedTopicRow(t));
+            }
+        }
+        paginationLabel.setText(topics.size() + " saved " + (topics.size() == 1 ? "topic" : "topics"));
+        prevButton.setDisable(true);
+        nextButton.setDisable(true);
+        groupTopicCountLabel.setText(String.valueOf(topics.size()));
+    }
+
+    private VBox createCachedTopicRow(com.discussionhub.client.database.CachedTopicItem topic) {
+        VBox row = new VBox(6);
+        boolean clickable = topic.getTopicId() > 0; // a still-pending offline topic has no server id to open yet
+        row.setStyle("-fx-padding: 16 20; -fx-border-color: transparent transparent #E1E9ED transparent; -fx-border-width: 0 0 1 0;"
+            + (clickable ? " -fx-cursor: hand;" : ""));
+        if (clickable) {
+            row.setOnMouseClicked(e -> openTopic(topic.getTopicId(), topic.getTitle()));
+        }
+
+        HBox badges = new HBox(6);
+        if (topic.isPending()) badges.getChildren().add(badge("⏳ Pending — will post when online", "#FBF0E1", "#D98E3D"));
+        Label title = new Label(topic.getTitle());
+        title.getStyleClass().add("heading-text");
+        title.setStyle("-fx-font-size: 13.5;");
+        HBox titleRow = new HBox(8, title);
+        titleRow.setAlignment(Pos.CENTER_LEFT);
+        addUnreadBadge(titleRow, topic.getTopicId());
+        Label meta = new Label(topic.getCreatedAt());
+        meta.getStyleClass().add("muted-text");
+
+        row.getChildren().addAll(badges, titleRow, meta);
+        return row;
+    }
+
+    /** Local, entirely offline-capable unread count (see
+     *  DatabaseManager.countUnreadReplies()) - a small red dot+count next to
+     *  the title, same idea as WhatsApp's per-chat unread badge, gone once
+     *  the topic has been opened and TopicController marks it read. */
+    private void addUnreadBadge(HBox titleRow, int topicId) {
+        if (topicId <= 0) return; // still-pending offline topic, nothing to count against
+        int unread = dbManager.countUnreadReplies(topicId);
+        if (unread <= 0) return;
+        Label dot = new Label(unread > 99 ? "99+" : String.valueOf(unread));
+        dot.setStyle("-fx-background-color: #D9483D; -fx-text-fill: white; -fx-font-size: 10; -fx-font-weight: bold; " +
+            "-fx-padding: 1 7; -fx-background-radius: 999;");
+        titleRow.getChildren().add(dot);
     }
 
     private void render(JSONObject json) {
@@ -183,6 +268,9 @@ public class GroupTopicsController {
         Label title = new Label(topic.getString("title"));
         title.getStyleClass().add("heading-text");
         title.setStyle("-fx-font-size: 13.5;");
+        HBox titleRow = new HBox(8, title);
+        titleRow.setAlignment(Pos.CENTER_LEFT);
+        addUnreadBadge(titleRow, topic.getInt("id"));
 
         int postsCount = topic.optInt("posts_count", 0);
         Label meta = new Label("by " + topic.optString("creator_name", "a member")
@@ -190,7 +278,7 @@ public class GroupTopicsController {
             + " • last activity " + topic.optString("last_activity", ""));
         meta.getStyleClass().add("muted-text");
 
-        row.getChildren().addAll(badges, title, meta);
+        row.getChildren().addAll(badges, titleRow, meta);
         return row;
     }
 
@@ -311,6 +399,24 @@ public class GroupTopicsController {
             if (title.isEmpty() || contentText.isEmpty()) return;
 
             new Thread(() -> {
+                // Composing a topic offline used to just fail outright (the
+                // POST has nowhere to go) - queue it the same way an offline
+                // chat message already does (queuePendingMessage), instead
+                // of discarding what the student just wrote.
+                if (!com.discussionhub.client.utils.NetworkUtil.isNetworkAvailable()) {
+                    JSONArray excludeArray = new JSONArray();
+                    if ("custom".equals(audience)) {
+                        for (String id : excludeIds) excludeArray.put(Integer.parseInt(id));
+                    }
+                    dbManager.queuePendingTopic(groupId, groupName, SessionManager.userId, title, contentText,
+                        audience, excludeArray.toString());
+                    Platform.runLater(() -> {
+                        showStatus("You're offline — this topic will be posted once you're back online.");
+                        loadTopics();
+                    });
+                    return;
+                }
+
                 String error = postTopic(title, contentText, audience, excludeIds);
                 Platform.runLater(() -> {
                     if (error != null) {
@@ -323,6 +429,12 @@ public class GroupTopicsController {
                 });
             }).start();
         });
+    }
+
+    private void showStatus(String message) {
+        Alert alert = new Alert(Alert.AlertType.INFORMATION, message);
+        alert.setHeaderText(null);
+        alert.showAndWait();
     }
 
     /** Returns null on success, or the server's error message. */

@@ -53,20 +53,43 @@ public class GroupBrowseController {
         loadGroups(query);
     }
 
+    // Cache key is always the unfiltered listing - search itself isn't
+    // reproducible offline (nothing server-side to search against), but the
+    // full group list is exactly what's needed to at least browse/see
+    // membership status without a connection.
+    private static final String BROWSE_ENDPOINT = "/api/groups/browse";
+
     private void loadGroups(String search) {
         new Thread(() -> {
-            String path = "/api/groups/browse" + (search.isEmpty() ? "" : "?search=" + java.net.URLEncoder.encode(search, StandardCharsets.UTF_8));
+            String path = BROWSE_ENDPOINT + (search.isEmpty() ? "" : "?search=" + java.net.URLEncoder.encode(search, StandardCharsets.UTF_8));
             String body = get(path);
-            if (body == null) {
-                Platform.runLater(() -> showStatus("Couldn't load groups — check your connection."));
-                return;
+            if (body != null) {
+                try {
+                    JSONObject json = new JSONObject(body);
+                    if (search.isEmpty()) dbManager.cacheApiResponse(BROWSE_ENDPOINT, body);
+                    Platform.runLater(() -> render(json));
+                    return;
+                } catch (Exception e) {
+                    System.err.println("[GroupBrowse] Parse error: " + e.getMessage());
+                }
             }
-            try {
-                JSONObject json = new JSONObject(body);
-                Platform.runLater(() -> render(json));
-            } catch (Exception e) {
-                System.err.println("[GroupBrowse] Parse error: " + e.getMessage());
+
+            String cached = dbManager.getCachedApiResponse(BROWSE_ENDPOINT);
+            if (cached != null) {
+                try {
+                    JSONObject json = new JSONObject(cached);
+                    Platform.runLater(() -> {
+                        render(json);
+                        if (!search.isEmpty()) {
+                            showStatus("You're offline — search isn't available, showing all saved groups instead.");
+                        }
+                    });
+                    return;
+                } catch (Exception e) {
+                    System.err.println("[GroupBrowse] Cached response parse error: " + e.getMessage());
+                }
             }
+            Platform.runLater(() -> showStatus("Couldn't load groups — check your connection."));
         }).start();
     }
 

@@ -19,4 +19,14 @@ public class SessionManager {
     // an instance field would silently reset to expanded on every click of
     // any nav button, which isn't what "toggle" should mean.
     public static boolean sidebarCollapsed = false;
+
+    // The last group whose chat was actually opened. Group Chat's own
+    // offline handling (loadConversation() -> getCachedMessages()) already
+    // works fine offline once it's open - the only reason it used to be
+    // unreachable offline at all was SidebarController.onOpenGroupChat()
+    // needing a live /api/dashboard call just to pick WHICH group's chat to
+    // default into. Remembering the last one sidesteps that lookup entirely
+    // on the next offline launch.
+    public static int lastGroupId = -1;
+    public static String lastGroupName = "";
 }

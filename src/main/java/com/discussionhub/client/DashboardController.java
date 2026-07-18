@@ -150,17 +150,52 @@ public class DashboardController {
         userInitialsLabel.setText(TextUtil.initials(name));
     }
 
+    private static final String DASHBOARD_ENDPOINT = "/api/dashboard";
+
     private void loadDashboard() {
         new Thread(() -> {
-            String body = get("/api/dashboard");
-            if (body == null) return;
-            try {
-                JSONObject json = new JSONObject(body);
-                Platform.runLater(() -> render(json));
-            } catch (Exception e) {
-                System.err.println("[Dashboard] Parse error: " + e.getMessage());
+            String body = get(DASHBOARD_ENDPOINT);
+            if (body != null) {
+                try {
+                    JSONObject json = new JSONObject(body);
+                    dbManager.cacheApiResponse(DASHBOARD_ENDPOINT, body);
+                    Platform.runLater(() -> render(json));
+                    return;
+                } catch (Exception e) {
+                    System.err.println("[Dashboard] Parse error: " + e.getMessage());
+                }
             }
+            // Offline, or the live call failed anyway - replay whatever
+            // dashboard snapshot was last actually seen online, through the
+            // exact same render() a live response uses, instead of a
+            // separate (and inevitably out of sync) cache-only rendering
+            // path. Genuinely nothing to show only on a first-ever offline
+            // launch that never once loaded this screen while online.
+            String cached = dbManager.getCachedApiResponse(DASHBOARD_ENDPOINT);
+            if (cached != null) {
+                try {
+                    JSONObject json = new JSONObject(cached);
+                    // "● OFFLINE" in the top-right (applySyncStatus, already
+                    // wired to the 10s refreshSyncStatus() timer) already
+                    // says this isn't live - no need for a second banner
+                    // here just to repeat that.
+                    Platform.runLater(() -> render(json));
+                    return;
+                } catch (Exception e) {
+                    System.err.println("[Dashboard] Cached response parse error: " + e.getMessage());
+                }
+            }
+            Platform.runLater(() -> groupsFlowPane.getChildren().setAll(offlineNotice()));
         }).start();
+    }
+
+    private Label offlineNotice() {
+        Label l = new Label("You're offline, and this dashboard hasn't loaded successfully yet on this device — "
+            + "once it does, it'll keep showing your last saved snapshot here even without a connection.");
+        l.getStyleClass().add("muted-text");
+        l.setWrapText(true);
+        l.setStyle("-fx-padding: 16 4;");
+        return l;
     }
 
     private void render(JSONObject json) {
@@ -353,6 +388,8 @@ public class DashboardController {
     }
 
     private void openForumForGroup(GroupSummary group) {
+        SessionManager.lastGroupId = group.id;
+        SessionManager.lastGroupName = group.name;
         try {
             FXMLLoader loader = new FXMLLoader(getClass().getResource("group-topics-view.fxml"));
             Scene scene = new Scene(loader.load());

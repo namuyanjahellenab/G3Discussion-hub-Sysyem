@@ -1,12 +1,9 @@
 <style>
-    body.sidebar-collapsed .sidebar-panel {
-        width: 0 !important;
-        min-width: 0 !important;
-        padding: 0 !important;
-        margin: 0 !important;
-        overflow: hidden !important;
-        border: none !important;
-    }
+    /* messages/index.blade.php's own 3-column .dashboard-grid-container
+       reserves a 260px column to visually align with .app-sidebar-wrapper -
+       when the sidebar collapses, that reserved column must collapse too or
+       it's left as a dead 260px gap instead of the middle column expanding
+       into it. */
     body.sidebar-collapsed .dashboard-grid-container { grid-template-columns: 0 1fr 340px !important; }
 
     #notification-bell-wrapper { position: relative; margin-left: auto; padding-right: 8px; }
@@ -82,9 +79,6 @@
         </li>
     </ul>
 </div>
-
-{{-- toggleAppSidebar() now lives once in layouts.app.blade.php, alongside
-     the toggle button itself. --}}
 
 @once
     @include('layouts.sidebar-notifications-script')

@@ -142,19 +142,43 @@ public class SimpleListController {
     private void fetchAsync(String path, ObjectHandler handler) {
         new Thread(() -> {
             String body = get(path);
-            if (body == null) { showEmpty("Couldn't reach the server — check your connection."); return; }
-            try {
-                JSONObject json = new JSONObject(body);
-                Platform.runLater(() -> {
-                    contentBox.getChildren().clear();
-                    handler.handle(json);
-                    if (contentBox.getChildren().isEmpty()) showEmpty("Nothing here yet.");
-                });
-            } catch (Exception e) {
-                System.err.println("[SimpleList] Parse error: " + e.getMessage());
-                showEmpty("Couldn't load this — please try again.");
+            if (body != null) {
+                try {
+                    JSONObject json = new JSONObject(body);
+                    dbManager.cacheApiResponse(path, body);
+                    Platform.runLater(() -> {
+                        contentBox.getChildren().clear();
+                        handler.handle(json);
+                        if (contentBox.getChildren().isEmpty()) showEmpty("Nothing here yet.");
+                    });
+                    return;
+                } catch (Exception e) {
+                    System.err.println("[SimpleList] Parse error: " + e.getMessage());
+                }
             }
+
+            String cached = dbManager.getCachedApiResponse(path);
+            if (cached != null) {
+                try {
+                    JSONObject json = new JSONObject(cached);
+                    Platform.runLater(() -> {
+                        contentBox.getChildren().clear();
+                        handler.handle(json);
+                        if (contentBox.getChildren().isEmpty()) showEmpty("Nothing here yet.");
+                        markOffline();
+                    });
+                    return;
+                } catch (Exception e) {
+                    System.err.println("[SimpleList] Cached response parse error: " + e.getMessage());
+                }
+            }
+            showEmpty("Couldn't reach the server — check your connection.");
         }).start();
+    }
+
+    private void markOffline() {
+        syncStatusLabel.setText("● OFFLINE — showing saved data");
+        syncStatusLabel.setStyle("-fx-text-fill: #ffcc00; -fx-font-size: 12; -fx-font-weight: bold;");
     }
 
     private String get(String path) {

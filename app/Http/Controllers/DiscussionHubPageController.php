@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 use App\Models\Notification;
+use App\Models\ReadState;
 use App\Models\GroupStudent;
 use App\Models\Post;
 use App\Models\Quiz;
@@ -827,8 +828,16 @@ if ($request->filled('parent_post_id')) {
 {
     $search = $request->input('search');
     $filter = $request->input('filter', 'all');
+    $userId = Auth::id();
 
-    $baseTopics = Topic::where('GroupID', $group->GroupID)->visibleTo(Auth::id());
+    // visibleTo() re-runs "which TopicIDs is this user excluded from" as a
+    // fresh query every time it's chained onto a new builder - baseTopics
+    // (for the filter-count tiles) and the main $topics query below each
+    // used to trigger their own identical lookup. Computing the excluded
+    // id list once and reusing it via whereNotIn() halves that.
+    $excludedTopicIds = TopicExclusion::where('UserID', $userId)->pluck('TopicID');
+
+    $baseTopics = Topic::where('GroupID', $group->GroupID)->whereNotIn('TopicID', $excludedTopicIds);
 
     $filterCounts = [
         'all' => (clone $baseTopics)->count(),
@@ -838,9 +847,14 @@ if ($request->filled('parent_post_id')) {
     ];
 
     $topics = Topic::where('GroupID', $group->GroupID)
-        ->visibleTo(Auth::id())
-        ->withCount('posts')
-        ->with(['creator', 'exclusions', 'replies'])
+        ->whereNotIn('TopicID', $excludedTopicIds)
+        // 'replies' is only ever read for ->count()/->max('CreatedAt') (see
+        // forum/group.blade.php) plus the unread-badge computation below -
+        // none of that needs Content/Attachment/IsFlagged etc, so the eager
+        // load is trimmed to the 3 columns actually used instead of
+        // hydrating every reply's full row (topics with dozens of replies
+        // were pulling their entire text/attachment data just to count them).
+        ->with(['creator', 'exclusions', 'replies' => fn ($q) => $q->select('Reply.ReplyID', 'Reply.PostID', 'Reply.CreatedAt')])
         ->withCount(['replies as flagged_replies_count' => fn ($q) => $q->where('Reply.IsFlagged', true)])
         ->when($search, function ($q) use ($search) {
             $q->where('Title', 'like', "%{$search}%");
@@ -858,6 +872,20 @@ if ($request->filled('parent_post_id')) {
         ->latest('CreatedAt')
         ->paginate(5)
         ->withQueryString();
+
+    // Per-topic unread reply count (see ReadState) - computed in-memory
+    // from the already-eager-loaded 'replies' relation rather than one
+    // extra query per topic. A never-visited topic (no ReadState row)
+    // counts every existing reply as unread, same as the desktop client.
+    $lastReadByTopic = ReadState::where('UserID', $userId)
+        ->where('EntityType', 'Topic')
+        ->whereIn('EntityID', $topics->pluck('TopicID'))
+        ->pluck('LastReadItemId', 'EntityID');
+
+    foreach ($topics as $topic) {
+        $lastRead = $lastReadByTopic[$topic->TopicID] ?? 0;
+        $topic->unreadRepliesCount = $topic->replies->where('ReplyID', '>', $lastRead)->count();
+    }
 
     return view('forum.group', compact('group', 'topics', 'search', 'filter', 'filterCounts'))->with('showSidebar', true);
 
@@ -944,6 +972,16 @@ public function showTopic(Topic $topic)
         ->oldest('CreatedAt')
         ->first();
 
+    // Frozen BEFORE marking read below, so the NEW MESSAGES divider (see
+    // topics/show.blade.php) reflects "unread since your last visit", not
+    // "unread since this request" - same idea as the desktop client's
+    // unreadThresholdReplyId field.
+    $lastReadReplyId = ReadState::lastRead(Auth::id(), 'Topic', $topic->TopicID);
+    $maxReplyId = $mainPost?->replies->max('ReplyID') ?? 0;
+    if ($maxReplyId > 0) {
+        ReadState::markRead(Auth::id(), 'Topic', $topic->TopicID, $maxReplyId);
+    }
+
     $participants = collect();
     if ($mainPost) {
         $participants->push($mainPost->author);
@@ -972,7 +1010,7 @@ public function showTopic(Topic $topic)
     $shareLinks = app(MlGatewayClient::class)->topicShareLinks($topic->TopicID, url('/'))
         ?? $this->buildFallbackShareLinks($topic);
 
-    return view('topics.show', compact('topic', 'mainPost', 'participants', 'lastActivity', 'recommended', 'shareLinks'))->with('showSidebar', true);
+    return view('topics.show', compact('topic', 'mainPost', 'participants', 'lastActivity', 'recommended', 'shareLinks', 'lastReadReplyId'))->with('showSidebar', true);
 
 }
 

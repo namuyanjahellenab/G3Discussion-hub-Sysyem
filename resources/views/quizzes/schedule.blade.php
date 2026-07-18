@@ -33,7 +33,6 @@
         }
 
         .sidebar-panel {
-            padding-top: 64px;
             background: var(--surface-card);
             border-right: 1px solid var(--surface-border);
             min-height: 100vh;
@@ -96,10 +95,6 @@
         .sidebar-menu li a.disabled {
             opacity: 0.55;
             pointer-events: none;
-        }
-
-        #sidebar-toggle-btn i {
-            color: var(--luna-mid) !important;
         }
 
         .app-shell { display: flex; min-height: 100vh; }

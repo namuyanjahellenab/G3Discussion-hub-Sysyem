@@ -356,15 +356,16 @@ button:focus-visible,
    verified. See conversation for the Sources-tab check.
    ============================================================ */
 .sidebar-panel {
-    padding-top: 64px; /* clears the fixed toggle button, no matter which page includes this sidebar */
+    /* Clears #sidebar-toggle-btn, which is position:fixed at top:16px/
+       left:16px and stays on screen even when this panel is collapsed away -
+       it can't live inside .app-sidebar-wrapper (would vanish along with it,
+       leaving no way to reopen), so this reserves the matching space instead. */
+    padding-top: 64px;
     background: var(--surface-card);
-    /* Sticky, not scrolling with the page: pin to the viewport top and let
-       its own content scroll independently if it ever grows taller than the
-       screen, instead of scrolling away with the main content column. */
-    position: sticky;
-    top: 0;
-    align-self: flex-start;
-    height: 100vh;
+    /* Sticky/height ownership lives on .app-sidebar-wrapper now (see
+       admin-theme.css) - this just fills it and scrolls internally on its
+       own if its content ever grows taller than the screen. */
+    height: 100%;
     overflow-y: auto;
 }
 
@@ -373,7 +374,7 @@ button:focus-visible,
   color: var(--text-heading) !important;
   font-weight: 600;
   letter-spacing: 0.02em;
-  border-bottom: 1px solid var(--surface-border);
+  gap: 10px;
 }
 
 .sidebar-brand i {
@@ -483,10 +484,6 @@ button:focus-visible,
   color: var(--luna-mid) !important;
 }
 
-#sidebar-toggle-btn i {
-  color: var(--luna-mid) !important;
-}
-
 /* ============================================================
    Reduced motion
    ============================================================ */
@@ -553,6 +550,17 @@ button:focus-visible,
 .thread-item i { color: var(--luna-mid); width: 18px; text-align: center; }
 .thread-item strong { display: block; font-size: 0.85rem; }
 .thread-item span { display: block; font-size: 0.72rem; color: var(--text-muted); }
+.thread-item .unread-badge {
+    margin-left: auto; display: inline-flex; align-items: center; justify-content: center;
+    min-width: 18px; height: 18px; padding: 0 6px; border-radius: 999px;
+    background: var(--accent-danger); color: #fff; font-size: 10.5px; font-weight: 700;
+}
+
+/* WhatsApp/Slack-style "unread since your last visit" divider in the chat
+   window - see GroupChatController::index()'s lastReadMessageId. */
+.unread-divider { display: flex; align-items: center; gap: 10px; padding: 10px 4px; }
+.unread-divider::before, .unread-divider::after { content: ''; flex: 1; height: 1px; background: var(--accent-success); }
+.unread-divider span { color: var(--accent-success); font-size: 10.5px; font-weight: 700; letter-spacing: 0.5px; white-space: nowrap; }
 
 .chat-main { min-width: 0; }
 .chat-header h2 { display: flex; align-items: center; gap: 0.5rem; font-size: 1.25rem; }
@@ -649,88 +657,65 @@ button:focus-visible,
 }
 
 /* ============================================================
-   Mobile sidebar — off-canvas drawer
-   Below lg (992px) the sidebar used to just be Bootstrap
-   `d-none`, full stop — no hamburger, no drawer, no way to open
-   it at all, so mobile had zero navigation. It's now always in
-   the DOM; below the breakpoint it's fixed off-screen and slides
-   in via body.mobile-sidebar-open (toggled by each sidebar's
-   existing #sidebar-toggle-btn, unchanged on desktop).
+   Sidebar — collapsible via #sidebar-toggle-btn (matches the
+   desktop client's own sidebar toggle), same behavior at every
+   viewport width.
    ============================================================ */
-.mobile-sidebar-backdrop { display: none; }
 
 /* .sidebar-panel had no explicit width, so on desktop it was a plain flex
    child sized by shrink-to-fit — its rendered width (and therefore whether
    "Topic Discussions" wrapped to two lines) depended on how much space each
    page's own content happened to leave it, varying page to page. Fixed at
-   the same 260px used for the mobile drawer below, with flex-shrink: 0 so
-   no page's content can squeeze it smaller. */
+   260px with flex-shrink: 0 so no page's content can squeeze it smaller. */
 .app-sidebar-wrapper {
     width: 260px;
     flex-shrink: 0;
-    transition: width 0.25s ease;
+    /* Sticky, not scrolling with the page: pin to the viewport top so the
+       sidebar stays put and only the main content column scrolls - matches
+       the desktop client, whose nav rail never moves regardless of what's
+       scrolled in the content area. Must live here (the actual flex child
+       of the outer .d-flex row), not on .sidebar-panel inside it - this
+       wrapper's own overflow:hidden (needed for the collapse-width
+       animation) breaks position:sticky on anything nested inside it. */
+    position: sticky;
+    top: 0;
+    align-self: flex-start;
+    height: 100vh;
+    transition: width 0.2s ease;
+    overflow: hidden;
 }
 
-/* The toggle button's body.sidebar-collapsed only ever shrank the INNER
-   .sidebar-panel (width:0 in each sidebar partial's own <style> block) -
-   .app-sidebar-wrapper around it still reserved its fixed 260px as a flex
-   child, so collapsing the sidebar left a 260px gap of plain white space
-   instead of the main content column actually expanding into it. */
-@media (min-width: 992px) {
-    body.sidebar-collapsed .app-sidebar-wrapper {
-        width: 0;
-        min-width: 0;
-        overflow: hidden;
-    }
-}
-
-@media (max-width: 991.98px) {
-    .app-sidebar-wrapper {
-        position: fixed;
-        top: 0;
-        left: 0;
-        bottom: 0;
-        width: 260px;
-        max-width: 80vw;
-        z-index: 1050;
-        transform: translateX(-100%);
-        transition: transform 0.25s ease;
-        box-shadow: var(--shadow-medium);
-    }
-
-    .app-sidebar-wrapper .sidebar-panel {
-        height: 100%;
-        padding-top: 64px;
-    }
-
-    body.mobile-sidebar-open .app-sidebar-wrapper {
-        transform: translateX(0);
-    }
-
-    .mobile-sidebar-backdrop {
-        display: none;
-        position: fixed;
-        inset: 0;
-        background: rgba(1, 28, 64, 0.45);
-        z-index: 1040;
-    }
-
-    body.mobile-sidebar-open .mobile-sidebar-backdrop {
-        display: block;
-    }
-
-    /* sidebar-collapsed is the desktop-only "hide the inline sidebar" state
-       (see each sidebar partial's toggle CSS) — it doesn't apply here since
-       the drawer is already off-screen by default below this breakpoint. */
-    body.sidebar-collapsed .app-sidebar-wrapper {
-        transform: translateX(-100%);
-    }
-
-    body.sidebar-collapsed.mobile-sidebar-open .app-sidebar-wrapper {
-        transform: translateX(0);
-    }
+body.sidebar-collapsed .app-sidebar-wrapper {
+    width: 0;
+    min-width: 0;
 }
 
 @media (prefers-reduced-motion: reduce) {
     .app-sidebar-wrapper { transition: none; }
+}
+
+/* position:fixed, not inline in the sidebar's own flow - it must stay
+   visible/clickable even when .app-sidebar-wrapper is collapsed to
+   width:0/overflow:hidden, or there'd be no way to bring the sidebar back.
+   .sidebar-panel below reserves matching top space to clear it when the
+   sidebar IS visible. */
+#sidebar-toggle-btn {
+    position: fixed;
+    top: 16px;
+    left: 16px;
+    z-index: 1100;
+    width: 36px;
+    height: 36px;
+    background: #ffffff;
+    border: 1px solid #e4e7ec;
+    border-radius: 8px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 1px 4px rgba(16, 24, 40, 0.08);
+}
+
+#sidebar-toggle-btn i {
+    color: var(--luna-mid);
 }

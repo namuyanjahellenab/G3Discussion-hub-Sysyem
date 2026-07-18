@@ -76,6 +76,13 @@
 
     .quote-strip { border-left: 3px solid var(--luna-mid); background: var(--luna-lightest); border-radius: 6px; padding: 5px 10px; font-size: 11.5px; color: var(--luna-dark); margin-bottom: 6px; display: inline-block; }
 
+    /* WhatsApp/Slack-style "unread since your last visit" divider - shown
+       once above the first reply newer than the frozen read marker for
+       this visit (see the poll() script below and lastReadReplyId). */
+    .unread-divider { display: flex; align-items: center; gap: 10px; padding: 10px 4px; }
+    .unread-divider::before, .unread-divider::after { content: ''; flex: 1; height: 1px; background: var(--accent-success); }
+    .unread-divider span { color: var(--accent-success); font-size: 10.5px; font-weight: 700; letter-spacing: 0.5px; white-space: nowrap; }
+
     /* WhatsApp/Telegram-style split: your own replies float right in the
        theme accent color, everyone else's stay left in a plain card. Kept
        as a distinct block (not folded into .reply-bubble above) so the
@@ -229,8 +236,14 @@
                 <h6 class="replies-heading">Replies</h6>
 
                 <div class="chat-panel">
+                    @php($unreadDividerShown = false)
                     @forelse($mainPost->replies as $reply)
                         @php($isOwnReply = $reply->UserID === auth()->id())
+                        {{-- Receiver-only, WhatsApp-style: never shown for the viewer's own replies. --}}
+                        @if(!$unreadDividerShown && !$isOwnReply && $lastReadReplyId > 0 && $reply->ReplyID > $lastReadReplyId)
+                            @php($unreadDividerShown = true)
+                            <div class="unread-divider"><span>NEW MESSAGES</span></div>
+                        @endif
                         @php($canFlag = !$isOwnReply)
                         @php($canDelete = $isOwnReply || in_array(auth()->user()->Role, ['Lecturer', 'Administrator'], true))
                         @php($canAccept = !$reply->IsAccepted && (auth()->id() === $mainPost->UserID || auth()->user()->Role === 'Lecturer'))
@@ -424,6 +437,19 @@ document.getElementById('replyAttachment')?.addEventListener('change', function 
 (function () {
     const topicId = {{ $topic->TopicID }};
     const chatPanel = document.querySelector('.chat-panel');
+    // Frozen server-side at page load (see DiscussionHubPageController::
+    // showTopic()) - mirrors the desktop client's unreadThresholdReplyId.
+    // If Blade already rendered the divider on initial paint, this starts
+    // true so a poll cycle never inserts a duplicate one.
+    const unreadThresholdReplyId = {{ (int) $lastReadReplyId }};
+    let unreadBannerInserted = document.querySelector('.unread-divider') !== null;
+
+    function buildUnreadBanner() {
+        const div = document.createElement('div');
+        div.className = 'unread-divider';
+        div.innerHTML = '<span>NEW MESSAGES</span>';
+        return div;
+    }
     const replyTextarea = document.querySelector('.reply-form textarea[name="ReplyContent"]');
     const replyForm = document.querySelector('.reply-form');
     const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '';
@@ -532,6 +558,13 @@ document.getElementById('replyAttachment')?.addEventListener('change', function 
             if (existing && existing.dataset.signature === signature) {
                 return;
             }
+
+            // Receiver-only, WhatsApp-style: never for the viewer's own replies.
+            if (!existing && !unreadBannerInserted && !r.is_own && unreadThresholdReplyId > 0 && r.id > unreadThresholdReplyId) {
+                chatPanel.appendChild(buildUnreadBanner());
+                unreadBannerInserted = true;
+            }
+
             const newRow = buildReplyRow(r);
             if (existing) {
                 existing.replaceWith(newRow);

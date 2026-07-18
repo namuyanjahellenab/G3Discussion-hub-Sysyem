@@ -16,14 +16,9 @@
          (including Black/Brown/Green) instead of staying a fixed blue. --}}
     {{-- Deliberately NOT named .dashboard-grid-container - that class is
          shared with messages/index.blade.php's genuinely 3-column layout
-         (its own inline sidebar + content + right panel), which has a
-         matching body.sidebar-collapsed override (in each sidebar-*.blade.php
-         partial) that forces grid-template-columns to "0 1fr 340px". This
-         page has no inline sidebar column of its own (it uses the standard
-         .app-sidebar-wrapper instead) - reusing that class name meant
-         toggling the sidebar was clobbering this 2-column grid with a
-         3-column template, shoving .content-workspace into a 0-width
-         column and .right-info-panel into the wrong one. --}}
+         (its own inline sidebar + content + right panel). This page has no
+         inline sidebar column of its own (it uses the standard
+         .app-sidebar-wrapper instead), so it needs its own 2-column grid. --}}
     .quiz-grid-container { display: grid !important; grid-template-columns: 1fr 340px !important; min-height: 100vh !important; width: 100% !important; background-color: var(--surface-bg) !important; font-family: 'Inter', sans-serif !important; }
     .content-workspace { padding: 3rem 2.5rem !important; background: var(--surface-bg) !important; }
     .right-info-panel { border-left: 1px solid var(--surface-border) !important; background: var(--surface-card) !important; padding: 3rem 2rem !important; display: flex !important; flex-direction: column !important; gap: 2.5rem !important; box-sizing: border-box !important; }

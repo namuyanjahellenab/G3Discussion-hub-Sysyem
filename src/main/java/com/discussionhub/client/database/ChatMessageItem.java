@@ -20,6 +20,7 @@ public class ChatMessageItem {
         this.pending = pending;
     }
 
+    public int getMessageId() { return messageId; }
     public int getUserId() { return userId; }
     public String getAuthorName() { return authorName; }
     public String getBody() { return body; }

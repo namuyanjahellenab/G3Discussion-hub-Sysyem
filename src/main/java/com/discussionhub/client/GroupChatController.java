@@ -78,6 +78,16 @@ public class GroupChatController {
     private boolean isRestricted;
     private final List<CheckBox> excludeCheckboxes = new ArrayList<>();
 
+    // Local "unread" tracking (see DatabaseManager's ReadState table),
+    // mirroring TopicController's - unreadThresholdMessageId is frozen the
+    // moment a conversation becomes active (not updated live), so the
+    // NEW MESSAGES divider doesn't jump around while it's open; switching
+    // to a different thread (or leaving the screen) marks the previous one
+    // read using maxSeenMessageId, so it's gone next time it's opened.
+    private int lastActiveConversationIdForReadTracking = 0;
+    private int unreadThresholdMessageId = 0;
+    private int maxSeenMessageId = 0;
+
     // Messages sent from elsewhere (the web, another device) have no way to
     // reach an already-open desktop chat window - same gap as TopicController -
     // so we poll instead. Polling only refreshes the thread list + messages,
@@ -106,6 +116,7 @@ public class GroupChatController {
         sidebarController.setActive("groupchat");
         sidebarController.setOnBeforeNavigate(() -> {
             stopAutoRefresh();
+            markCurrentConversationRead();
             if (pusher != null) pusher.disconnect();
         });
         boolean isOnline = NetworkUtil.isNetworkAvailable();
@@ -223,6 +234,7 @@ public class GroupChatController {
             JSONObject m = new JSONObject(event.getData());
             if (m.getInt("user_id") == SessionManager.userId) return; // already shown via our own optimistic reload
             if (m.getInt("conversation_id") != activeConversationId) return; // stale event from a channel we've since left
+            if (m.getInt("id") > maxSeenMessageId) maxSeenMessageId = m.getInt("id"); // arrived while open - counts as seen
 
             Platform.runLater(() -> {
                 if (messagesBox.getChildren().size() == 1 && messagesBox.getChildren().get(0) instanceof Label) {
@@ -250,13 +262,25 @@ public class GroupChatController {
             if (body == null) {
                 // Genuinely offline (not just a server error): fall back to
                 // whatever this device last synced, instead of a hard error.
-                // Only possible once we've resolved a real conversation id at
-                // least once this session (0 = never loaded).
-                int fallbackConversationId = conversationId > 0 ? conversationId : mainConversationId;
+                // mainConversationId is a plain instance field, though, and
+                // every screen navigation constructs a brand new
+                // GroupChatController - opening Group Chat for a group for
+                // the first time in a session while ALREADY offline meant
+                // this was still 0 (never resolved by a live call), so the
+                // cache was unreachable even though it existed. Falling
+                // back to what was persisted the last time this group's
+                // main conversation WAS resolved fixes that cold-start case.
+                int resolvedConversationId = conversationId > 0 ? conversationId : mainConversationId;
+                if (resolvedConversationId == 0) {
+                    resolvedConversationId = dbManager.getRememberedMainConversationId(groupId);
+                    if (resolvedConversationId != 0) mainConversationId = resolvedConversationId;
+                }
+                final int fallbackConversationId = resolvedConversationId;
                 if (!NetworkUtil.isNetworkAvailable() && fallbackConversationId != 0) {
                     Platform.runLater(() -> {
                         activeConversationId = fallbackConversationId;
                         isRestricted = fallbackConversationId != mainConversationId;
+                        ensureReadTrackingFor(activeConversationId);
                         renderOfflineFallback(fallbackConversationId);
                         startAutoRefresh();
                     });
@@ -287,7 +311,7 @@ public class GroupChatController {
         subtitleLabel.setText("You're offline — showing saved messages. New messages will send once you're back online.");
 
         threadListBox.getChildren().clear();
-        Button groupChatItem = threadItem("👥  Group Chat", "Everyone in the group", conversationId == mainConversationId);
+        Button groupChatItem = threadItem("👥  Group Chat", "Everyone in the group", conversationId == mainConversationId, mainConversationId);
         groupChatItem.setOnAction(e -> loadConversation(-1));
         threadListBox.getChildren().add(groupChatItem);
 
@@ -296,7 +320,16 @@ public class GroupChatController {
         if (cached.isEmpty()) {
             showStatus("No saved messages for this thread yet.");
         } else {
+            boolean bannerInserted = false;
             for (ChatMessageItem m : cached) {
+                if (m.getMessageId() > maxSeenMessageId) maxSeenMessageId = m.getMessageId();
+                // Receiver-only, WhatsApp-style: your own messages never
+                // trigger the divider, since you already know you sent them.
+                boolean isOwn = m.getUserId() == SessionManager.userId;
+                if (!bannerInserted && !isOwn && unreadThresholdMessageId > 0 && m.getMessageId() > unreadThresholdMessageId) {
+                    messagesBox.getChildren().add(buildUnreadBanner());
+                    bannerInserted = true;
+                }
                 messagesBox.getChildren().add(bubble(m.getUserId(), m.getAuthorName(), m.getBody(),
                     m.getCreatedAt(), m.isPending()));
             }
@@ -372,10 +405,30 @@ public class GroupChatController {
         syncStatusLabel.setStyle("-fx-text-fill: #3F9C6B; -fx-font-size: 12; -fx-font-weight: bold;");
     }
 
+    /** Only reacts when the active conversation actually changed (a thread
+     *  switch, or the very first load) - a silent poll of the SAME
+     *  conversation must not reset the frozen divider threshold or it would
+     *  never get a chance to show anything. */
+    private void ensureReadTrackingFor(int newActiveConversationId) {
+        if (newActiveConversationId == lastActiveConversationIdForReadTracking) return;
+        markCurrentConversationRead();
+        lastActiveConversationIdForReadTracking = newActiveConversationId;
+        unreadThresholdMessageId = dbManager.getLastReadItemId("Conversation", newActiveConversationId);
+        maxSeenMessageId = 0;
+    }
+
+    private void markCurrentConversationRead() {
+        if (lastActiveConversationIdForReadTracking > 0 && maxSeenMessageId > 0) {
+            dbManager.markRead("Conversation", lastActiveConversationIdForReadTracking, maxSeenMessageId);
+        }
+    }
+
     private void renderQuiet(JSONObject json) {
         mainConversationId = json.getInt("main_conversation_id");
+        dbManager.rememberMainConversationId(groupId, mainConversationId);
         activeConversationId = json.getInt("active_conversation_id");
         isRestricted = json.getBoolean("is_restricted");
+        ensureReadTrackingFor(activeConversationId);
 
         renderThreadList(json.getJSONArray("restricted_threads"));
         renderMessages(json.getJSONArray("messages"));
@@ -384,8 +437,10 @@ public class GroupChatController {
 
     private void render(JSONObject json) {
         mainConversationId = json.getInt("main_conversation_id");
+        dbManager.rememberMainConversationId(groupId, mainConversationId);
         activeConversationId = json.getInt("active_conversation_id");
         isRestricted = json.getBoolean("is_restricted");
+        ensureReadTrackingFor(activeConversationId);
 
         renderThreadList(json.getJSONArray("restricted_threads"));
         renderMessages(json.getJSONArray("messages"));
@@ -400,7 +455,7 @@ public class GroupChatController {
     private void renderThreadList(JSONArray restrictedThreads) {
         threadListBox.getChildren().clear();
 
-        Button groupChatItem = threadItem("👥  Group Chat", "Everyone in the group", activeConversationId == mainConversationId);
+        Button groupChatItem = threadItem("👥  Group Chat", "Everyone in the group", activeConversationId == mainConversationId, mainConversationId);
         groupChatItem.setOnAction(e -> loadConversation(-1));
         threadListBox.getChildren().add(groupChatItem);
 
@@ -419,7 +474,7 @@ public class GroupChatController {
                 for (int j = 0; j < excludedNames.length(); j++) names.add(excludedNames.getString(j));
                 String subtitle = names.isEmpty() ? "Some members excluded" : "Excludes " + String.join(", ", names);
 
-                Button item = threadItem("🚫  Restricted Thread", subtitle, activeConversationId == id);
+                Button item = threadItem("🚫  Restricted Thread", subtitle, activeConversationId == id, id);
                 item.setOnAction(e -> loadConversation(id));
                 threadListBox.getChildren().add(item);
             }
@@ -427,6 +482,14 @@ public class GroupChatController {
     }
 
     private Button threadItem(String title, String subtitle, boolean active) {
+        return threadItem(title, subtitle, active, 0);
+    }
+
+    /** conversationId > 0 adds a small unread-count badge next to the title
+     *  (see DatabaseManager.countUnreadMessages()) - 0 for callers like the
+     *  group-switcher list where the id represents a GroupID, not a
+     *  conversation, and no badge applies. */
+    private Button threadItem(String title, String subtitle, boolean active, int conversationId) {
         VBox content = new VBox(1);
         Label titleLbl = new Label(title);
         titleLbl.setStyle("-fx-font-weight: bold; -fx-font-size: 12.5; -fx-text-fill: " + (active ? "white" : "#33455A") + ";");
@@ -440,7 +503,21 @@ public class GroupChatController {
         subLbl.setMaxWidth(190);
         subLbl.setTextOverrun(javafx.scene.control.OverrunStyle.ELLIPSIS);
         subLbl.setStyle("-fx-font-size: 10.5; -fx-text-fill: " + (active ? "#D6E8F0" : "#6B8094") + ";");
-        content.getChildren().addAll(titleLbl, subLbl);
+
+        HBox titleRow = new HBox(6, titleLbl);
+        titleRow.setAlignment(Pos.CENTER_LEFT);
+        if (conversationId > 0 && !active) {
+            // Not shown on the currently-open thread - you're already
+            // looking at it, so nothing there is "unread" from this view.
+            int unread = dbManager.countUnreadMessages(conversationId);
+            if (unread > 0) {
+                Label dot = new Label(unread > 99 ? "99+" : String.valueOf(unread));
+                dot.setStyle("-fx-background-color: #D9483D; -fx-text-fill: white; -fx-font-size: 10; -fx-font-weight: bold; " +
+                    "-fx-padding: 1 7; -fx-background-radius: 999;");
+                titleRow.getChildren().add(dot);
+            }
+        }
+        content.getChildren().addAll(titleRow, subLbl);
 
         Button btn = new Button();
         btn.setGraphic(content);
@@ -459,8 +536,18 @@ public class GroupChatController {
         if (messages.isEmpty()) {
             showStatus("No messages yet. Start the conversation.");
         } else {
+            boolean bannerInserted = false;
             for (int i = 0; i < messages.length(); i++) {
-                messagesBox.getChildren().add(bubble(messages.getJSONObject(i)));
+                JSONObject m = messages.getJSONObject(i);
+                int id = m.getInt("id");
+                if (id > maxSeenMessageId) maxSeenMessageId = id;
+                // Receiver-only, WhatsApp-style: never for the viewer's own messages.
+                boolean isOwn = m.getInt("user_id") == SessionManager.userId;
+                if (!bannerInserted && !isOwn && unreadThresholdMessageId > 0 && id > unreadThresholdMessageId) {
+                    messagesBox.getChildren().add(buildUnreadBanner());
+                    bannerInserted = true;
+                }
+                messagesBox.getChildren().add(bubble(m));
             }
             scrollToBottom();
         }
@@ -505,6 +592,27 @@ public class GroupChatController {
         boolean nowVisible = !excludePanel.isVisible();
         excludePanel.setVisible(nowVisible);
         excludePanel.setManaged(nowVisible);
+    }
+
+    /** Same WhatsApp-green "── NEW MESSAGES ──" divider as TopicController's,
+     *  shown once above the first RECEIVED message (never the viewer's own)
+     *  newer than the frozen read marker. */
+    private HBox buildUnreadBanner() {
+        javafx.scene.layout.Region leftLine = new javafx.scene.layout.Region();
+        leftLine.setStyle("-fx-background-color: #3F9C6B; -fx-pref-height: 1;");
+        HBox.setHgrow(leftLine, javafx.scene.layout.Priority.ALWAYS);
+        javafx.scene.layout.Region rightLine = new javafx.scene.layout.Region();
+        rightLine.setStyle("-fx-background-color: #3F9C6B; -fx-pref-height: 1;");
+        HBox.setHgrow(rightLine, javafx.scene.layout.Priority.ALWAYS);
+
+
+        Label label = new Label("NEW MESSAGES");
+        label.setStyle("-fx-text-fill: #3F9C6B; -fx-font-size: 10.5; -fx-font-weight: bold; -fx-padding: 0 10;");
+
+        HBox banner = new HBox(0, leftLine, label, rightLine);
+        banner.setAlignment(Pos.CENTER);
+        banner.setStyle("-fx-padding: 10 4;");
+        return banner;
     }
 
     private VBox bubble(JSONObject m) {

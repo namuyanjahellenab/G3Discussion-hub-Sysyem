@@ -42,6 +42,11 @@ public class DeltaSyncService {
 
         boolean pushOk = pushPendingChanges();
         boolean pullOk = pullServerChanges();
+        // Only advance the "since" watermark once a pull has actually
+        // succeeded - advancing it unconditionally (or before the pull even
+        // runs) would silently skip whatever failed to come down this time
+        // on every future sync, not just retry it.
+        if (pullOk) dbManager.advanceLastSyncTimestamp();
 
         dbManager.updateDeviceSyncStatus("Online");
 
@@ -63,12 +68,23 @@ public class DeltaSyncService {
         }
 
         for (SyncQueueItem item : pendingChanges) {
-            boolean success = sendPayloadToServer(item);
+            String responseBody = sendPayloadToServer(item);
 
-            if (success) {
+            if (responseBody != null) {
                 dbManager.markSyncQueueItemAsSynced(item.getSyncQueueId());
-                if ("Message".equals(item.getEntityType())) {
-                    dbManager.markMessageSynced((int) item.getEntityId());
+                switch (item.getEntityType()) {
+                    case "Message" -> dbManager.markMessageSynced((int) item.getEntityId());
+                    case "Post" -> dbManager.markPostSynced(item.getEntityId());
+                    case "Reply" -> dbManager.markReplySynced(item.getEntityId());
+                    // A queued topic's local id is negative (queuePendingTopic) and
+                    // has to be swapped for the server's real TopicID, or every
+                    // cache read after this point keeps pointing at an id that
+                    // never existed server-side - see reassignTopicId()'s own doc.
+                    case "Topic" -> {
+                        int realId = extractInt(responseBody, "TopicID");
+                        if (realId != -1) dbManager.reassignTopicId(item.getEntityId(), realId);
+                    }
+                    default -> { }
                 }
             } else {
                 System.err.println("[Sync] Push failed for queue id " + item.getSyncQueueId());
@@ -78,7 +94,8 @@ public class DeltaSyncService {
         return true;
     }
 
-    private boolean sendPayloadToServer(SyncQueueItem item) {
+    /** Returns the response body on success (200/201), or null on failure. */
+    private String sendPayloadToServer(SyncQueueItem item) {
         try {
             URL url = URI.create(BASE_URL + PUSH_PATH).toURL();
             HttpURLConnection conn = (HttpURLConnection) url.openConnection();
@@ -109,12 +126,20 @@ public class DeltaSyncService {
 
             if (!success) {
                 System.err.println("[Sync] Push rejected (HTTP " + responseCode + "): " + readErrorBody(conn));
+                return null;
             }
-            return success;
+
+            StringBuilder sb = new StringBuilder();
+            try (BufferedReader reader = new BufferedReader(
+                    new InputStreamReader(conn.getInputStream(), StandardCharsets.UTF_8))) {
+                String line;
+                while ((line = reader.readLine()) != null) sb.append(line);
+            }
+            return sb.toString();
 
         } catch (Exception e) {
             System.err.println("[Sync] Network error while pushing payload: " + e.getMessage());
-            return false;
+            return null;
         }
     }
 
@@ -185,11 +210,12 @@ public class DeltaSyncService {
     }
 
     /** Expected response shape (TODO: confirm against final API contract):
-     *  { "topics": [...], "posts": [...], "notifications": [...] }
+     *  { "topics": [...], "posts": [...], "replies": [...], "notifications": [...] }
      *  Each key is optional. */
     private void mergeIntoSQLite(String responseBody) {
         mergeArrayField(responseBody, "topics", this::mergeOneTopic);
         mergeArrayField(responseBody, "posts", this::mergeOnePost);
+        mergeArrayField(responseBody, "replies", this::mergeOneReply);
         mergeArrayField(responseBody, "notifications", this::mergeOneNotification);
     }
 
@@ -235,8 +261,33 @@ public class DeltaSyncService {
                 extractInt(objectBody, "TopicID"),
                 extractInt(objectBody, "UserID"),
                 extractString(objectBody, "Content"),
-                extractString(objectBody, "CreatedAt")
+                extractString(objectBody, "CreatedAt"),
+                extractString(objectBody, "AuthorName")
         );
+    }
+
+    private void mergeOneReply(String objectBody) {
+        // extractString returns "" (not null) for a JSON null/absent field,
+        // since the regex only matches a quoted string value - these three
+        // are the only optional fields on a reply, so "" must be normalized
+        // back to null or every reply would look like it has an (empty,
+        // broken) attachment.
+        String attachmentUrl = emptyToNull(extractString(objectBody, "AttachmentUrl"));
+        String attachmentType = emptyToNull(extractString(objectBody, "AttachmentType"));
+        String attachmentName = emptyToNull(extractString(objectBody, "AttachmentName"));
+        dbManager.mergeReply(
+                extractInt(objectBody, "ReplyID"),
+                extractInt(objectBody, "PostID"),
+                extractInt(objectBody, "UserID"),
+                extractString(objectBody, "ReplyContent"),
+                extractString(objectBody, "CreatedAt"),
+                extractString(objectBody, "AuthorName"),
+                attachmentUrl, attachmentType, attachmentName
+        );
+    }
+
+    private String emptyToNull(String value) {
+        return (value == null || value.isEmpty()) ? null : value;
     }
 
     private void mergeOneNotification(String objectBody) {
@@ -256,7 +307,19 @@ public class DeltaSyncService {
 
     private String extractString(String json, String key) {
         Matcher m = Pattern.compile("\"" + Pattern.quote(key) + "\"\\s*:\\s*\"(.*?)\"").matcher(json);
-        return m.find() ? m.group(1) : "";
+        return m.find() ? unescapeJson(m.group(1)) : "";
+    }
+
+    // json_encode() (used by every Laravel response this hits) escapes "/"
+    // as "\/" by default - AttachmentUrl is the field that actually surfaces
+    // this (every Storage::url() result contains slashes), but any string
+    // field could in principle. Without unescaping, a cached AttachmentUrl
+    // would be stored with literal backslash-slash pairs, silently breaking
+    // the offline attachment cache (it hashes the URL to find the local
+    // file, and a corrupted URL hashes to a different, non-existent file
+    // than the one the live/online path actually downloaded).
+    private String unescapeJson(String value) {
+        return value.replace("\\/", "/").replace("\\\"", "\"").replace("\\\\", "\\");
     }
 
     private int extractInt(String json, String key) {

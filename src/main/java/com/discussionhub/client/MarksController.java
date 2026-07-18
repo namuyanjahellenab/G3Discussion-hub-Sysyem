@@ -37,6 +37,8 @@ public class MarksController {
     @FXML private Label userNameLabel;
     @FXML private SidebarController sidebarController;
 
+    private static final String MARKS_ENDPOINT = "/api/marks";
+
     private DatabaseManager dbManager;
     private DeltaSyncService syncService;
 
@@ -60,18 +62,32 @@ public class MarksController {
         groupsBox.getChildren().setAll(loading);
 
         new Thread(() -> {
-            String body = get("/api/marks");
-            if (body == null) {
-                Platform.runLater(() -> showMessage("Couldn't reach the server — check your connection."));
-                return;
+            String body = get(MARKS_ENDPOINT);
+            if (body != null) {
+                try {
+                    JSONObject json = new JSONObject(body);
+                    dbManager.cacheApiResponse(MARKS_ENDPOINT, body);
+                    Platform.runLater(() -> render(json.getJSONArray("groups")));
+                    return;
+                } catch (Exception e) {
+                    System.err.println("[Marks] Parse error: " + e.getMessage());
+                }
             }
-            try {
-                JSONObject json = new JSONObject(body);
-                Platform.runLater(() -> render(json.getJSONArray("groups")));
-            } catch (Exception e) {
-                System.err.println("[Marks] Parse error: " + e.getMessage());
-                Platform.runLater(() -> showMessage("Couldn't load marks — please try again."));
+
+            String cached = dbManager.getCachedApiResponse(MARKS_ENDPOINT);
+            if (cached != null) {
+                try {
+                    JSONObject json = new JSONObject(cached);
+                    Platform.runLater(() -> {
+                        render(json.getJSONArray("groups"));
+                        showOfflineBanner();
+                    });
+                    return;
+                } catch (Exception e) {
+                    System.err.println("[Marks] Cached response parse error: " + e.getMessage());
+                }
             }
+            Platform.runLater(() -> showMessage("Couldn't reach the server — check your connection."));
         }).start();
     }
 
@@ -197,6 +213,13 @@ public class MarksController {
 
     private String fmtNumber(double m) {
         return (m == Math.floor(m)) ? String.valueOf((int) m) : String.valueOf(m);
+    }
+
+    private void showOfflineBanner() {
+        syncStatusLabel.setText("● OFFLINE — showing saved marks");
+        syncStatusLabel.setStyle("-fx-text-fill: #D9483D; -fx-font-size: 12; -fx-font-weight: bold;");
+        syncStatusLabel.setVisible(true);
+        syncStatusLabel.setManaged(true);
     }
 
     private void showMessage(String message) {

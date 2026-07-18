@@ -35,10 +35,12 @@ import java.net.URL;
 import java.net.URLConnection;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -97,6 +99,19 @@ public class TopicController {
     private final Map<Integer, Label> renderedReplyTimeLabels = new HashMap<>();
     private String renderedMainPostSignature;
 
+    // Local "unread" tracking (see DatabaseManager's ReadState table) - the
+    // "NEW MESSAGES" divider sits above every reply with an id greater than
+    // unreadThresholdReplyId, which is frozen at whatever it was the moment
+    // this topic was opened (not updated live), so the divider doesn't jump
+    // around mid-visit as more replies stream in. maxSeenReplyId tracks the
+    // highest reply id actually rendered this visit; markCurrentTopicRead()
+    // persists it as the new threshold once the user leaves, so the divider
+    // is gone next time - "till they are opened and read for it to
+    // disappear", not while still on screen.
+    private int unreadThresholdReplyId = 0;
+    private boolean liveUnreadBannerInserted = false;
+    private int maxSeenReplyId = 0;
+
     // Same whitelist as the web's reply composer (topics/show.blade.php) and
     // AttachmentUploader/TopicApiController's server-side validation - kept
     // in sync by hand since there's no shared config between Java and PHP.
@@ -116,7 +131,10 @@ public class TopicController {
         this.syncService = syncService;
         sidebarController.setServices(dbManager, syncService);
         sidebarController.setActive("forum");
-        sidebarController.setOnBeforeNavigate(this::stopAutoRefresh);
+        sidebarController.setOnBeforeNavigate(() -> {
+            stopAutoRefresh();
+            markCurrentTopicRead();
+        });
         String name = (SessionManager.fullName == null || SessionManager.fullName.isBlank())
             ? SessionManager.userEmail : SessionManager.fullName;
         userNameLabel.setText(name);
@@ -124,14 +142,35 @@ public class TopicController {
     }
 
     public void loadTopic(String topicTitle, int topicId) {
+        markCurrentTopicRead(); // persist read-state for whatever topic was open before this one (e.g. via Related Topics)
         this.topicId = topicId;
         topicTitleLabel.setText(topicTitle);
         renderedReplyRows.clear();
         renderedReplySignatures.clear();
         renderedReplyTimeLabels.clear();
         renderedMainPostSignature = null;
+        unreadThresholdReplyId = dbManager.getLastReadItemId("Topic", topicId);
+        liveUnreadBannerInserted = false;
+        maxSeenReplyId = 0;
+        // Opportunistic: flushes anything queued (topics/replies composed
+        // offline earlier) and pulls fresh Topic/Post/Reply rows into the
+        // local cache, so a later offline visit to this same topic has
+        // something recent to fall back to instead of a stale/empty cache.
+        if (com.discussionhub.client.utils.NetworkUtil.isNetworkAvailable()) {
+            new Thread(syncService::synchronizeLocalChanges).start();
+        }
         refresh();
         startAutoRefresh();
+    }
+
+    /** Persists maxSeenReplyId as the new "last read" marker for whichever
+     *  topic is currently open, so the NEW MESSAGES divider and the topic
+     *  list's unread badge are both gone next time - not while still on
+     *  this screen (see the unreadThresholdReplyId field comment). */
+    private void markCurrentTopicRead() {
+        if (topicId > 0 && maxSeenReplyId > 0) {
+            dbManager.markRead("Topic", topicId, maxSeenReplyId);
+        }
     }
 
     private void startAutoRefresh() {
@@ -150,38 +189,171 @@ public class TopicController {
 
     private void refresh() {
         new Thread(() -> {
-            String body = get("/api/topics/" + topicId);
-            if (body == null) return;
-            try {
-                JSONObject json = new JSONObject(body);
-                Platform.runLater(() -> {
-                    // Skip a cycle entirely while they're actively composing, so a
-                    // reply never gets rebuilt out from under someone mid-sentence.
-                    if (replyInput.isFocused() && !replyInput.getText().isBlank()) {
-                        return;
-                    }
-                    // render() now diffs instead of rebuilding, so untouched rows
-                    // never move - but if a new reply appends below the viewport,
-                    // the scrollable range still grows. Restoring by vvalue (a
-                    // fraction of that range) would drift once the denominator
-                    // changes, so convert to/from an absolute pixel offset instead
-                    // for an exact match regardless of how much content was added.
-                    javafx.scene.Node content = mainScrollPane.getContent();
-                    double viewportHeight = mainScrollPane.getViewportBounds().getHeight();
-                    double maxScrollBefore = Math.max(1, content.getBoundsInLocal().getHeight() - viewportHeight);
-                    double pixelOffset = mainScrollPane.getVvalue() * maxScrollBefore;
+            boolean online = com.discussionhub.client.utils.NetworkUtil.isNetworkAvailable();
+            String body = online ? get("/api/topics/" + topicId) : null;
 
-                    render(json);
-
+            if (body != null) {
+                try {
+                    JSONObject json = new JSONObject(body);
                     Platform.runLater(() -> {
-                        double maxScrollAfter = Math.max(1, content.getBoundsInLocal().getHeight() - viewportHeight);
-                        mainScrollPane.setVvalue(Math.min(1.0, pixelOffset / maxScrollAfter));
+                        markOnline();
+                        // Skip a cycle entirely while they're actively composing, so a
+                        // reply never gets rebuilt out from under someone mid-sentence.
+                        if (replyInput.isFocused() && !replyInput.getText().isBlank()) {
+                            return;
+                        }
+                        // render() now diffs instead of rebuilding, so untouched rows
+                        // never move - but if a new reply appends below the viewport,
+                        // the scrollable range still grows. Restoring by vvalue (a
+                        // fraction of that range) would drift once the denominator
+                        // changes, so convert to/from an absolute pixel offset instead
+                        // for an exact match regardless of how much content was added.
+                        javafx.scene.Node content = mainScrollPane.getContent();
+                        double viewportHeight = mainScrollPane.getViewportBounds().getHeight();
+                        double maxScrollBefore = Math.max(1, content.getBoundsInLocal().getHeight() - viewportHeight);
+                        double pixelOffset = mainScrollPane.getVvalue() * maxScrollBefore;
+
+                        render(json);
+
+                        Platform.runLater(() -> {
+                            double maxScrollAfter = Math.max(1, content.getBoundsInLocal().getHeight() - viewportHeight);
+                            mainScrollPane.setVvalue(Math.min(1.0, pixelOffset / maxScrollAfter));
+                        });
                     });
-                });
-            } catch (Exception e) {
-                System.err.println("[Topic] Parse error: " + e.getMessage());
+                    return;
+                } catch (Exception e) {
+                    System.err.println("[Topic] Parse error: " + e.getMessage());
+                }
             }
+
+            // Offline, or the live call failed anyway - fall back to
+            // whatever's cached locally for this topic instead of leaving
+            // the screen blank/frozen.
+            com.discussionhub.client.database.CachedTopicItem cachedTopic = dbManager.getCachedTopicById(topicId);
+            List<com.discussionhub.client.database.CachedPostItem> cachedPosts = dbManager.getCachedPosts(topicId);
+            com.discussionhub.client.database.CachedPostItem mainPost = cachedPosts.isEmpty() ? null : cachedPosts.get(0);
+            List<com.discussionhub.client.database.CachedReplyItem> cachedReplies =
+                mainPost != null ? dbManager.getCachedReplies(mainPost.getPostId()) : new ArrayList<>();
+            Platform.runLater(() -> {
+                markOffline();
+                renderCached(cachedTopic, mainPost, cachedReplies);
+            });
         }).start();
+    }
+
+    private void markOnline() {
+        syncStatusLabel.setText("● ONLINE");
+        syncStatusLabel.setStyle("-fx-text-fill: #3F9C6B; -fx-font-size: 12; -fx-font-weight: bold;");
+    }
+
+    private void markOffline() {
+        syncStatusLabel.setText("● OFFLINE — showing saved discussion");
+        syncStatusLabel.setStyle("-fx-text-fill: #D9483D; -fx-font-size: 12; -fx-font-weight: bold;");
+    }
+
+    /** Offline is not a degraded "form" of online - it's the SAME bubble
+     *  layout (buildMainPostBubble/buildReplyBubble), just fed from
+     *  CachedPostItem/CachedReplyItem instead of a live JSON response.
+     *  Moderation actions (accept/flag/delete) are simply omitted rather
+     *  than shown-and-broken, since those need a live round-trip anyway. */
+    private void renderCached(com.discussionhub.client.database.CachedTopicItem cachedTopic,
+                               com.discussionhub.client.database.CachedPostItem mainPost,
+                               List<com.discussionhub.client.database.CachedReplyItem> replies) {
+        // Recovers Group Info + where "Back" goes on a cold offline start -
+        // a topic reached straight from a cached group topic list was never
+        // loaded through the live /api/topics/{id} response that would
+        // normally set groupId/groupName/infoGroupLabel.
+        if (cachedTopic != null) {
+            groupId = cachedTopic.getGroupId();
+            groupName = cachedTopic.getCategory();
+            infoGroupLabel.setText(groupName);
+        }
+
+        if (mainPost == null) {
+            mainPostCard.getChildren().setAll(emptyState("No saved content for this topic yet — connect once to cache it for offline use."));
+            repliesBox.getChildren().clear();
+            mainPostId = null;
+            return;
+        }
+
+        mainPostId = mainPost.getPostId();
+        String mainAuthorName = resolveAuthorName(mainPost.getUserId(), mainPost.getAuthorName());
+        threadMetaLabel.setText("Posted by " + mainAuthorName);
+        mainPostCard.getChildren().setAll(buildMainPostBubble(mainAuthorName, mainPost.getContent(), mainPost.isPending()));
+
+        repliesBox.getChildren().clear();
+        if (replies.isEmpty()) {
+            repliesBox.getChildren().add(emptyState("No saved replies yet."));
+        } else {
+            // A one-shot full rebuild every call (unlike the live path's
+            // diffing), so this flag is local instead of the shared
+            // liveUnreadBannerInserted field - it must reset every render.
+            boolean bannerInserted = false;
+            for (com.discussionhub.client.database.CachedReplyItem r : replies) {
+                if (r.getReplyId() > maxSeenReplyId) maxSeenReplyId = r.getReplyId();
+                boolean isOwn = r.getUserId() == SessionManager.userId;
+                // Receiver-only, WhatsApp-style: your own replies never
+                // trigger the divider, since you already know you sent them.
+                if (!bannerInserted && !isOwn && unreadThresholdReplyId > 0 && r.getReplyId() > unreadThresholdReplyId) {
+                    repliesBox.getChildren().add(buildUnreadBanner());
+                    bannerInserted = true;
+                }
+                HBox replyRow = buildReplyBubble(
+                    r.getReplyId(), r.getContent(), resolveAuthorName(r.getUserId(), r.getAuthorName()), isOwn,
+                    r.getCreatedAt(), false, false, false,
+                    false, false, false, false,
+                    null, null,
+                    r.getAttachmentUrl(), r.getAttachmentType(), r.getAttachmentName(),
+                    r.isPending(), null
+                );
+                repliesBox.getChildren().add(replyRow);
+            }
+        }
+    }
+
+    /** Real name (or "Member #N") - never "You", since buildReplyBubble/
+     *  buildMainPostBubble already do that substitution themselves where
+     *  it's wanted, exactly mirroring what the live JSON path does (the
+     *  server never sends "You" either - it always sends the real name and
+     *  lets the client decide based on is_own). */
+    private String resolveAuthorName(int userId, String authorName) {
+        if (authorName != null && !authorName.isBlank()) return authorName;
+        return "Member #" + userId;
+    }
+
+    /** WhatsApp-style "── NEW MESSAGES ──" divider (WhatsApp green, matching
+     *  its own unread marker), shown once above the first RECEIVED reply
+     *  newer than the frozen read marker for this visit - never for the
+     *  viewer's own replies (see the isOwn check at both call sites). */
+    private HBox buildUnreadBanner() {
+        Region leftLine = new Region();
+        leftLine.setStyle("-fx-background-color: -accent-success; -fx-pref-height: 1;");
+        HBox.setHgrow(leftLine, Priority.ALWAYS);
+        Region rightLine = new Region();
+        rightLine.setStyle("-fx-background-color: -accent-success; -fx-pref-height: 1;");
+        HBox.setHgrow(rightLine, Priority.ALWAYS);
+
+        Label label = new Label("NEW MESSAGES");
+        label.setStyle("-fx-text-fill: -accent-success; -fx-font-size: 10.5; -fx-font-weight: bold; -fx-padding: 0 10;");
+
+        HBox banner = new HBox(0, leftLine, label, rightLine);
+        banner.setAlignment(Pos.CENTER);
+        banner.setStyle("-fx-padding: 10 4;");
+        return banner;
+    }
+
+    private Label pendingTag() {
+        Label tag = new Label("⏳ Pending — will send when online");
+        tag.setStyle("-fx-text-fill: #D98E3D; -fx-font-size: 10.5; -fx-font-weight: bold;");
+        return tag;
+    }
+
+    private Label emptyState(String text) {
+        Label l = new Label(text);
+        l.getStyleClass().add("muted-text");
+        l.setWrapText(true);
+        l.setStyle("-fx-padding: 16 0;");
+        return l;
     }
 
     private void render(JSONObject json) {
@@ -259,21 +431,27 @@ public class TopicController {
     }
 
     private HBox buildMainPostRow(JSONObject mainPost) {
-        String mainAuthorName = mainPost.getString("author_name");
-        Label mainAvatar = new Label(TextUtil.initials(mainAuthorName));
+        return buildMainPostBubble(mainPost.getString("author_name"), mainPost.getString("content"), false);
+    }
+
+    /** Shared by the live and cached/offline paths - see renderCached(). */
+    private HBox buildMainPostBubble(String authorName, String content, boolean pending) {
+        Label mainAvatar = new Label(TextUtil.initials(authorName));
         mainAvatar.setMinSize(36, 36);
         mainAvatar.setMaxSize(36, 36);
         mainAvatar.setAlignment(Pos.CENTER);
         mainAvatar.setStyle("-fx-background-color: -luna-mid; -fx-text-fill: white; -fx-font-weight: bold; -fx-font-size: 13; -fx-background-radius: 18;");
 
-        Label author = new Label(mainAuthorName);
+        Label author = new Label(authorName);
         author.getStyleClass().add("heading-text");
 
-        Label content = new Label(mainPost.getString("content"));
-        content.setWrapText(true);
-        content.setStyle("-fx-font-size: 13; -fx-text-fill: -text-body;");
+        Label contentLabel = new Label(content);
+        contentLabel.setWrapText(true);
+        contentLabel.setStyle("-fx-font-size: 13; -fx-text-fill: -text-body;");
 
-        VBox authorTextColumn = new VBox(6, author, content);
+        VBox authorTextColumn = new VBox(6);
+        if (pending) authorTextColumn.getChildren().add(pendingTag());
+        authorTextColumn.getChildren().addAll(author, contentLabel);
         HBox.setHgrow(authorTextColumn, Priority.ALWAYS);
 
         HBox authorRow = new HBox(12, mainAvatar, authorTextColumn);
@@ -315,6 +493,7 @@ public class TopicController {
         for (int i = 0; i < replies.length(); i++) {
             JSONObject reply = replies.getJSONObject(i);
             int id = reply.getInt("id");
+            if (id > maxSeenReplyId) maxSeenReplyId = id;
             String signature = replySignature(reply);
 
             HBox existingRow = renderedReplyRows.get(id);
@@ -329,6 +508,16 @@ public class TopicController {
 
             if (existingRow != null && signature.equals(renderedReplySignatures.get(id))) {
                 continue;
+            }
+
+            // Inserted once per topic-open, right before the first RECEIVED
+            // reply (never the viewer's own) that's newer than the frozen
+            // read marker - later refresh cycles skip this
+            // (liveUnreadBannerInserted already true), so it never moves or
+            // duplicates mid-visit.
+            if (!liveUnreadBannerInserted && !reply.getBoolean("is_own") && unreadThresholdReplyId > 0 && id > unreadThresholdReplyId) {
+                repliesBox.getChildren().add(buildUnreadBanner());
+                liveUnreadBannerInserted = true;
             }
 
             HBox newRow = buildReplyRow(reply);
@@ -365,11 +554,35 @@ public class TopicController {
      * topics/show.blade.php (see .reply-row.own / .reply-row.other there).
      */
     private HBox buildReplyRow(JSONObject reply) {
-        boolean isOwn = reply.getBoolean("is_own");
-        boolean isAccepted = reply.getBoolean("is_accepted");
-        boolean isFlagged = reply.getBoolean("is_flagged");
-        boolean isLecturer = reply.getBoolean("is_lecturer");
-        String authorName = reply.getString("author_name");
+        int id = reply.getInt("id");
+        return buildReplyBubble(
+            id, reply.getString("content"), reply.getString("author_name"), reply.getBoolean("is_own"),
+            reply.getString("created_at"), reply.getBoolean("is_accepted"), reply.getBoolean("is_flagged"),
+            reply.getBoolean("is_lecturer"), reply.getBoolean("can_flag"), reply.getBoolean("can_accept"),
+            reply.getBoolean("can_delete"), true,
+            (!reply.isNull("parent_reply_author")) ? reply.getString("parent_reply_author") : null,
+            reply.optString("parent_reply_snippet", ""),
+            reply.isNull("attachment_url") ? null : reply.getString("attachment_url"),
+            reply.optString("attachment_type", "file"),
+            reply.optString("attachment_name", "attachment"),
+            false,
+            time -> renderedReplyTimeLabels.put(id, time)
+        );
+    }
+
+    /** Shared by the live (JSON) and cached/offline (CachedReplyItem) reply
+     *  lists - same avatars, bubble colors/alignment, attachment handling,
+     *  everywhere. canFlag/canAccept/canDelete/canReply are all forced off
+     *  for cached rows since moderation actions need a live round-trip;
+     *  timeLabelConsumer lets the live path's diff/refresh logic capture the
+     *  timestamp Label to tick in place, and is null for the one-shot
+     *  offline render. */
+    private HBox buildReplyBubble(int replyId, String content, String authorName, boolean isOwn,
+                                   String timestampText, boolean isAccepted, boolean isFlagged, boolean isLecturer,
+                                   boolean canFlag, boolean canAccept, boolean canDelete, boolean canReply,
+                                   String parentReplyAuthor, String parentReplySnippet,
+                                   String attachmentUrl, String attachmentType, String attachmentName,
+                                   boolean pending, java.util.function.Consumer<Label> timeLabelConsumer) {
         boolean special = isAccepted || isFlagged;
         String textColor = (isOwn && !special) ? "white" : "-text-body";
 
@@ -385,15 +598,15 @@ public class TopicController {
         Label author = new Label(isOwn ? "You" : authorName);
         author.getStyleClass().add("heading-text");
         author.setStyle("-fx-font-size: 12;");
-        Label time = new Label(reply.getString("created_at"));
+        Label time = new Label(timestampText);
         time.getStyleClass().add("muted-text");
         time.setStyle("-fx-font-size: 10.5;");
-        renderedReplyTimeLabels.put(reply.getInt("id"), time);
+        if (timeLabelConsumer != null) timeLabelConsumer.accept(time);
         top.getChildren().addAll(author, time);
-        if (reply.getBoolean("can_flag")) top.getChildren().add(actionButton("🚩", () -> flagReply(reply.getInt("id"))));
-        top.getChildren().add(actionButton("↩", () -> startReplyTo(reply.getInt("id"), authorName)));
-        if (reply.getBoolean("can_accept")) top.getChildren().add(actionButton("✔", () -> acceptAnswer(reply.getInt("id"))));
-        if (reply.getBoolean("can_delete")) top.getChildren().add(actionButton("🗑", () -> deleteReply(reply.getInt("id"))));
+        if (canFlag) top.getChildren().add(actionButton("🚩", () -> flagReply(replyId)));
+        if (canReply) top.getChildren().add(actionButton("↩", () -> startReplyTo(replyId, authorName)));
+        if (canAccept) top.getChildren().add(actionButton("✔", () -> acceptAnswer(replyId)));
+        if (canDelete) top.getChildren().add(actionButton("🗑", () -> deleteReply(replyId)));
 
         VBox bubble = new VBox(6);
         bubble.setMaxWidth(420);
@@ -405,8 +618,10 @@ public class TopicController {
             : "-fx-background-radius: 4 14 14 14; -fx-border-radius: 4 14 14 14;";
         bubble.setStyle("-fx-background-color: " + bg + "; " + radius + " " + border + " -fx-padding: 10 14;");
 
-        if (!reply.isNull("parent_reply_author") && reply.getString("parent_reply_author") != null) {
-            Label quote = new Label("↩ Replying to " + reply.getString("parent_reply_author") + ": " + reply.optString("parent_reply_snippet", ""));
+        if (pending) bubble.getChildren().add(pendingTag());
+
+        if (parentReplyAuthor != null) {
+            Label quote = new Label("↩ Replying to " + parentReplyAuthor + ": " + (parentReplySnippet != null ? parentReplySnippet : ""));
             quote.setWrapText(true);
             quote.setStyle("-fx-background-color: -luna-lightest; -fx-text-fill: -luna-dark; -fx-padding: 3 8; -fx-background-radius: 6; -fx-font-size: 11;");
             bubble.getChildren().add(quote);
@@ -422,17 +637,17 @@ public class TopicController {
             bubble.getChildren().add(flaggedTag);
         }
 
-        Label content = new Label(reply.getString("content"));
-        content.setWrapText(true);
-        content.setMaxWidth(380);
-        content.setStyle("-fx-font-size: 13; -fx-text-fill: " + textColor + ";");
-        bubble.getChildren().add(content);
+        Label contentLabel = new Label(content);
+        contentLabel.setWrapText(true);
+        contentLabel.setMaxWidth(380);
+        contentLabel.setStyle("-fx-font-size: 13; -fx-text-fill: " + textColor + ";");
+        bubble.getChildren().add(contentLabel);
 
-        if (!reply.isNull("attachment_url")) {
+        if (attachmentUrl != null) {
             bubble.getChildren().add(buildAttachmentNode(
-                reply.getString("attachment_url"),
-                reply.optString("attachment_type", "file"),
-                reply.optString("attachment_name", "attachment")
+                attachmentUrl,
+                attachmentType != null ? attachmentType : "file",
+                attachmentName != null ? attachmentName : "attachment"
             ));
         }
 
@@ -453,28 +668,54 @@ public class TopicController {
         return row;
     }
 
+    /** Attachments already viewed once while online get downloaded into
+     *  AttachmentCache in the background so they stay visible/openable
+     *  offline too - "everyone can see their attachments" per the WhatsApp-
+     *  parity requirement, not just the text around them. If we're offline
+     *  and it was never cached, show a plain notice instead of a broken
+     *  image / dead link. */
     private javafx.scene.Node buildAttachmentNode(String url, String type, String name) {
         String fullUrl = url.startsWith("http") ? url : BASE_URL + url;
+        boolean online = com.discussionhub.client.utils.NetworkUtil.isNetworkAvailable();
+        File cachedFile = com.discussionhub.client.utils.AttachmentCache.localFileFor(fullUrl);
+        boolean isCached = cachedFile.isFile();
+
+        if (online) {
+            com.discussionhub.client.utils.AttachmentCache.ensureCachedAsync(fullUrl);
+        }
+
+        if (!online && !isCached) {
+            Label unavailable = new Label("📎 " + name + " (unavailable offline — open it once while connected to save it)");
+            unavailable.getStyleClass().add("muted-text");
+            unavailable.setWrapText(true);
+            unavailable.setStyle("-fx-font-size: 11.5; -fx-font-style: italic;");
+            return unavailable;
+        }
 
         if ("image".equals(type)) {
-            ImageView imageView = new ImageView(new Image(fullUrl, 260, 0, true, true, true));
+            String imageSource = isCached ? cachedFile.toURI().toString() : fullUrl;
+            ImageView imageView = new ImageView(new Image(imageSource, 260, 0, true, true, true));
             imageView.setPreserveRatio(true);
             imageView.setFitWidth(260);
             imageView.setStyle("-fx-cursor: hand;");
-            imageView.setOnMouseClicked(e -> openInBrowser(fullUrl));
+            imageView.setOnMouseClicked(e -> openAttachment(fullUrl, cachedFile));
             VBox.setMargin(imageView, new Insets(4, 0, 0, 0));
             return imageView;
         }
 
         Label fileLink = new Label("📎 " + name);
         fileLink.setStyle("-fx-text-fill: #26658C; -fx-font-weight: bold; -fx-font-size: 12; -fx-cursor: hand; -fx-underline: true;");
-        fileLink.setOnMouseClicked(e -> openInBrowser(fullUrl));
+        fileLink.setOnMouseClicked(e -> openAttachment(fullUrl, cachedFile));
         return fileLink;
     }
 
-    private void openInBrowser(String url) {
+    private void openAttachment(String fullUrl, File cachedFile) {
         try {
-            java.awt.Desktop.getDesktop().browse(URI.create(url));
+            if (cachedFile.isFile()) {
+                java.awt.Desktop.getDesktop().open(cachedFile);
+            } else {
+                java.awt.Desktop.getDesktop().browse(URI.create(fullUrl));
+            }
         } catch (Exception e) {
             System.err.println("[Topic] Couldn't open attachment: " + e.getMessage());
         }
@@ -541,8 +782,30 @@ public class TopicController {
 
         File attachment = selectedAttachment;
         Integer parentReplyId = replyToId;
+        int postId = mainPostId;
 
         new Thread(() -> {
+            // A reply typed offline used to just fail outright - queue it
+            // the same way an offline chat message already does
+            // (queuePendingMessage) instead of discarding what was written.
+            // Attachments aren't supported offline (postReplyMultipart() is
+            // the only path that handles those, and only when online).
+            if (!com.discussionhub.client.utils.NetworkUtil.isNetworkAvailable()) {
+                String authorName = (SessionManager.fullName == null || SessionManager.fullName.isBlank())
+                    ? SessionManager.userEmail : SessionManager.fullName;
+                dbManager.queuePendingReply(postId, SessionManager.userId, content, authorName);
+                Platform.runLater(() -> {
+                    replyInput.setDisable(false);
+                    replyInput.clear();
+                    replyToId = null;
+                    replyContextLabel.setVisible(false);
+                    replyContextLabel.setManaged(false);
+                    onRemoveAttachment();
+                    refresh();
+                });
+                return;
+            }
+
             String error = postReplyMultipart(content, parentReplyId, attachment);
             Platform.runLater(() -> {
                 replyInput.setDisable(false);
@@ -834,6 +1097,7 @@ public class TopicController {
     @FXML
     protected void onBack() {
         stopAutoRefresh();
+        markCurrentTopicRead();
         try {
             FXMLLoader loader = new FXMLLoader(getClass().getResource("group-topics-view.fxml"));
             Scene scene = new Scene(loader.load());
