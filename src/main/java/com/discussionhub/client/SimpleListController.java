@@ -8,12 +8,8 @@ import com.discussionhub.client.utils.NetworkUtil;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
-import javafx.geometry.Pos;
 import javafx.scene.Scene;
 import javafx.scene.control.Label;
-import javafx.scene.layout.HBox;
-import javafx.scene.layout.Priority;
-import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
 import org.json.JSONArray;
@@ -26,10 +22,11 @@ import java.net.URI;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
 
-// Backs the four "list of things" screens (My Questions, Marks, Quizzes,
-// Recommend) that all share simple-list-view.fxml - each is a thin wrapper
-// around one GET to the matching /api/* endpoint added for the desktop
-// client, rendered with the same card styling as the Dashboard.
+// Backs the "list of things" screens (My Questions, Marks) that share
+// simple-list-view.fxml - each is a thin wrapper around one GET to the
+// matching /api/* endpoint added for the desktop client, rendered with the
+// same card styling as the Dashboard. Quizzes and Recommend each outgrew
+// this into their own dedicated screen (QuizzesController, RecommendController).
 public class SimpleListController {
 
     private static final String BASE_URL = "http://127.0.0.1:8000";
@@ -81,178 +78,6 @@ public class SimpleListController {
         });
     }
 
-    // One card per group the student belongs to - matches web's
-    // marks/index.blade.php, both backed by the same MarksService so
-    // participation curving and quiz grouping can't drift between platforms.
-    public void loadMarks() {
-        sidebarController.setActive("marks");
-        titleLabel.setText("Marks");
-        showLoading();
-        fetchAsync("/api/marks", json -> {
-            JSONArray groups = json.getJSONArray("groups");
-            if (groups.isEmpty()) {
-                showEmpty("Join a group to start earning participation and quiz marks.");
-                return;
-            }
-
-            for (int i = 0; i < groups.length(); i++) {
-                contentBox.getChildren().add(groupMarksCard(groups.getJSONObject(i)));
-            }
-        });
-    }
-
-    private VBox groupMarksCard(JSONObject group) {
-        VBox card = card();
-        card.getChildren().add(heading(group.getString("group_name")));
-
-        HBox stats = new HBox(24);
-        stats.getChildren().addAll(
-            statTile("Participation", group.get("participation") + " / 10"),
-            statTile("Quiz Average", group.isNull("quiz_average") ? "—" : group.get("quiz_average") + "%"),
-            statTile("Quizzes Taken", String.valueOf(group.getInt("quizzes_taken")))
-        );
-        card.getChildren().add(stats);
-        card.getChildren().add(meta("Posts: " + group.getInt("post_count") + "  ·  Replies: " + group.getInt("reply_count")));
-
-        JSONArray quizzes = group.getJSONArray("quizzes");
-        for (int i = 0; i < quizzes.length(); i++) {
-            JSONObject r = quizzes.getJSONObject(i);
-            VBox row = new VBox(2);
-            row.setStyle("-fx-padding: 8 0; -fx-border-color: transparent transparent #E1E9ED transparent; -fx-border-width: 0 0 1 0;");
-
-            HBox topRow = new HBox(10);
-            topRow.setAlignment(Pos.CENTER_LEFT);
-            Label quizLabel = new Label(r.optString("title", "Quiz #" + r.getInt("quiz_id")));
-            quizLabel.setStyle("-fx-font-size: 13; -fx-font-weight: bold; -fx-text-fill: #33455A;");
-            Region spacer = new Region();
-            HBox.setHgrow(spacer, Priority.ALWAYS);
-            Label scoreLabel = new Label(r.get("score") + " pts");
-            scoreLabel.setStyle("-fx-font-weight: bold; -fx-text-fill: #26658C;");
-            topRow.getChildren().addAll(quizLabel, spacer, scoreLabel);
-
-            String metaText = r.optString("submitted_at", "")
-                + (r.optBoolean("auto_submitted", false) ? "  ·  auto-submitted" : "");
-            row.getChildren().addAll(topRow, meta(metaText));
-            card.getChildren().add(row);
-        }
-
-        return card;
-    }
-
-    public void loadRecommend() {
-        sidebarController.setActive("recommend");
-        titleLabel.setText("Recommend");
-        showLoading();
-        fetchAsyncArray("/api/recommend", topics -> {
-            if (topics.isEmpty()) {
-                showEmpty("No recommendations right now. Join a group and post a few topics, then check back for personalized suggestions.");
-                return;
-            }
-            for (int i = 0; i < topics.length(); i++) {
-                JSONObject t = topics.getJSONObject(i);
-                double score = t.optDouble("relevance_score", 0);
-
-                VBox card = card();
-                card.setStyle(card.getStyle() + " -fx-cursor: hand;");
-                card.setOnMouseClicked(e -> openTopic(t.getInt("id"), t.getString("title")));
-
-                HBox topRow = new HBox(10);
-                topRow.setAlignment(Pos.CENTER_LEFT);
-                Label titleLabel = heading(t.getString("title"));
-                HBox.setHgrow(titleLabel, Priority.ALWAYS);
-                topRow.getChildren().addAll(titleLabel, matchBadge(score));
-
-                String metaText = t.optString("category", "General")
-                    + "  ·  " + t.optString("creator_name", "a member")
-                    + "  ·  " + t.optString("group_name", "General")
-                    + "  ·  " + t.optString("created_at", "");
-
-                card.getChildren().addAll(topRow, meta(metaText));
-                contentBox.getChildren().add(card);
-            }
-        });
-    }
-
-    /** Matches recommend/index.blade.php's .match-badge tiers (high/medium/low). */
-    private Label matchBadge(double score) {
-        String bg, fg;
-        if (score >= 66) { bg = "#E4F4EC"; fg = "#3F9C6B"; }
-        else if (score >= 33) { bg = "#FBF0E1"; fg = "#D98E3D"; }
-        else { bg = "#EAF1F4"; fg = "#26658C"; }
-
-        Label badge = new Label(Math.round(score) + "% match");
-        badge.setStyle("-fx-background-color: " + bg + "; -fx-text-fill: " + fg + "; " +
-            "-fx-padding: 4 11; -fx-background-radius: 999; -fx-font-size: 11.5; -fx-font-weight: bold;");
-        return badge;
-    }
-
-    private void openTopic(int topicId, String title) {
-        try {
-            FXMLLoader loader = new FXMLLoader(getClass().getResource("topic-view.fxml"));
-            Scene scene = new Scene(loader.load());
-            TopicController controller = loader.getController();
-            controller.setServices(dbManager, syncService);
-            controller.loadTopic(title, topicId);
-
-            Stage stage = (Stage) syncStatusLabel.getScene().getWindow();
-            WindowUtil.applyScene(stage, scene, "DiscussionHub — " + title);
-        } catch (Exception e) {
-            System.err.println("[SimpleList] Error opening topic: " + e.getMessage());
-        }
-    }
-
-    public void loadQuizzes() {
-        sidebarController.setActive("quizzes");
-        titleLabel.setText("Quizzes");
-        showLoading();
-        fetchAsync("/api/quizzes", json -> {
-            addQuizSection("Available Now", json.getJSONArray("available"), "#3F9C6B", "#E4F4EC");
-            addQuizSection("Upcoming", json.getJSONArray("upcoming"), "#D98E3D", "#FBF0E1");
-            addQuizSection("Missed", json.getJSONArray("missed"), "#D9483D", "#FBE7E5");
-
-            JSONArray completed = json.getJSONArray("completed");
-            if (completed.isEmpty()) return;
-            VBox card = card();
-            card.getChildren().add(heading("Completed"));
-            for (int i = 0; i < completed.length(); i++) {
-                JSONObject q = completed.getJSONObject(i);
-                HBox row = new HBox(10);
-                row.setAlignment(Pos.CENTER_LEFT);
-                Label t = new Label(q.getString("title"));
-                t.setStyle("-fx-font-size: 13; -fx-text-fill: #33455A;");
-                Region spacer = new Region();
-                HBox.setHgrow(spacer, Priority.ALWAYS);
-                Label score = new Label(q.getInt("score") + "%");
-                score.setStyle("-fx-font-weight: bold; -fx-text-fill: #26658C;");
-                row.getChildren().addAll(t, spacer, score);
-                card.getChildren().add(row);
-            }
-            contentBox.getChildren().add(card);
-
-            if (contentBox.getChildren().isEmpty()) showEmpty("No quizzes yet.");
-        });
-    }
-
-    private void addQuizSection(String title, JSONArray quizzes, String fg, String bg) {
-        if (quizzes.isEmpty()) return;
-        VBox card = card();
-        card.getChildren().add(heading(title));
-        for (int i = 0; i < quizzes.length(); i++) {
-            JSONObject q = quizzes.getJSONObject(i);
-            HBox row = new HBox(10);
-            row.setAlignment(Pos.CENTER_LEFT);
-            Label t = new Label(q.getString("title"));
-            t.setStyle("-fx-font-size: 13; -fx-text-fill: #33455A;");
-            Region spacer = new Region();
-            HBox.setHgrow(spacer, Priority.ALWAYS);
-            Label when = new Label(q.optString("start_time", "") + "  (" + q.getInt("duration_minutes") + " min)");
-            when.setStyle("-fx-text-fill: #6B8094; -fx-font-size: 11.5;");
-            row.getChildren().addAll(t, spacer, when);
-            card.getChildren().add(row);
-        }
-        contentBox.getChildren().add(card);
-    }
-
     // ---- Small styled building blocks, matching the Dashboard's look ---
 
     private VBox card() {
@@ -294,17 +119,6 @@ public class SimpleListController {
         return box;
     }
 
-    private VBox statTile(String label, String value) {
-        VBox tile = new VBox(4);
-        tile.setAlignment(Pos.CENTER_LEFT);
-        Label valueLabel = new Label(value);
-        valueLabel.setStyle("-fx-font-size: 20; -fx-font-weight: bold; -fx-text-fill: #26658C;");
-        Label captionLabel = new Label(label);
-        captionLabel.setStyle("-fx-text-fill: #6B8094; -fx-font-size: 11.5;");
-        tile.getChildren().addAll(valueLabel, captionLabel);
-        return tile;
-    }
-
     private void showLoading() {
         contentBox.getChildren().clear();
         Label loading = new Label("Loading…");
@@ -324,7 +138,6 @@ public class SimpleListController {
     // ---- HTTP helpers ----------------------------------------------------
 
     private interface ObjectHandler { void handle(JSONObject json); }
-    private interface ArrayHandler { void handle(JSONArray json); }
 
     private void fetchAsync(String path, ObjectHandler handler) {
         new Thread(() -> {
@@ -336,23 +149,6 @@ public class SimpleListController {
                     contentBox.getChildren().clear();
                     handler.handle(json);
                     if (contentBox.getChildren().isEmpty()) showEmpty("Nothing here yet.");
-                });
-            } catch (Exception e) {
-                System.err.println("[SimpleList] Parse error: " + e.getMessage());
-                showEmpty("Couldn't load this — please try again.");
-            }
-        }).start();
-    }
-
-    private void fetchAsyncArray(String path, ArrayHandler handler) {
-        new Thread(() -> {
-            String body = get(path);
-            if (body == null) { showEmpty("Couldn't reach the server — check your connection."); return; }
-            try {
-                JSONArray json = new JSONArray(body);
-                Platform.runLater(() -> {
-                    contentBox.getChildren().clear();
-                    handler.handle(json);
                 });
             } catch (Exception e) {
                 System.err.println("[SimpleList] Parse error: " + e.getMessage());

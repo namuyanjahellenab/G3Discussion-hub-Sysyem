@@ -5,29 +5,32 @@
 <?import javafx.geometry.Insets?>
 <?import javafx.scene.text.Text?>
 
+<!-- Was #0052CC throughout, its own standalone blue separate from the LUNA
+     theme every post-login screen uses - mapped onto the same LUNA palette
+     instead (see login-view.fxml for the same fix). -->
 <HBox xmlns:fx="http://javafx.com/fxml" fx:controller="com.discussionhub.client.RegisterController"
-      spacing="0" style="-fx-background-color: linear-gradient(to bottom right, #E8F1FF, #D4E3FF);">
+      spacing="0" style="-fx-background-color: linear-gradient(to bottom right, #EAF1F4, #CFE3EA);">
 
     <!-- LEFT PANEL -->
     <VBox HBox.hgrow="ALWAYS" spacing="15" style="-fx-background-color: white; -fx-padding: 30; -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.1), 10, 0, 0, 5);">
-        <Label text="CREATE AN ACCOUNT" style="-fx-text-fill: #0052CC; -fx-font-size: 24; -fx-font-weight: bold;"/>
-        <Label text="Join the Discussion Hub community today." style="-fx-text-fill: grey;"/>
-        <Label text="Choose a role before continuing." style="-fx-text-fill: #0052CC;"/>
+        <Label text="CREATE AN ACCOUNT" style="-fx-text-fill: #26658C; -fx-font-size: 24; -fx-font-weight: bold;"/>
+        <Label text="Join the Discussion Hub community today." style="-fx-text-fill: #6B8094;"/>
+        <Label text="Choose a role before continuing." style="-fx-text-fill: #26658C;"/>
 
         <ScrollPane fitToWidth="true" style="-fx-background-color: transparent; -fx-background: white;">
             <VBox spacing="10">
                 <Label text="Full Name" style="-fx-font-weight: bold;"/>
-                <TextField fx:id="fullNameField" promptText="Nakato Vannesah" style="-fx-padding: 10; -fx-border-radius: 6; -fx-border-color: #ddd;"/>
+                <TextField fx:id="fullNameField" promptText="Nakato Vannesah" style="-fx-padding: 10; -fx-border-radius: 6; -fx-border-color: #E1E9ED;"/>
 
                 <Label text="Email Address" style="-fx-font-weight: bold;"/>
-                <TextField fx:id="emailField" style="-fx-padding: 10; -fx-border-radius: 6; -fx-border-color: #ddd;"/>
+                <TextField fx:id="emailField" style="-fx-padding: 10; -fx-border-radius: 6; -fx-border-color: #E1E9ED;"/>
 
                 <Label text="Username" style="-fx-font-weight: bold;"/>
-                <TextField fx:id="usernameField" style="-fx-padding: 10; -fx-border-radius: 6; -fx-border-color: #ddd;"/>
+                <TextField fx:id="usernameField" style="-fx-padding: 10; -fx-border-radius: 6; -fx-border-color: #E1E9ED;"/>
 
                 <Label text="Password" style="-fx-font-weight: bold;"/>
                 <HBox spacing="5">
-                    <PasswordField fx:id="passwordField" HBox.hgrow="ALWAYS" style="-fx-padding: 10; -fx-border-radius: 6; -fx-border-color: #ddd;"/>
+                    <PasswordField fx:id="passwordField" HBox.hgrow="ALWAYS" style="-fx-padding: 10; -fx-border-radius: 6; -fx-border-color: #E1E9ED;"/>
                     <Button fx:id="showPasswordBtn" text="👁" onAction="#onTogglePassword" style="-fx-padding: 8;"/>
                 </HBox>
 
@@ -40,26 +43,26 @@
                 </VBox>
 
                 <Label text="Confirm Password" style="-fx-font-weight: bold;"/>
-                <PasswordField fx:id="confirmPasswordField" style="-fx-padding: 10; -fx-border-radius: 6; -fx-border-color: #ddd;"/>
+                <PasswordField fx:id="confirmPasswordField" style="-fx-padding: 10; -fx-border-radius: 6; -fx-border-color: #E1E9ED;"/>
             </VBox>
         </ScrollPane>
 
         <Label fx:id="statusBar" text="✓ STATUS: PENDING RULE ACCEPTANCE"
-               style="-fx-padding: 10; -fx-border-color: #0052CC; -fx-border-radius: 6; -fx-text-fill: #0052CC;"/>
+               style="-fx-padding: 10; -fx-border-color: #26658C; -fx-border-radius: 6; -fx-text-fill: #26658C;"/>
 
         <Button fx:id="completeRegistrationButton" text="COMPLETE REGISTRATION" onAction="#onCompleteRegistration"
                 disable="true" maxWidth="Infinity"
-                style="-fx-background-color: #0052CC; -fx-text-fill: white; -fx-font-weight: bold; -fx-padding: 12; -fx-background-radius: 6;"/>
+                style="-fx-background-color: #26658C; -fx-text-fill: white; -fx-font-weight: bold; -fx-padding: 12; -fx-background-radius: 6;"/>
 
         <HBox alignment="CENTER" spacing="5">
             <Label text="Already have an account?"/>
-            <Hyperlink text="Sign in" onAction="#onSignIn" style="-fx-text-fill: #0052CC;"/>
+            <Hyperlink text="Sign in" onAction="#onSignIn" style="-fx-text-fill: #26658C;"/>
         </HBox>
-        <Label fx:id="errorLabel" text="" style="-fx-text-fill: red;" visible="false"/>
+        <Label fx:id="errorLabel" text="" style="-fx-text-fill: #D9483D;" visible="false"/>
     </VBox>
 
     <!-- RIGHT PANEL -->
-    <VBox HBox.hgrow="ALWAYS" spacing="20" style="-fx-padding: 30; -fx-background-color: white; -fx-border-color: #eee; -fx-border-width: 0 0 0 1;">
+    <VBox HBox.hgrow="ALWAYS" spacing="20" style="-fx-padding: 30; -fx-background-color: white; -fx-border-color: #E1E9ED; -fx-border-width: 0 0 0 1;">
         <Label text="PLATFORM RULES &amp; GUIDELINES" style="-fx-font-weight: bold; -fx-font-size: 18;"/>
 
         <VBox spacing="15">
@@ -73,9 +76,9 @@
 
         <Button fx:id="acceptRulesButton" text="ACCEPT RULES" onAction="#onAcceptRules"
                 disable="true" maxWidth="Infinity"
-                style="-fx-background-color: #0052CC; -fx-text-fill: white; -fx-font-weight: bold; -fx-padding: 12; -fx-background-radius: 6;"/>
+                style="-fx-background-color: #26658C; -fx-text-fill: white; -fx-font-weight: bold; -fx-padding: 12; -fx-background-radius: 6;"/>
 
-        <Hyperlink text="DECLINE" onAction="#onDecline" style="-fx-text-fill: #0052CC;"/>
+        <Hyperlink text="DECLINE" onAction="#onDecline" style="-fx-text-fill: #26658C;"/>
     </VBox>
 
 </HBox>

@@ -7,12 +7,10 @@ import com.discussionhub.client.utils.DeltaSyncService;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
-import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
 import javafx.scene.control.*;
-import javafx.scene.layout.GridPane;
-import javafx.scene.layout.HBox;
+import javafx.scene.layout.FlowPane;
 import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
 
@@ -31,7 +29,7 @@ public class GroupSelectionController {
     @FXML private Label userEmailLabel;
     @FXML private TextField searchField;
     @FXML private Label statusLabel;
-    @FXML private GridPane groupCardsContainer;
+    @FXML private FlowPane groupCardsContainer;
     @FXML private Button continueButton;
 
     private DatabaseManager dbManager;
@@ -104,95 +102,47 @@ public class GroupSelectionController {
         return json.substring(start, end).replace("\"", "");
     }
 
-    // --- Accent + course-code mapping, mirrors the Blade match() logic exactly ---
-
-    private String accentColorFor(String groupName) {
-        return switch (groupName) {
-            case "Algorithms" -> "#2f80ed";
-            case "Databases" -> "#56ccf2";
-            case "Software Engineering", "Software Eng." -> "#4f5e71";
-            case "Networks" -> "#b91c1c";
-            default -> "#98a2b3";
-        };
-    }
-
-    private String courseCodeFor(String groupName) {
-        return switch (groupName) {
-            case "Algorithms" -> "CSC301";
-            case "Databases" -> "CSC302";
-            case "Software Engineering", "Software Eng." -> "CSC303";
-            case "Networks" -> "CSC304";
-            default -> "CSC300";
-        };
-    }
-
     private void renderGroups(List<GroupData> groups) {
         groupCardsContainer.getChildren().clear();
         checkboxesByGroupId.clear();
 
-        int index = 0;
         for (GroupData group : groups) {
-            VBox card = createGroupCard(group);
-            int col = index % 2;
-            int row = index / 2;
-            groupCardsContainer.add(card, col, row);
-            index++;
+            groupCardsContainer.getChildren().add(createGroupCard(group));
         }
     }
 
+    /** Matches .group-card / .group-card-icon used post-join in DashboardController/ForumController. */
     private VBox createGroupCard(GroupData group) {
-        String accent = accentColorFor(group.name);
-        String courseCode = courseCodeFor(group.name);
+        VBox card = new VBox(10);
+        card.getStyleClass().add("group-card");
+        card.setAlignment(Pos.CENTER);
+        card.setPrefSize(210, 210);
+        card.setMinSize(210, 210);
+        card.setMaxSize(210, 210);
+        card.setStyle("-fx-padding: 20 16;");
 
-        VBox card = new VBox(14);
-        // 4-value border-color/-width give the web's 6px colored left accent with a thin border on the other 3 sides
-        card.setStyle(String.format(
-                "-fx-background-color: white;" +
-                "-fx-background-radius: 16;" +
-                "-fx-border-color: #e4e7ec #e4e7ec #e4e7ec %s;" +
-                "-fx-border-width: 1 1 1 6;" +
-                "-fx-border-radius: 16;" +
-                "-fx-padding: 20 24 20 18;" +
-                "-fx-effect: dropshadow(gaussian, rgba(16,24,40,0.08), 6, 0, 0, 2);",
-                accent
-        ));
+        Label icon = new Label("\uD83D\uDC65");
+        icon.getStyleClass().add("group-card-icon");
+        icon.setStyle("-fx-padding: 10 14; -fx-font-size: 16;");
 
-        // Top meta row: course badge + member pill
-        Label courseBadge = new Label(courseCode);
-        courseBadge.setStyle(String.format(
-                "-fx-text-fill: %s; -fx-background-color: derive(%s, 92%%);" +
-                "-fx-font-weight: bold; -fx-font-size: 11; -fx-padding: 4 10; -fx-background-radius: 6;",
-                accent, accent));
-
-        Label memberPill = new Label("\uD83D\uDC65 " + group.memberCount + " members");
-        memberPill.setStyle(
-                "-fx-background-color: #eef4ff; -fx-text-fill: #0d52cc;" +
-                "-fx-font-size: 11; -fx-padding: 5 14; -fx-background-radius: 20;");
-
-        HBox metaRow = new HBox();
-        metaRow.setAlignment(Pos.CENTER_LEFT);
-        HBox spacer = new HBox();
-        HBox.setHgrow(spacer, javafx.scene.layout.Priority.ALWAYS);
-        metaRow.getChildren().addAll(courseBadge, spacer, memberPill);
-
-        // Group title
         Label titleLabel = new Label(group.name);
+        titleLabel.getStyleClass().add("heading-text");
+        titleLabel.setStyle("-fx-font-size: 15;");
         titleLabel.setWrapText(true);
-        titleLabel.setStyle("-fx-font-size: 19; -fx-font-weight: bold; -fx-text-fill: #101828;");
+        titleLabel.setAlignment(Pos.CENTER);
+        titleLabel.setTextAlignment(javafx.scene.text.TextAlignment.CENTER);
+
+        Label memberLabel = new Label(group.memberCount + (group.memberCount == 1 ? " member" : " members"));
+        memberLabel.getStyleClass().add("muted-text");
 
         // Checkbox selection row (replaces the old instant-join button)
-        CheckBox checkBox = new CheckBox(group.isMember ? "Selected" : "Select this group");
+        CheckBox checkBox = new CheckBox(group.isMember ? "Selected" : "Select");
         checkBox.setSelected(group.isMember);
-        checkBox.setStyle("-fx-font-size: 13; -fx-text-fill: #101828;");
         checkBox.selectedProperty().addListener((obs, wasSelected, isSelected) ->
-                checkBox.setText(isSelected ? "Selected" : "Select this group"));
+                checkBox.setText(isSelected ? "Selected" : "Select"));
         checkboxesByGroupId.put(group.id, checkBox);
 
-        HBox checkRow = new HBox(checkBox);
-        checkRow.setAlignment(Pos.CENTER);
-        checkRow.setPadding(new Insets(10, 0, 0, 0));
-
-        card.getChildren().addAll(metaRow, titleLabel, checkRow);
+        card.getChildren().addAll(icon, titleLabel, memberLabel, checkBox);
         return card;
     }
 

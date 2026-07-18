@@ -9,40 +9,73 @@
      which shows on every student page by default unless a controller
      explicitly opts out - only New Topic creation and the onboarding Group
      Selection screen do that). Single source of truth so screens can't
-     drift out of sync with each other the way they had before this existed. -->
-<VBox fx:id="root" xmlns:fx="http://javafx.com/fxml"
-      fx:controller="com.discussionhub.client.SidebarController"
-      prefWidth="230" minWidth="230" spacing="2" styleClass="sidebar-panel" style="-fx-padding: 18 0 18 0;">
+     drift out of sync with each other the way they had before this existed.
 
-    <HBox alignment="CENTER_LEFT" spacing="8" style="-fx-padding: 0 20 22 20;">
-        <Label text="💬" styleClass="heading-text" style="-fx-font-size: 16;"/>
-        <Label text="DISCUSSION HUB" styleClass="heading-text" style="-fx-font-size: 14;"/>
-    </HBox>
+     Root is a StackPane, mirroring the web's #sidebar-toggle-btn: a
+     position:fixed white circular button that floats ON TOP of the page,
+     overlapping the sidebar panel's top-left corner, rather than pushing
+     its content over (see layouts/app.blade.php). collapsiblePanel starts
+     flush against the left edge like .app-sidebar-wrapper does (no reserved
+     rail column eating space before it) and disappears completely when
+     toggled (visible/managed false) - since StackPane sizes itself from
+     visible+managed children only, that leaves just the floating 36x36
+     toggleBtn, matching the web's fixed button staying put after
+     .app-sidebar-wrapper collapses to width:0. toggleBtn is declared AFTER
+     collapsiblePanel so it paints on top (StackPane z-order = document
+     order), same as the web's button floating over the panel. -->
+<StackPane fx:id="root" xmlns:fx="http://javafx.com/fxml"
+      fx:controller="com.discussionhub.client.SidebarController">
 
-    <Button fx:id="dashboardBtn" text="⬜  Dashboard" onAction="#onOpenDashboard" maxWidth="Infinity" styleClass="sidebar-link">
-        <VBox.margin><Insets left="10" right="10"/></VBox.margin>
-    </Button>
-    <Button fx:id="forumBtn" text="📄  Topic Discussions" onAction="#onOpenForum" maxWidth="Infinity" styleClass="sidebar-link">
-        <VBox.margin><Insets left="10" right="10"/></VBox.margin>
-    </Button>
-    <Button fx:id="myQuestionsBtn" text="❓  My Questions" onAction="#onOpenMyQuestions" maxWidth="Infinity" styleClass="sidebar-link">
-        <VBox.margin><Insets left="10" right="10"/></VBox.margin>
-    </Button>
-    <Button fx:id="groupChatBtn" text="💬  Group Chat" onAction="#onOpenGroupChat" maxWidth="Infinity" styleClass="sidebar-link">
-        <VBox.margin><Insets left="10" right="10"/></VBox.margin>
-    </Button>
-    <Button fx:id="marksBtn" text="★  Marks" onAction="#onOpenMarks" maxWidth="Infinity" styleClass="sidebar-link">
-        <VBox.margin><Insets left="10" right="10"/></VBox.margin>
-    </Button>
-    <Button fx:id="quizzesBtn" text="📘  Quizzes" onAction="#onOpenQuizzes" maxWidth="Infinity" styleClass="sidebar-link">
-        <VBox.margin><Insets left="10" right="10"/></VBox.margin>
-    </Button>
-    <Button fx:id="recommendBtn" text="👍  Recommend" onAction="#onOpenRecommend" maxWidth="Infinity" styleClass="sidebar-link">
-        <VBox.margin><Insets left="10" right="10"/></VBox.margin>
-    </Button>
-    <Button fx:id="settingsBtn" text="⚙  Settings" onAction="#onOpenSettings" maxWidth="Infinity" styleClass="sidebar-link">
-        <VBox.margin><Insets left="10" right="10"/></VBox.margin>
-    </Button>
+    <VBox fx:id="collapsiblePanel" styleClass="sidebar-panel" prefWidth="220" minWidth="220" spacing="2" style="-fx-padding: 56 0 18 0;">
 
-    <Region VBox.vgrow="ALWAYS"/>
-</VBox>
+        <HBox fx:id="brandRow" alignment="CENTER_LEFT" spacing="6" style="-fx-padding: 0 14 16 14; -fx-border-color: transparent transparent -surface-border transparent; -fx-border-width: 0 0 1 0;">
+            <Label fx:id="brandIconLabel" text="💬" styleClass="heading-text" style="-fx-font-size: 16;"/>
+            <Label fx:id="brandTextLabel" text="DISCUSSION HUB" styleClass="heading-text" style="-fx-font-size: 12.5;" wrapText="true"/>
+            <Region HBox.hgrow="ALWAYS"/>
+            <StackPane fx:id="bellWrapper" onMouseClicked="#onBellClicked" style="-fx-cursor: hand; -fx-padding: 4;">
+                <Label text="🔔" style="-fx-font-size: 14;"/>
+                <Label fx:id="notificationBadge" text="" visible="false" managed="false"
+                       style="-fx-background-color: #E74C3C; -fx-text-fill: white; -fx-font-size: 9; -fx-font-weight: bold;
+                              -fx-background-radius: 8; -fx-padding: 1 4; -fx-translate-x: 9; -fx-translate-y: -8;"
+                       StackPane.alignment="TOP_RIGHT"/>
+            </StackPane>
+        </HBox>
+
+        <Button fx:id="dashboardBtn" text="⬜  Dashboard" onAction="#onOpenDashboard" maxWidth="Infinity" styleClass="sidebar-link">
+            <VBox.margin><Insets left="10" right="10"/></VBox.margin>
+        </Button>
+        <Button fx:id="forumBtn" text="📄  Topic Discussions" onAction="#onOpenForum" maxWidth="Infinity" styleClass="sidebar-link">
+            <VBox.margin><Insets left="10" right="10"/></VBox.margin>
+        </Button>
+        <Button fx:id="myQuestionsBtn" text="❓  My Questions" onAction="#onOpenMyQuestions" maxWidth="Infinity" styleClass="sidebar-link">
+            <VBox.margin><Insets left="10" right="10"/></VBox.margin>
+        </Button>
+        <Button fx:id="groupChatBtn" text="💬  Group Chat" onAction="#onOpenGroupChat" maxWidth="Infinity" styleClass="sidebar-link">
+            <VBox.margin><Insets left="10" right="10"/></VBox.margin>
+        </Button>
+        <Button fx:id="marksBtn" text="★  Marks" onAction="#onOpenMarks" maxWidth="Infinity" styleClass="sidebar-link">
+            <VBox.margin><Insets left="10" right="10"/></VBox.margin>
+        </Button>
+        <Button fx:id="quizzesBtn" text="📘  Quizzes" onAction="#onOpenQuizzes" maxWidth="Infinity" styleClass="sidebar-link">
+            <VBox.margin><Insets left="10" right="10"/></VBox.margin>
+        </Button>
+        <Button fx:id="recommendBtn" text="👍  Recommend" onAction="#onOpenRecommend" maxWidth="Infinity" styleClass="sidebar-link">
+            <VBox.margin><Insets left="10" right="10"/></VBox.margin>
+        </Button>
+        <Button fx:id="settingsBtn" text="⚙  Settings" onAction="#onOpenSettings" maxWidth="Infinity" styleClass="sidebar-link">
+            <VBox.margin><Insets left="10" right="10"/></VBox.margin>
+        </Button>
+
+        <Region VBox.vgrow="ALWAYS"/>
+    </VBox>
+
+    <Button fx:id="toggleBtn" text="≡" onAction="#onToggleSidebar" StackPane.alignment="TOP_LEFT"
+            style="-fx-background-color: white; -fx-border-color: -surface-border; -fx-border-width: 1; -fx-border-radius: 8; -fx-background-radius: 8;
+                   -fx-min-width: 36; -fx-min-height: 36; -fx-max-width: 36; -fx-max-height: 36;
+                   -fx-font-size: 15; -fx-font-weight: bold; -fx-text-fill: -luna-mid; -fx-cursor: hand;
+                   -fx-effect: dropshadow(gaussian, rgba(16,24,40,0.12), 4, 0, 0, 1);">
+        <StackPane.margin>
+            <Insets top="16" left="16"/>
+        </StackPane.margin>
+    </Button>
+</StackPane>

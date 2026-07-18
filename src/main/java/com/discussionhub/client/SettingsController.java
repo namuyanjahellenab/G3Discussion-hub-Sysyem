@@ -202,11 +202,13 @@ public class SettingsController {
     }
 
     private void signOutLocally() {
+        sidebarController.stopNotificationPolling();
         SessionManager.token = "";
         SessionManager.userId = 0;
         SessionManager.userEmail = "";
         SessionManager.fullName = "";
         SessionManager.currentTheme = "luna";
+        SessionManager.sidebarCollapsed = false;
         loadLogin();
     }
 

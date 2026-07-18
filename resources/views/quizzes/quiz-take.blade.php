@@ -8,23 +8,33 @@
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Arial, sans-serif; }
 
+        {{-- This page doesn't @extend layouts.app (a deliberately
+             distraction-free full-page quiz experience, same as
+             quiz-alert.js's popup), so admin-theme.css's LUNA custom
+             properties aren't in scope here - was its own standalone
+             --blue/--red/--green/--yellow palette. Every var(--blue) etc.
+             usage below the :root block is unchanged; only the values here
+             were remapped to LUNA equivalents (matching the bg/fg pairs
+             already used for these same states elsewhere - e.g. Quizzes'
+             Available/Upcoming/Missed badges), so the values just cascade
+             through instead of needing 30+ separate edits. --}}
         :root {
-            --blue:       #0052CC;
-            --blue-dark:  #003D99;
-            --blue-light: #DEEBFF;
-            --blue-mid:   #E8F0FF;
-            --text:       #172B4D;
-            --text-mid:   #5E6C84;
-            --text-light: #8993A4;
-            --border:     #DFE1E6;
-            --bg:         #F4F5F7;
+            --blue:       #26658C;
+            --blue-dark:  #023859;
+            --blue-light: #CFE3EA;
+            --blue-mid:   #EAF1F4;
+            --text:       #011C40;
+            --text-mid:   #33455A;
+            --text-light: #6B8094;
+            --border:     #E1E9ED;
+            --bg:         #F4F8FA;
             --white:      #FFFFFF;
-            --red:        #DE350B;
-            --red-bg:     #FFEBE6;
-            --green:      #36B37E;
-            --green-bg:   #E3FCEF;
-            --yellow:     #FFAB00;
-            --yellow-bg:  #FFFAE6;
+            --red:        #D9483D;
+            --red-bg:     #FBE7E5;
+            --green:      #3F9C6B;
+            --green-bg:   #E4F4EC;
+            --yellow:     #D98E3D;
+            --yellow-bg:  #FBF0E1;
             --radius:     8px;
             --shadow:     0 2px 8px rgba(0,0,0,0.10);
         }
@@ -49,7 +59,7 @@
             position: sticky;
             top: 0;
             z-index: 100;
-            box-shadow: 0 2px 8px rgba(0,82,204,0.25);
+            box-shadow: 0 2px 8px rgba(38,101,140,0.25);
         }
 
         .topbar-left {
@@ -107,8 +117,8 @@
             transition: color 0.3s;
         }
 
-        .timer-display.warning { color: #FFAB00; }
-        .timer-display.danger  { color: #FF5630; animation: pulse 1s infinite; }
+        .timer-display.warning { color: #D98E3D; }
+        .timer-display.danger  { color: #D9483D; animation: pulse 1s infinite; }
 
         @keyframes pulse {
             0%, 100% { opacity: 1; }
@@ -141,7 +151,7 @@
             gap: 6px;
             transition: background 0.15s, transform 0.1s;
         }
-        .submit-btn:hover { background: #E8F0FF; transform: translateY(-1px); }
+        .submit-btn:hover { background: #EAF1F4; transform: translateY(-1px); }
         .submit-btn svg { width: 14px; height: 14px; }
 
         /* ── PROGRESS BAR ── */
@@ -154,7 +164,7 @@
         }
         .progress-bar-fill {
             height: 100%;
-            background: #36B37E;
+            background: #3F9C6B;
             transition: width 0.4s ease;
             width: 0%;
         }
@@ -324,7 +334,7 @@
             font-family: inherit;
             transition: border-color 0.15s;
         }
-        .open-textarea:focus { border-color: var(--blue); box-shadow: 0 0 0 2px rgba(0,82,204,0.1); }
+        .open-textarea:focus { border-color: var(--blue); box-shadow: 0 0 0 2px rgba(38,101,140,0.1); }
 
         /* Answered indicator */
         .q-answered-tag {

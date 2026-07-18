@@ -54,7 +54,7 @@
         background: transparent;
     }
     .btn-search {
-        background-color: #0d52cc;
+        background-color: #26658C;
         color: white;
         font-weight: 600;
         font-size: 0.95rem;
@@ -64,79 +64,69 @@
         white-space: nowrap;
     }
     .btn-search:hover {
-        background-color: #0a44b0;
+        background-color: #023859;
     }
 
-    /* Custom Forced Side-by-Side Grid Row */
+    /* Was its own one-off design (white bg, 16px radius, colored 6px left
+       accent border, drop shadow, course-badge + member-pill) that never
+       matched the .group-card used everywhere else once you've actually
+       joined a group (Dashboard's My Groups panel, Forum, groups/index.blade.php
+       - all fixed 220x220, var(--surface-bg)/var(--surface-border), 10px
+       radius, no shadow, no accent border, icon chip). This page doesn't
+       extend layouts.app (a deliberately distraction-free onboarding screen,
+       no sidebar/navbar), so those CSS custom properties from admin-theme.css
+       aren't in scope here - using their literal hex values instead so the
+       cards are pixel-for-pixel the same as the post-join ones. */
     .cards-row {
-        display: flex;
-        flex-wrap: wrap;
-        margin-right: -12px;
-        margin-left: -12px;
+        display: grid;
+        grid-template-columns: repeat(auto-fill, 220px);
+        gap: 16px;
+        justify-content: center;
     }
     .card-col {
-        flex: 0 0 50%;
-        max-width: 50%;
-        padding: 12px;
+        padding: 0;
         box-sizing: border-box;
     }
 
-    /* Group Card Custom Layout Styles */
     .group-card {
-        background: #ffffff;
-        border: 1px solid #e4e7ec;
-        border-radius: 16px;
-        padding: 1.5rem 1.75rem;
-        box-shadow: 0px 2px 12px rgba(16, 24, 40, 0.02);
-        position: relative;
-        overflow: hidden;
+        width: 220px;
+        height: 220px;
+        box-sizing: border-box;
+        background: #F4F8FA;
+        border: 1px solid #E1E9ED;
+        border-radius: 10px;
+        padding: 20px;
         display: flex;
         flex-direction: column;
-        height: 100%;
-    }
-    
-    /* Dynamic Left Accent Thick Borders matching screenshot colors */
-    .bar-algorithms { border-left: 6px solid #2f80ed; }
-    .bar-databases { border-left: 6px solid #56ccf2; }
-    .bar-software { border-left: 6px solid #4f5e71; }
-    .bar-networks { border-left: 6px solid #b91c1c; }
-
-    .card-meta-line {
-        display: flex;
-        justify-content: space-between;
         align-items: center;
-        margin-bottom: 8px;
+        justify-content: center;
+        text-align: center;
     }
-    .course-badge {
-        color: #2f80ed;
-        background-color: #f0f6fe;
-        font-weight: 700;
-        font-size: 0.75rem;
-        padding: 4px 10px;
-        border-radius: 6px;
-        letter-spacing: 0.5px;
+    .group-card-icon {
+        width: 40px;
+        height: 40px;
+        background: #A7EBF2;
+        color: #023859;
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-bottom: 12px;
+        font-size: 1rem;
     }
-    .bar-databases .course-badge { color: #56ccf2; background-color: #f0faff; }
-    .bar-software .course-badge { color: #4f5e71; background-color: #f3f4f6; }
-    .bar-networks .course-badge { color: #b91c1c; background-color: #fef2f2; }
-
     .member-pill {
-        background-color: #eef4ff;
-        color: #0d52cc;
-        font-weight: 500;
+        color: #6B8094;
         font-size: 0.8rem;
-        padding: 5px 14px;
-        border-radius: 20px;
+        margin: 0 0 16px 0;
     }
     .group-title {
-        font-size: 1.6rem;
+        font-size: 1rem;
         font-weight: 700;
-        color: #101828;
-        letter-spacing: -0.4px;
-        margin: 0 0 1.5rem 0;
+        color: #011C40;
+        margin: 0 0 2px 0;
     }
     .btn-group-join {
-        background-color: #0d52cc;
+        background-color: #26658C;
         color: white;
         font-weight: 600;
         font-size: 0.95rem;
@@ -152,7 +142,7 @@
         cursor: pointer;
     }
     .btn-group-join:hover {
-        background-color: #0a44b0;
+        background-color: #023859;
     }
     .btn-group-join:disabled {
         background-color: #f2f4f7;
@@ -168,7 +158,7 @@
         display: inline-block;
     }
     .dot.active {
-        background-color: #0d52cc;
+        background-color: #26658C;
     }
     .footer-note {
         font-size: 0.85rem;
@@ -186,63 +176,33 @@
     <div style="margin-bottom: 2.5rem;">
         <div class="search-wrapper">
             <i class="fa-solid fa-magnifying-glass text-muted" style="font-size: 1rem; margin-right: 1rem;"></i>
-            <input type="text" class="search-input" placeholder="Search for courses, lecturers or topics...">
-            <button class="btn-search" type="button">Search &nbsp;<i class="fa-solid fa-arrow-right style='font-size: 0.8rem;'"></i></button>
+            <input type="text" id="groupSearchInput" class="search-input" placeholder="Search for courses, lecturers or topics...">
+            <button class="btn-search" type="button" id="groupSearchBtn">Search &nbsp;<i class="fa-solid fa-arrow-right style='font-size: 0.8rem;'"></i></button>
         </div>
     </div>
 
     <!-- Strictly Forced Side-by-Side 2-Column Grid Layout -->
     <form method="POST" action="{{ route('groups.select.multiple') }}" id="groupSelectionForm">
         @csrf
-        <div class="cards-row" style="margin-bottom: 2.5rem;">
+        <div class="cards-row" id="groupCardsRow" style="margin-bottom: 2.5rem;">
             @foreach($groups as $group)
-                @php
-                    $courseCode = match($group->GroupName) {
-                        'Algorithms' => 'CSC301',
-                        'Databases' => 'CSC302',
-                        'Software Engineering', 'Software Eng.' => 'CSC303',
-                        'Networks' => 'CSC304',
-                        default => 'CSC300',
-                    };
-
-                    $accentClass = match($group->GroupName) {
-                        'Algorithms' => 'bar-algorithms',
-                        'Databases' => 'bar-databases',
-                        'Software Engineering', 'Software Eng.' => 'bar-software',
-                        'Networks' => 'bar-networks',
-                        default => '',
-                    };
-                @endphp
-
-                <div class="card-col">
-                    <div class="group-card {{ $accentClass }}">
-                        
-                        <!-- Top Info Meta Row -->
-                        <div class="card-meta-line">
-                            <span class="course-badge">{{ $courseCode }}</span>
-                            <span class="member-pill">
-                                <i class="fa-solid fa-users" style="font-size: 0.75rem; opacity: 0.8; margin-right: 4px;"></i> 
-                                {{ $group->member_count ?? 0 }} members
-                            </span>
-                        </div>
-
-                        <!-- Main Group Display Header Text -->
+                <div class="card-col" data-group-name="{{ strtolower($group->GroupName) }}">
+                    <div class="group-card">
+                        <div class="group-card-icon"><i class="fa-solid fa-users"></i></div>
                         <h2 class="group-title">{{ $group->GroupName }}</h2>
+                        <p class="member-pill">{{ $group->member_count ?? 0 }} members</p>
 
-                        <!-- Checkbox for Multiple Selection -->
-                        <div style="margin-top: auto; padding: 1rem 0;">
-                            <label style="display: flex; align-items: center; justify-content: center; gap: 10px; cursor: pointer; font-size: 1rem; color: #101828; font-weight: 500;">
-                                <input type="checkbox" name="groups[]" value="{{ $group->GroupID }}" 
-                                       {{ $group->userJoined ? 'checked' : '' }}
-                                       style="width: 20px; height: 20px; cursor: pointer; accent-color: #0d52cc;">
-                                <span>{{ $group->userJoined ? 'Selected' : 'Select this group' }}</span>
-                            </label>
-                        </div>
-
+                        <label style="display: flex; align-items: center; justify-content: center; gap: 8px; cursor: pointer; font-size: 0.85rem; color: #33455A; font-weight: 500;">
+                            <input type="checkbox" name="groups[]" value="{{ $group->GroupID }}"
+                                   {{ $group->userJoined ? 'checked' : '' }}
+                                   style="width: 16px; height: 16px; cursor: pointer; accent-color: #26658C;">
+                            <span>{{ $group->userJoined ? 'Selected' : 'Select' }}</span>
+                        </label>
                     </div>
                 </div>
             @endforeach
         </div>
+        <p id="groupSearchEmpty" style="display: none; text-align: center; color: #667085; margin-bottom: 2.5rem;">No groups match your search.</p>
 
         <!-- Proceed Button -->
         <div style="text-align: center; margin-top: 2rem;">
@@ -264,3 +224,32 @@
         <p class="footer-note">You can join additional groups at any time from your dashboard. Some groups may require administrative approval.</p>
     </div>
 </div>
+
+<script>
+    (function () {
+        const input = document.getElementById('groupSearchInput');
+        const btn = document.getElementById('groupSearchBtn');
+        const cards = Array.from(document.querySelectorAll('#groupCardsRow .card-col'));
+        const emptyMsg = document.getElementById('groupSearchEmpty');
+
+        function applyFilter() {
+            const query = input.value.trim().toLowerCase();
+            let visibleCount = 0;
+            cards.forEach(function (card) {
+                const matches = !query || card.dataset.groupName.includes(query);
+                card.style.display = matches ? '' : 'none';
+                if (matches) visibleCount++;
+            });
+            emptyMsg.style.display = visibleCount === 0 ? '' : 'none';
+        }
+
+        input.addEventListener('input', applyFilter);
+        btn.addEventListener('click', function (e) {
+            e.preventDefault();
+            applyFilter();
+        });
+        input.addEventListener('keydown', function (e) {
+            if (e.key === 'Enter') e.preventDefault();
+        });
+    })();
+</script>

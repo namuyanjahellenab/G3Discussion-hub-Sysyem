@@ -1,0 +1,93 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+
+<!-- Mirrors resources/views/quizzes/index.blade.php: stat cards (Available/
+     Upcoming/Completed/Total Score), 4 tabs, Available rows clickable
+     straight into the quiz, Completed rows get a "Review answers" button,
+     and the right profile/tip panel - previously this screen was just the
+     generic simple-list-view.fxml card list (SimpleListController.
+     loadQuizzes(), now removed), whose rows were inert labels with no
+     click-through and no stat cards at all. -->
+<HBox xmlns:fx="http://javafx.com/fxml"
+      fx:controller="com.discussionhub.client.QuizzesController"
+      styleClass="app-background" stylesheets="@app-theme.css">
+
+    <fx:include fx:id="sidebar" source="sidebar.fxml"/>
+
+    <ScrollPane fitToWidth="true" HBox.hgrow="ALWAYS" style="-fx-background-color: transparent;">
+        <VBox spacing="16" style="-fx-padding: 28;">
+
+            <VBox>
+                <Label text="Assessment" styleClass="muted-text" style="-fx-font-size: 11; -fx-font-weight: bold;"/>
+                <Label text="Quizzes" styleClass="heading-text" style="-fx-font-size: 22;"/>
+            </VBox>
+
+            <HBox spacing="20">
+                <!-- MAIN -->
+                <VBox spacing="14" HBox.hgrow="ALWAYS" maxWidth="Infinity">
+
+                    <!-- Stat cards, two per line like the web's
+                         repeat(auto-fit, minmax(220px, 1fr)) grid wraps to
+                         at typical window widths, instead of one cramped
+                         row of four. -->
+                    <VBox spacing="16">
+                        <HBox spacing="16">
+                            <VBox styleClass="stat-card" style="-fx-padding: 16 18;" HBox.hgrow="ALWAYS">
+                                <Label text="AVAILABLE NOW" styleClass="muted-text" style="-fx-font-size: 10.5; -fx-font-weight: bold;"/>
+                                <Label fx:id="availableCountLabel" text="0" style="-fx-font-size: 20; -fx-font-weight: bold; -fx-text-fill: -luna-mid;"/>
+                            </VBox>
+                            <VBox styleClass="stat-card" style="-fx-padding: 16 18;" HBox.hgrow="ALWAYS">
+                                <Label text="UPCOMING" styleClass="muted-text" style="-fx-font-size: 10.5; -fx-font-weight: bold;"/>
+                                <Label fx:id="upcomingCountLabel" text="0" style="-fx-font-size: 20; -fx-font-weight: bold; -fx-text-fill: -luna-mid;"/>
+                            </VBox>
+                        </HBox>
+                        <HBox spacing="16">
+                            <VBox styleClass="stat-card" style="-fx-padding: 16 18;" HBox.hgrow="ALWAYS">
+                                <Label text="COMPLETED" styleClass="muted-text" style="-fx-font-size: 10.5; -fx-font-weight: bold;"/>
+                                <Label fx:id="completedCountLabel" text="0" style="-fx-font-size: 20; -fx-font-weight: bold; -fx-text-fill: -luna-mid;"/>
+                            </VBox>
+                            <VBox styleClass="stat-card" style="-fx-padding: 16 18;" HBox.hgrow="ALWAYS">
+                                <Label text="TOTAL SCORE" styleClass="muted-text" style="-fx-font-size: 10.5; -fx-font-weight: bold;"/>
+                                <Label fx:id="totalScoreLabel" text="0" style="-fx-font-size: 20; -fx-font-weight: bold; -fx-text-fill: -luna-mid;"/>
+                            </VBox>
+                        </HBox>
+                    </VBox>
+
+                    <VBox styleClass="panel-card" style="-fx-padding: 20;">
+                        <HBox spacing="18" style="-fx-padding: 0 0 12 0; -fx-border-color: transparent transparent -surface-border transparent; -fx-border-width: 0 0 1 0;">
+                            <Button fx:id="availableTabBtn" text="Available" onAction="#onAvailableTab"/>
+                            <Button fx:id="upcomingTabBtn" text="Upcoming" onAction="#onUpcomingTab"/>
+                            <Button fx:id="completedTabBtn" text="Completed" onAction="#onCompletedTab"/>
+                            <Button fx:id="missedTabBtn" text="Missed" onAction="#onMissedTab"/>
+                        </HBox>
+                        <VBox fx:id="tabContentBox"/>
+                    </VBox>
+                </VBox>
+
+                <!-- RIGHT -->
+                <VBox spacing="20" prefWidth="280" minWidth="280">
+                    <HBox styleClass="panel-card" alignment="CENTER_LEFT" spacing="10" style="-fx-padding: 16 20;">
+                        <Label fx:id="userInitialsLabel" text="S"
+                               style="-fx-background-color: -luna-mid; -fx-text-fill: white; -fx-font-weight: bold;
+                                      -fx-padding: 10 12; -fx-background-radius: 20; -fx-font-size: 13;"/>
+                        <VBox spacing="1">
+                            <Label fx:id="userNameLabel" text="Student" styleClass="heading-text" style="-fx-font-size: 13.5;"/>
+                            <Label text="Student Account" styleClass="muted-text" style="-fx-font-size: 11.5;"/>
+                        </VBox>
+                    </HBox>
+
+                    <VBox styleClass="announcement-banner" spacing="8" style="-fx-padding: 18 20;">
+                        <Label text="📢 NOTE" style="-fx-text-fill: white; -fx-font-size: 10.5; -fx-font-weight: bold;"/>
+                        <Label text="Quizzes and scores are available as soon as they are stored in the system."
+                               wrapText="true" style="-fx-text-fill: white; -fx-font-size: 12.5;"/>
+                    </VBox>
+                </VBox>
+            </HBox>
+        </VBox>
+    </ScrollPane>
+
+    <Label fx:id="syncStatusLabel" text="" visible="false" managed="false"/>
+
+</HBox>

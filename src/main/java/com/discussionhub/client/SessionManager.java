@@ -12,4 +12,11 @@ public class SessionManager {
     // app-theme.css, so desktop stays visually in sync with whatever the
     // user picked in Settings (on either platform).
     public static String currentTheme = "luna";
+
+    // Whether the sidebar is collapsed to its icon-only rail. Lives here
+    // (not as a SidebarController field) because a new SidebarController is
+    // constructed on every screen navigation (fresh fx:include each time) -
+    // an instance field would silently reset to expanded on every click of
+    // any nav button, which isn't what "toggle" should mean.
+    public static boolean sidebarCollapsed = false;
 }

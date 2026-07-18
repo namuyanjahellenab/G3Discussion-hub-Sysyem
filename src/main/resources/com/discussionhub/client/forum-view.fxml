@@ -16,7 +16,9 @@
         <VBox spacing="24" style="-fx-padding: 28;">
 
             <HBox alignment="CENTER_LEFT" spacing="12">
-                <Button text="← Back" onAction="#onBack" styleClass="panel-link" style="-fx-background-color: transparent; -fx-padding: 0;"/>
+                <Button text="← Back" onAction="#onBack"
+                        style="-fx-background-color: transparent; -fx-border-color: -luna-mid; -fx-text-fill: -luna-mid;
+                               -fx-border-radius: 6; -fx-background-radius: 6; -fx-font-weight: bold; -fx-padding: 7 16; -fx-cursor: hand;"/>
             </HBox>
 
             <VBox spacing="4">

@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+
+<!-- Mirrors resources/views/recommend/index.blade.php: page header with
+     Refresh/Dismiss All actions, interest tags, ranked topic list, and the
+     right panel (profile mini + "how this works" tip banner) - previously
+     the desktop Recommend screen was just the generic simple-list-view.fxml
+     card list, missing all of that. -->
+<HBox xmlns:fx="http://javafx.com/fxml"
+      fx:controller="com.discussionhub.client.RecommendController"
+      styleClass="app-background" stylesheets="@app-theme.css">
+
+    <fx:include fx:id="sidebar" source="sidebar.fxml"/>
+
+    <ScrollPane fitToWidth="true" HBox.hgrow="ALWAYS" style="-fx-background-color: transparent;">
+        <VBox spacing="16" style="-fx-padding: 28;">
+
+            <HBox alignment="CENTER_LEFT" spacing="10">
+                <VBox HBox.hgrow="ALWAYS">
+                    <Label text="Suggestions" styleClass="muted-text" style="-fx-font-size: 11; -fx-font-weight: bold;"/>
+                    <Label text="Recommended Topics" styleClass="heading-text" style="-fx-font-size: 22;"/>
+                </VBox>
+                <Button text="↻ Refresh" onAction="#onRefresh"/>
+                <Button text="✕ Dismiss All" onAction="#onDismissAll"/>
+            </HBox>
+
+            <HBox spacing="20">
+                <!-- MAIN -->
+                <VBox spacing="14" HBox.hgrow="ALWAYS" maxWidth="Infinity">
+                    <FlowPane fx:id="interestTagsBox" hgap="8" vgap="8"/>
+
+                    <VBox styleClass="panel-card">
+                        <HBox alignment="CENTER_LEFT" style="-fx-padding: 16 20; -fx-border-color: transparent transparent #E1E9ED transparent; -fx-border-width: 0 0 1 0;">
+                            <Label text="Topics For You" styleClass="panel-heading"/>
+                        </HBox>
+                        <VBox fx:id="topicsBox"/>
+                    </VBox>
+                </VBox>
+
+                <!-- RIGHT -->
+                <VBox spacing="20" prefWidth="280" minWidth="280">
+                    <HBox styleClass="panel-card" alignment="CENTER_LEFT" spacing="10" style="-fx-padding: 16 20;">
+                        <Label fx:id="userInitialsLabel" text="S"
+                               style="-fx-background-color: -luna-mid; -fx-text-fill: white; -fx-font-weight: bold;
+                                      -fx-padding: 10 12; -fx-background-radius: 20; -fx-font-size: 13;"/>
+                        <VBox spacing="1">
+                            <Label fx:id="userNameLabel" text="Student" styleClass="heading-text" style="-fx-font-size: 13.5;"/>
+                            <Label text="Student Account" styleClass="muted-text" style="-fx-font-size: 11.5;"/>
+                        </VBox>
+                    </HBox>
+
+                    <VBox styleClass="announcement-banner" spacing="8" style="-fx-padding: 18 20;">
+                        <Label text="📢 HOW THIS WORKS" style="-fx-text-fill: white; -fx-font-size: 10.5; -fx-font-weight: bold;"/>
+                        <Label text="Topics are ranked using your interests and recent activity. Dismiss to clear the list, or Refresh to regenerate it."
+                               wrapText="true" style="-fx-text-fill: white; -fx-font-size: 12.5;"/>
+                    </VBox>
+                </VBox>
+            </HBox>
+        </VBox>
+    </ScrollPane>
+
+    <Label fx:id="syncStatusLabel" text="" visible="false" managed="false"/>
+
+</HBox>

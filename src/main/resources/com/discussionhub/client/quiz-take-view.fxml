@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+
+<!-- Standalone, distraction-free screen for taking a quiz - no sidebar,
+     mirroring resources/views/quizzes/quiz-take.blade.php, which doesn't
+     @extend layouts.app either. Replaces the old QuizModalController /
+     quiz-modal.fxml fixed 620x520 popup. -->
+<VBox fx:id="rootBox" xmlns:fx="http://javafx.com/fxml"
+      fx:controller="com.discussionhub.client.QuizTakeController"
+      styleClass="app-background" stylesheets="@app-theme.css" spacing="0">
+
+    <!-- Top bar -->
+    <HBox alignment="CENTER_LEFT" spacing="18" styleClass="sidebar-panel" style="-fx-padding: 16 28;">
+        <VBox HBox.hgrow="ALWAYS">
+            <Label fx:id="quizTitleLabel" text="Quiz" styleClass="heading-text" style="-fx-font-size: 19;"/>
+            <Label fx:id="quizSubtitleLabel" text="" styleClass="muted-text" style="-fx-font-size: 12;"/>
+        </VBox>
+        <Label fx:id="answeredCountLabel" text="0 / 0 answered" styleClass="muted-text" style="-fx-font-size: 12.5;"/>
+        <Label fx:id="timerLabel" text="00:00" style="-fx-font-weight: bold; -fx-font-size: 22; -fx-text-fill: -luna-mid;"/>
+    </HBox>
+
+    <!-- Question nav dots -->
+    <FlowPane fx:id="navDotsBox" hgap="8" vgap="8" style="-fx-padding: 14 28 4 28;"/>
+
+    <!-- Up to QUESTIONS_PER_PAGE (3) question cards stacked per page,
+         matching the web's paginated layout - was one question per screen
+         with no pagination at all. -->
+    <ScrollPane fitToWidth="true" VBox.vgrow="ALWAYS" style="-fx-background-color: transparent;">
+        <VBox alignment="TOP_CENTER" style="-fx-padding: 12 28 28 28;">
+            <VBox fx:id="pageContainer" maxWidth="760" spacing="16"/>
+        </VBox>
+    </ScrollPane>
+
+    <!-- Bottom bar -->
+    <VBox styleClass="sidebar-panel" spacing="10" style="-fx-padding: 16 28;">
+        <ProgressBar fx:id="progressBar" progress="0" maxWidth="Infinity"/>
+        <HBox alignment="CENTER" spacing="14">
+            <Button fx:id="prevButton" text="← Previous" onAction="#onPrevious"
+                    style="-fx-background-color: white; -fx-text-fill: -text-body; -fx-border-color: -surface-border; -fx-border-width: 1.5;
+                           -fx-border-radius: 6; -fx-background-radius: 6; -fx-font-weight: bold; -fx-padding: 9 18; -fx-cursor: hand;"/>
+            <Region HBox.hgrow="ALWAYS"/>
+            <VBox alignment="CENTER">
+                <Label fx:id="pageInfoLabel" text="Page 1 of 1" styleClass="muted-text" style="-fx-font-size: 12.5;"/>
+                <Label text="Quiz auto-submits when the timer reaches 0:00" styleClass="muted-text" style="-fx-font-size: 10.5;"/>
+            </VBox>
+            <Region HBox.hgrow="ALWAYS"/>
+            <Button fx:id="nextButton" text="Next →" onAction="#onNext"
+                    style="-fx-background-color: white; -fx-text-fill: -text-body; -fx-border-color: -surface-border; -fx-border-width: 1.5;
+                           -fx-border-radius: 6; -fx-background-radius: 6; -fx-font-weight: bold; -fx-padding: 9 18; -fx-cursor: hand;"/>
+        </HBox>
+    </VBox>
+
+</VBox>

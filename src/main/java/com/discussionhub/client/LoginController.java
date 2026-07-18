@@ -148,7 +148,7 @@ public class LoginController {
             Stage stage = (Stage) emailField.getScene().getWindow();
             WindowUtil.applyScene(stage, scene, "DiscussionHub — Dashboard");
 
-            QuizPopupService.start(stage, SessionManager.token);
+            QuizPopupService.start(stage, SessionManager.token, dbManager, syncService);
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -164,7 +164,7 @@ public class LoginController {
             Stage stage = (Stage) emailField.getScene().getWindow();
             WindowUtil.applyScene(stage, scene, "DiscussionHub — Select Group");
 
-            QuizPopupService.start(stage, SessionManager.token);
+            QuizPopupService.start(stage, SessionManager.token, dbManager, syncService);
         } catch (Exception e) {
             e.printStackTrace();
         }

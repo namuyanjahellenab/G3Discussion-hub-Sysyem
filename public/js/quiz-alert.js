@@ -56,33 +56,33 @@
             ">
                 <div style="
                     width: 64px; height: 64px; border-radius: 50%;
-                    background: #EFF6FF; display: flex; align-items: center;
+                    background: #A7EBF2; display: flex; align-items: center;
                     justify-content: center; margin: 0 auto 20px;
                 ">
                     <svg width="28" height="28" viewBox="0 0 24 24" fill="none"
-                         stroke="#2563EB" stroke-width="2">
+                         stroke="#023859" stroke-width="2">
                         <circle cx="12" cy="12" r="10"/>
                         <polyline points="12 6 12 12 16 14"/>
                     </svg>
                 </div>
-                <h2 style="font-size:20px;font-weight:700;color:#0F172A;margin-bottom:8px;">
+                <h2 style="font-size:20px;font-weight:700;color:#011C40;margin-bottom:8px;">
                     Quiz Starting Now!
                 </h2>
-                <p style="font-size:14px;color:#64748B;margin-bottom:6px;">
-                    <strong style="color:#0F172A;">${quiz.Title}</strong>
+                <p style="font-size:14px;color:#6B8094;margin-bottom:6px;">
+                    <strong style="color:#011C40;">${quiz.Title}</strong>
                 </p>
-                <p style="font-size:13px;color:#64748B;margin-bottom:28px;">
+                <p style="font-size:13px;color:#6B8094;margin-bottom:28px;">
                     ${mins} minutes &middot; Please focus on your quiz
                 </p>
                 <a href="/quiz/${quiz.QuizID}/take" style="
-                    display: block; background: #2563EB; color: #fff;
+                    display: block; background: #26658C; color: #fff;
                     text-decoration: none; padding: 13px 24px;
                     border-radius: 8px; font-size:15px; font-weight:600;
-                " onmouseover="this.style.background='#1D4ED8'"
-                   onmouseout="this.style.background='#2563EB'">
+                " onmouseover="this.style.background='#023859'"
+                   onmouseout="this.style.background='#26658C'">
                     Start Quiz Now
                 </a>
-                <p style="font-size:11px;color:#94A3B8;margin-top:16px;">
+                <p style="font-size:11px;color:#6B8094;margin-top:16px;">
                     This quiz will auto-submit when time runs out
                 </p>
             </div>

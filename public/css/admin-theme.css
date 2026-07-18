@@ -668,6 +668,20 @@ button:focus-visible,
 .app-sidebar-wrapper {
     width: 260px;
     flex-shrink: 0;
+    transition: width 0.25s ease;
+}
+
+/* The toggle button's body.sidebar-collapsed only ever shrank the INNER
+   .sidebar-panel (width:0 in each sidebar partial's own <style> block) -
+   .app-sidebar-wrapper around it still reserved its fixed 260px as a flex
+   child, so collapsing the sidebar left a 260px gap of plain white space
+   instead of the main content column actually expanding into it. */
+@media (min-width: 992px) {
+    body.sidebar-collapsed .app-sidebar-wrapper {
+        width: 0;
+        min-width: 0;
+        overflow: hidden;
+    }
 }
 
 @media (max-width: 991.98px) {

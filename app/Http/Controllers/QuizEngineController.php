@@ -296,6 +296,47 @@ public function myReview($quizID)
     return view('quizzes.my-review', compact('quiz', 'result', 'questions', 'myAnswers'));
 }
 
+// JSON twin of myReview() above, for the desktop client - same data,
+// no Blade view. Reveals CorrectAnswer only for questions the student
+// got wrong or left unanswered, mirroring my-review.blade.php exactly.
+public function myReviewApi($quizID)
+{
+    $userId = auth()->id();
+    $quiz = Quiz::findOrFail($quizID);
+
+    $result = QuizResult::where('QuizID', $quizID)
+        ->where('UserID', $userId)
+        ->latest('SubmissionTime')
+        ->firstOrFail();
+
+    $questions = Question::where('QuizID', $quizID)->get();
+
+    $myAnswers = DB::table('answer')
+        ->where('ResultID', $result->ResultID)
+        ->where('UserID', $userId)
+        ->get()
+        ->keyBy('QuestionID');
+
+    return response()->json([
+        'quiz_id' => $quiz->QuizID,
+        'title' => $quiz->Title,
+        'score' => $result->Score,
+        'submitted_at' => optional($result->SubmissionTime)->diffForHumans(),
+        'questions' => $questions->values()->map(function ($q) use ($myAnswers) {
+            $mine = $myAnswers->get($q->QuestionID);
+            $isCorrect = $mine && $mine->IsCorrect;
+            return [
+                'question_id' => $q->QuestionID,
+                'question_text' => $q->QuestionText,
+                'marks' => $q->Marks,
+                'your_answer' => $mine->ResponseText ?? null,
+                'is_correct' => (bool) $isCorrect,
+                'correct_answer' => $isCorrect ? null : $q->CorrectAnswer,
+            ];
+        }),
+    ]);
+}
+
 public function activeNow(Request $request)
 {
     $user = auth()->user();

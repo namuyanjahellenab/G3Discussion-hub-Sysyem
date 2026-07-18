@@ -95,6 +95,12 @@
                             },
                         });
                         this.style.background = '#fff';
+                        // Previously only recolored this one row - the badge
+                        // count and every other unread item stayed stale
+                        // until the next 5s poll happened to catch up.
+                        // markAllBtn already re-polls right after marking
+                        // read for the same reason; do the same here.
+                        pollNotifications();
                     } catch (err) {
                         console.error('Mark read error', err);
                     }

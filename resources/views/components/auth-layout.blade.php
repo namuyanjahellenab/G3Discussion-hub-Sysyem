@@ -18,18 +18,26 @@
     <link rel="stylesheet" href="{{ asset('css/style.css') }}">
 
     <style>
+        {{-- Was its own standalone blue (#0052CC), documented as
+             deliberately separate from the LUNA theme every post-login page
+             uses - now mapped onto the same LUNA palette (admin-theme.css)
+             instead, so the auth pages look like part of the same app
+             rather than a different product. Can't read the logged-in
+             user's chosen ThemeColor here (there isn't one yet pre-login),
+             so this is always LUNA's default blue, same as a brand new
+             account would see everywhere else by default. --}}
         :root {
-            --primary-blue: #0052CC;
-            --primary-blue-dark: #1473E6;
-            --light-blue-bg: #F0F7FF;
-            --gradient-light: #E8F1FF;
-            --gradient-dark: #D4E3FF;
-            --border-gray: #E5E7EB;
-            --text-gray: #6B7280;
-            --dark-gray: #4B5563;
-            --error-red: #EF4444;
-            --light-gray: #D1D5DB;
-            --very-light-gray: #FAFBFC;
+            --primary-blue: #26658C;
+            --primary-blue-dark: #023859;
+            --light-blue-bg: #EAF1F4;
+            --gradient-light: #EAF1F4;
+            --gradient-dark: #CFE3EA;
+            --border-gray: #E1E9ED;
+            --text-gray: #6B8094;
+            --dark-gray: #33455A;
+            --error-red: #D9483D;
+            --light-gray: #D1D9DE;
+            --very-light-gray: #F4F8FA;
         }
 
         * {

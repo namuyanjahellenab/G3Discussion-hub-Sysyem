@@ -12,19 +12,10 @@ class GroupSelectionController extends Controller
 {
     public function index()
     {
-        $groupNames = [
-            'Algorithms',
-            'Databases',
-            'Software Engineering',
-            'Networks',
-            'data structures and algorithms',
-        ];
-
         $user = Auth::user();
 
         $groups = Group::withCount(['students as member_count'])
-            ->whereIn('GroupName', $groupNames)
-            ->orderByRaw("FIELD(GroupName, 'Algorithms', 'Databases', 'Software Engineering', 'Networks')")
+            ->orderBy('GroupName')
             ->get()
             ->map(function ($group) use ($user) {
                 $group->userJoined = GroupStudent::where('GroupID', $group->GroupID)

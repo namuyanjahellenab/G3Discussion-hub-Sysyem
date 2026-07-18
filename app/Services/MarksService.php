@@ -54,6 +54,7 @@ class MarksService
                     'title' => $r->quiz->Title ?? 'Deleted quiz',
                     'score' => $r->Score,
                     'submitted_at' => optional($r->SubmissionTime)->format('Y-m-d H:i'),
+                    'submitted_ago' => optional($r->SubmissionTime)->diffForHumans(),
                     'auto_submitted' => (bool) $r->IsAutoSubmit,
                 ])->values(),
             ];

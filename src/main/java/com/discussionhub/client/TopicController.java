@@ -76,6 +76,8 @@ public class TopicController {
     private DatabaseManager dbManager;
     private DeltaSyncService syncService;
     private int topicId;
+    private int groupId;
+    private String groupName;
     private Integer mainPostId;
     private Integer replyToId;
     private File selectedAttachment;
@@ -190,7 +192,9 @@ public class TopicController {
         restrictedBadgeLabel.setVisible(restricted);
         restrictedBadgeLabel.setManaged(restricted);
 
-        infoGroupLabel.setText(topic.getString("group_name"));
+        groupId = topic.getInt("group_id");
+        groupName = topic.getString("group_name");
+        infoGroupLabel.setText(groupName);
         infoStatusLabel.setText(topic.getString("status"));
         infoActivityLabel.setText(topic.getString("last_activity"));
 
@@ -822,17 +826,23 @@ public class TopicController {
         return response.toString();
     }
 
+    // Mirrors topics/show.blade.php's back-link exactly: a plain, static
+    // `<a href="{{ route('groups.topics', $topic->group) }}">` - always this
+    // topic's OWN group's topic list, regardless of where the topic was
+    // actually opened from (not real browser-history tracking). Previously
+    // this always hard-navigated to the plain Forum overview instead.
     @FXML
     protected void onBack() {
         stopAutoRefresh();
         try {
-            FXMLLoader loader = new FXMLLoader(getClass().getResource("forum-view.fxml"));
+            FXMLLoader loader = new FXMLLoader(getClass().getResource("group-topics-view.fxml"));
             Scene scene = new Scene(loader.load());
-            ForumController controller = loader.getController();
+            GroupTopicsController controller = loader.getController();
             controller.setServices(dbManager, syncService);
+            controller.setGroupContext(groupId, groupName);
 
             Stage stage = (Stage) syncStatusLabel.getScene().getWindow();
-            WindowUtil.applyScene(stage, scene, "DiscussionHub — Forum");
+            WindowUtil.applyScene(stage, scene, "DiscussionHub — " + groupName);
         } catch (Exception e) {
             System.err.println("[Topic] Error going back: " + e.getMessage());
         }

@@ -26,6 +26,7 @@ Route::middleware('auth:sanctum')->post('/quiz/join', [QuizEngineController::cla
 Route::middleware('auth:sanctum')->post('/quiz/submit', [QuizEngineController::class, 'submit']);
 Route::middleware('auth:sanctum')->post('/quiz/auto-submit', [QuizEngineController::class, 'autoSubmit']);
 Route::middleware('auth:sanctum')->get('/quiz/{id}/results', [QuizEngineController::class, 'results']);
+Route::middleware('auth:sanctum')->get('/quiz/{id}/my-review', [QuizEngineController::class, 'myReviewApi']);
 //Route::get('/user', function (Request $request) {
   //  return $request->user();
 //})->middleware('auth:sanctum');
@@ -131,6 +132,7 @@ Route::middleware('auth:sanctum')->group(function () {
     // Desktop-client equivalents of the web sidebar's My Questions, Marks,
     // Recommend, and Quizzes pages, plus the Dashboard itself.
     Route::get('/dashboard', [App\Http\Controllers\Api\StudentDataApiController::class, 'dashboard']);
+    Route::get('/notifications/poll', [App\Http\Controllers\Api\StudentDataApiController::class, 'pollNotifications']);
     Route::post('/notifications/{notification}/read', [App\Http\Controllers\Api\StudentDataApiController::class, 'markNotificationRead']);
     Route::post('/notifications/read-all', [App\Http\Controllers\Api\StudentDataApiController::class, 'markAllNotificationsRead']);
     Route::get('/forum', [App\Http\Controllers\Api\StudentDataApiController::class, 'forum']);

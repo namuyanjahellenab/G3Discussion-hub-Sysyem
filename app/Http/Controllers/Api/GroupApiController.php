@@ -46,22 +46,14 @@ class GroupApiController extends Controller
     }
 
     // Mirrors GroupSelectionController::index() (the "Select a Discussion
-    // Group" onboarding screen) - the same fixed 5-course list and order,
-    // not every group in the system like index() above.
+    // Group" onboarding screen) - every group in the system, same as
+    // index() above.
     public function forSelection(Request $request)
     {
         $user = $request->user();
-        $groupNames = [
-            'Algorithms',
-            'Databases',
-            'Software Engineering',
-            'Networks',
-            'data structures and algorithms',
-        ];
 
         $groups = Group::withCount(['students as member_count'])
-            ->whereIn('GroupName', $groupNames)
-            ->orderByRaw("FIELD(GroupName, 'Algorithms', 'Databases', 'Software Engineering', 'Networks')")
+            ->orderBy('GroupName')
             ->get()
             ->map(function ($group) use ($user) {
                 return [

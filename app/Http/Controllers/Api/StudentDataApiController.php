@@ -58,6 +58,37 @@ class StudentDataApiController extends Controller
         ]);
     }
 
+    // Mirrors DiscussionHubPageController::pollNotifications() exactly (same
+    // shape: unread_count + latest 10) so the desktop sidebar's bell can poll
+    // this from any screen instead of re-fetching the whole dashboard payload
+    // just for its notification count.
+    public function pollNotifications(Request $request)
+    {
+        $userId = $request->user()->UserID;
+
+        $unreadCount = Notification::where('UserID', $userId)
+            ->where('Status', false)
+            ->count();
+
+        $latest = Notification::where('UserID', $userId)
+            ->orderByDesc('CreatedAt')
+            ->take(10)
+            ->get()
+            ->map(fn ($n) => [
+                'id' => $n->NotificationID,
+                'message' => $n->Message,
+                'type' => $n->Type,
+                'status' => $n->Status,
+                'time' => $n->CreatedAt->diffForHumans(),
+            ]);
+
+        return response()->json([
+            'success' => true,
+            'unread_count' => $unreadCount,
+            'notifications' => $latest,
+        ]);
+    }
+
     public function markNotificationRead(Request $request, Notification $notification)
     {
         abort_unless($notification->UserID === $request->user()->UserID, 403);
@@ -225,8 +256,15 @@ class StudentDataApiController extends Controller
         // user's interests, on both platforms identically.
         $topics = app(RecommendationScorer::class)->score($candidateTopics, $topicScores)->take(10);
 
-        return response()->json(
-            $topics->map(fn ($topic) => [
+        // Was a bare array (just the topics) - the desktop Recommend screen
+        // used to be the generic simple-list-view.fxml card list, which
+        // never showed the interest tags row the web page has. Wrapping the
+        // response instead of adding a second endpoint, since $interests was
+        // already computed above for the ML ranking call and simply never
+        // returned.
+        return response()->json([
+            'interests' => $interests,
+            'topics' => $topics->map(fn ($topic) => [
                 'id' => $topic->TopicID,
                 'title' => $topic->Title,
                 'category' => $topic->Category,
@@ -234,8 +272,8 @@ class StudentDataApiController extends Controller
                 'creator_name' => $topic->creator->UserName ?? 'a member',
                 'group_name' => $topic->group->GroupName ?? 'General',
                 'created_at' => optional($topic->CreatedAt)->diffForHumans(),
-            ])->values()
-        );
+            ])->values(),
+        ]);
     }
 
     public function quizzes(Request $request)
@@ -272,6 +310,8 @@ class StudentDataApiController extends Controller
             'title' => $q->Title,
             'start_time' => optional($q->StartTime)->format('Y-m-d H:i'),
             'duration_minutes' => $q->Duration,
+            'starts_in' => optional($q->StartTime)->diffForHumans(),
+            'closed_ago' => $q->StartTime->copy()->addMinutes($q->Duration)->diffForHumans(),
         ];
 
         return response()->json([
@@ -283,7 +323,9 @@ class StudentDataApiController extends Controller
                 'title' => $r->quiz->Title ?? 'Unknown quiz',
                 'score' => $r->Score,
                 'submitted_at' => optional($r->SubmissionTime)->format('Y-m-d H:i'),
+                'submitted_ago' => optional($r->SubmissionTime)->diffForHumans(),
             ])->values(),
+            'total_score' => $completed->sum('Score'),
         ]);
     }
 }
