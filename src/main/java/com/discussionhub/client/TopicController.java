@@ -300,7 +300,7 @@ public class TopicController {
                 }
                 HBox replyRow = buildReplyBubble(
                     r.getReplyId(), r.getContent(), resolveAuthorName(r.getUserId(), r.getAuthorName()), isOwn,
-                    r.getCreatedAt(), false, false, false,
+                    TextUtil.timeAgo(r.getCreatedAt()), false, false, false,
                     false, false, false, false,
                     null, null,
                     r.getAttachmentUrl(), r.getAttachmentType(), r.getAttachmentName(),
@@ -495,6 +495,22 @@ public class TopicController {
             int id = reply.getInt("id");
             if (id > maxSeenReplyId) maxSeenReplyId = id;
             String signature = replySignature(reply);
+
+            // Persists every reply this device ever sees live (not just ones
+            // pulled by a full sync) - the periodic 10s poll used to only
+            // render straight from the JSON response without writing it to
+            // the local cache, so a reply that arrived while this screen was
+            // already open would show up live but vanish the moment the
+            // screen fell back to offline rendering, having never actually
+            // been saved. Idempotent (INSERT OR REPLACE), so re-running it
+            // every refresh cycle for unchanged replies is harmless.
+            dbManager.mergeReply(
+                id, mainPostId, reply.getInt("user_id"), reply.getString("content"),
+                reply.getString("created_at_iso"), reply.getString("author_name"),
+                reply.isNull("attachment_url") ? null : reply.getString("attachment_url"),
+                reply.optString("attachment_type", null),
+                reply.optString("attachment_name", null)
+            );
 
             HBox existingRow = renderedReplyRows.get(id);
 

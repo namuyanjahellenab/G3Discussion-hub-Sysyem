@@ -14,8 +14,19 @@
 @endphp
 
 <style>
-    .content-workspace { padding: 28px; max-width: 1200px; }
-    .breadcrumb-row { margin-bottom: 16px; }
+    /* Kills the outer browser scrollbar entirely on this page - matches the
+       desktop client, which has no such thing (only its two inner
+       ScrollPanes scroll). Scoped to this view only, not the shared layout. */
+    html, body { overflow: hidden; height: 100%; }
+
+    /* Less top padding than the sides/bottom - claws back vertical room for
+       the replies body below instead of leaving a big gap above "Back".
+       Height is capped to the viewport by sizeContentWorkspace() below and
+       overflow is hidden, so this page never grows a second/outer
+       scrollbar - all scrolling happens only inside .chat-panel and
+       .right-info-panel, which are already sized to fit inside it. */
+    .content-workspace { padding: 14px 28px 28px; max-width: 1600px; overflow: hidden; box-sizing: border-box; }
+    .breadcrumb-row { margin-bottom: 10px; }
     .back-link { display: inline-flex; align-items: center; gap: 7px; color: var(--text-muted); text-decoration: none; font-size: 0.82rem; font-weight: 600; padding: 7px 14px; border-radius: 999px; border: 1px solid var(--surface-border); background: var(--surface-card); box-shadow: var(--shadow-soft); transition: color 0.15s ease, border-color 0.15s ease, background-color 0.15s ease; }
     .back-link i { font-size: 0.72rem; transition: transform 0.15s ease; }
     /* Scoped to real pointer devices only - a :hover rule that changes an
@@ -29,12 +40,19 @@
     }
 
     .forum-layout { display: flex; gap: 20px; align-items: flex-start; }
-    .forum-main { flex: 1; min-width: 0; max-width: 760px; }
+    /* No max-width cap: fills all the width the right-info-panel doesn't
+       need, so reply bodies get real room instead of wrapping tightly in a
+       fixed 760px column while the rest of a wide screen sits empty. */
+    .forum-main { flex: 1; min-width: 0; }
+
+    /* WhatsApp-style fixed header: back button + title + question stay put
+       at the top of the column while only the replies below scroll. */
+    .topic-sticky-header { position: sticky; top: 0; z-index: 5; background: var(--surface-bg); padding-bottom: 4px; }
 
     .thread-title { color: var(--text-heading); font-size: 1.5rem; font-weight: 800; margin: 0; }
-    .thread-meta { color: var(--text-muted); font-size: 0.85rem; margin: 10px 0 20px 0; }
+    .thread-meta { color: var(--text-muted); font-size: 0.85rem; margin: 6px 0 12px 0; }
 
-    .post-card { background: var(--surface-card); border: 1px solid var(--surface-border); border-radius: var(--radius-lg); padding: 18px 20px; margin-bottom: 16px; display: flex; gap: 14px; box-shadow: var(--shadow-soft); }
+    .post-card { background: var(--surface-card); border: 1px solid var(--surface-border); border-radius: var(--radius-lg); padding: 14px 20px; margin-bottom: 10px; display: flex; gap: 14px; box-shadow: var(--shadow-soft); }
     .post-avatar { width: 36px; height: 36px; border-radius: 50%; background: var(--luna-mid); color: #fff; font-weight: 700; font-size: 0.8rem; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
     .post-avatar.lecturer { background: var(--accent-success); }
     .post-author { font-weight: 700; color: var(--text-heading); font-size: 0.9rem; }
@@ -46,7 +64,7 @@
     .accept-btn { background: none; border: 1px solid var(--surface-border); color: var(--text-muted); border-radius: var(--radius-md); padding: 5px 10px; font-size: 0.75rem; margin-top: 8px; cursor: pointer; }
     .accept-btn:hover { border-color: var(--luna-mid); color: var(--luna-mid); }
 
-    .replies-heading { font-weight: 700; color: var(--text-heading); margin: 24px 0 12px 0; font-size: 15px; }
+    .replies-heading { font-weight: 700; color: var(--text-heading); margin: 8px 0 8px 0; font-size: 15px; }
     .empty-state { color: var(--text-muted); font-size: 0.88rem; }
 
     .tag-chip { display: inline-flex; align-items: center; gap: 4px; font-size: 10.5px; font-weight: 600; background: #fff; border: 1px solid var(--surface-border); padding: 2px 9px; border-radius: 20px; color: var(--text-muted); }
@@ -54,12 +72,33 @@
 
     /* Wallpaper panel behind the replies — dots/small-squares only, no
        curved-line pattern (tried earlier and rejected). */
+    /* Height is set in px by sizeChatPanel() below, filling the viewport
+       down to the (sticky, bottom-pinned) reply form - so only these
+       replies scroll (WhatsApp-style), not the topic header/post/reply
+       form/right-info-panel around them. */
     .chat-panel {
         background-color: var(--surface-bg);
         background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160' viewBox='0 0 160 160'%3E%3Cg fill='%2326658C' fill-opacity='0.07'%3E%3Ccircle cx='18' cy='22' r='3'/%3E%3Ccircle cx='96' cy='14' r='2'/%3E%3Ccircle cx='134' cy='70' r='2.6'/%3E%3Ccircle cx='30' cy='120' r='2.2'/%3E%3Crect x='60' y='96' width='9' height='9' rx='2.5'/%3E%3Crect x='118' y='128' width='7' height='7' rx='2'/%3E%3Ccircle cx='108' cy='48' r='2'/%3E%3Ccircle cx='6' cy='70' r='2'/%3E%3Crect x='140' y='96' width='6' height='6' rx='1.5'/%3E%3Ccircle cx='70' cy='150' r='2'/%3E%3C/g%3E%3C/svg%3E");
         background-size: 160px 160px;
         border: 1px solid var(--surface-border); border-radius: var(--radius-lg);
         padding: 14px 12px;
+        overflow-y: auto; scrollbar-width: thin;
+    }
+    /* Thin scrollbar, matching the desktop client's native ScrollPane look
+       (a slim track/thumb) rather than the browser's default chunky one. */
+    .chat-panel::-webkit-scrollbar { width: 8px; }
+    .chat-panel::-webkit-scrollbar-track { background: transparent; }
+    .chat-panel::-webkit-scrollbar-thumb { background: var(--surface-border); border-radius: 999px; }
+    .chat-panel::-webkit-scrollbar-thumb:hover { background: var(--luna-light); }
+
+    /* Pinned to the bottom of the viewport, WhatsApp-style - never scrolls
+       away with the page, regardless of how long the reply history gets. */
+    .reply-form {
+        position: sticky;
+        bottom: 0;
+        background: var(--surface-bg);
+        z-index: 5;
+        padding-top: 4px;
     }
 
     .reply-row { display: flex; gap: 12px; padding: 10px 8px; border-radius: var(--radius-md); position: relative; }
@@ -71,7 +110,7 @@
     .reply-name { font-weight: 700; font-size: 13.5px; color: var(--text-heading); }
     .reply-time { font-size: 11.5px; color: var(--text-muted); }
 
-    .reply-bubble { background: #fff; border: 1px solid var(--surface-border); border-radius: 4px 14px 14px 14px; padding: 10px 14px; font-size: 13.5px; line-height: 1.5; display: inline-block; max-width: 600px; color: var(--text-body); }
+    .reply-bubble { background: #fff; border: 1px solid var(--surface-border); border-radius: 4px 14px 14px 14px; padding: 10px 14px; font-size: 13.5px; line-height: 1.5; display: inline-block; max-width: min(85%, 1000px); color: var(--text-body); }
     .reply-answer-flag { display: flex; align-items: center; gap: 5px; color: var(--accent-success); font-weight: 700; font-size: 11.5px; margin-bottom: 5px; }
 
     .quote-strip { border-left: 3px solid var(--luna-mid); background: var(--luna-lightest); border-radius: 6px; padding: 5px 10px; font-size: 11.5px; color: var(--luna-dark); margin-bottom: 6px; display: inline-block; }
@@ -128,17 +167,28 @@
     .reply-context-bar.open { display: flex; }
     .reply-context-bar button { background: none; border: none; color: var(--luna-dark); cursor: pointer; font-size: 14px; }
 
-    .composer-attach-row { display: flex; gap: 8px; margin: 8px 0; }
-    .composer-attach-row .btn-outline-secondary { font-size: 12px; padding: 0.4rem 0.75rem; }
-    .composer-attach-filename { font-size: 0.78rem; color: var(--text-muted); margin-bottom: 8px; }
-
-    .reply-form textarea { width: 100%; border: 1px solid var(--surface-border); border-radius: var(--radius-md); padding: 14px; font-size: 0.9rem; resize: vertical; margin-bottom: 10px; font-family: var(--font-body); }
+    .composer-attach-filename { font-size: 0.78rem; color: var(--text-muted); padding: 0 4px 6px; }
+    .composer-attach-filename:empty { display: none; }
 
     .btn { display: inline-flex; align-items: center; gap: 8px; padding: 0.55rem 1rem; border-radius: var(--radius-md); font-size: 13px; font-weight: 600; text-decoration: none; border: 1px solid transparent; box-shadow: var(--shadow-soft); cursor: pointer; }
     .btn-primary { background: var(--luna-mid); color: #fff; }
     .btn-primary:hover { background: var(--luna-dark); color: #fff; }
 
-    .right-info-panel { display: flex; flex-direction: column; gap: 20px; max-width: 300px; }
+    /* Height is set in px by sizeRightPanel() below, so this column scrolls
+       on its own (independent of the replies in .chat-panel and of the
+       page itself) instead of growing the whole page taller. flex-shrink:0
+       on each card is required - without it, a flex column with a
+       constrained height SHRINKS its children to fit (rather than
+       overflowing and scrolling), and since each card clips its own
+       content for rounded corners, that shrinking silently cropped text
+       instead of ever showing a scrollbar. */
+    .right-info-panel { display: flex; flex-direction: column; gap: 20px; max-width: 300px; overflow-y: auto; scrollbar-width: thin; }
+    .right-info-panel > * { flex-shrink: 0; }
+    /* Thin scrollbar, matching the desktop client's native ScrollPane look. */
+    .right-info-panel::-webkit-scrollbar { width: 8px; }
+    .right-info-panel::-webkit-scrollbar-track { background: transparent; }
+    .right-info-panel::-webkit-scrollbar-thumb { background: var(--surface-border); border-radius: 999px; }
+    .right-info-panel::-webkit-scrollbar-thumb:hover { background: var(--luna-light); }
     .panel { background: var(--surface-card); border: 1px solid var(--surface-border); border-radius: var(--radius-lg); overflow: hidden; box-shadow: var(--shadow-soft); }
     .panel-header { padding: 16px 20px; border-bottom: 1px solid var(--surface-border); }
     .panel-header h2 { font-size: 15px; font-weight: 700; margin: 0; color: var(--text-heading); }
@@ -173,65 +223,74 @@
 </style>
 
 <div class="content-workspace">
-    <div class="breadcrumb-row">
-        <a href="{{ route('groups.topics', $topic->group) }}" class="back-link">
-            <i class="fa-solid fa-arrow-left"></i> Back
-        </a>
-    </div>
-
     <div class="forum-layout">
         <div class="forum-main">
-            <div style="display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap;">
-                <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
-                    <h1 class="thread-title">{{ $topic->Title }}</h1>
-                    <span class="badge {{ $statusMeta['badge'] }}">{{ $statusMeta['label'] }}</span>
-                    @if($topic->exclusions->isNotEmpty())
-                        <span class="tag-chip"><i class="fa-solid fa-eye-slash"></i> Restricted audience</span>
-                    @endif
-                </div>
-                <div style="display: flex; align-items: center; gap: 8px;">
-                    <a href="{{ route('topics.export', $topic) }}" class="btn btn-outline-secondary">
-                        <i class="fa-solid fa-file-pdf"></i> Export to PDF
+            <!-- WhatsApp-style fixed header: back button, title, and the
+                 original question stay pinned at the top while only the
+                 replies below scroll - mirrors the sticky reply form at
+                 the bottom, so both ends of the thread stay put. -->
+            <div class="topic-sticky-header">
+                <div class="breadcrumb-row">
+                    <a href="{{ route('groups.topics', $topic->group) }}" class="back-link">
+                        <i class="fa-solid fa-arrow-left"></i> Back
                     </a>
-                    @if($shareLinks)
-                        <div class="dropdown">
-                            <button class="btn btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                </div>
+
+                <div style="display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap;">
+                    <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+                        <h1 class="thread-title">{{ $topic->Title }}</h1>
+                        <span class="badge {{ $statusMeta['badge'] }}">{{ $statusMeta['label'] }}</span>
+                        @if($topic->exclusions->isNotEmpty())
+                            <span class="tag-chip"><i class="fa-solid fa-eye-slash"></i> Restricted audience</span>
+                        @endif
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <a href="{{ route('topics.export', $topic) }}" class="btn btn-outline-secondary">
+                            <i class="fa-solid fa-file-pdf"></i> Export to PDF
+                        </a>
+                        @if($shareLinks)
+                            <div class="dropdown">
+                                <button class="btn btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                    <i class="fa-solid fa-share-nodes"></i> Share
+                                </button>
+                                <ul class="dropdown-menu dropdown-menu-end">
+                                    <li><a class="dropdown-item" href="{{ $shareLinks['Links']['whatsapp'] }}" target="_blank" rel="noopener"><i class="fa-brands fa-whatsapp"></i> WhatsApp</a></li>
+                                    <li><a class="dropdown-item" href="{{ $shareLinks['Links']['twitter'] }}" target="_blank" rel="noopener"><i class="fa-brands fa-x-twitter"></i> X / Twitter</a></li>
+                                    <li><a class="dropdown-item" href="{{ $shareLinks['Links']['facebook'] }}" target="_blank" rel="noopener"><i class="fa-brands fa-facebook"></i> Facebook</a></li>
+                                    <li><a class="dropdown-item" href="{{ $shareLinks['Links']['email'] }}"><i class="fa-solid fa-envelope"></i> Email</a></li>
+                                    <li><hr class="dropdown-divider"></li>
+                                    <li><button type="button" class="dropdown-item" onclick="copyTopicShareLink()"><i class="fa-solid fa-link"></i> Copy Link</button></li>
+                                </ul>
+                            </div>
+                        @else
+                            {{-- Both the ML gateway and the PHP fallback failed to build share
+                                 links (see DiscussionHubPageController::showTopic()) — show why
+                                 instead of the button just vanishing. --}}
+                            <button type="button" class="btn btn-outline-secondary" disabled
+                                    title="Sharing is temporarily unavailable" data-bs-toggle="tooltip">
                                 <i class="fa-solid fa-share-nodes"></i> Share
                             </button>
-                            <ul class="dropdown-menu dropdown-menu-end">
-                                <li><a class="dropdown-item" href="{{ $shareLinks['Links']['whatsapp'] }}" target="_blank" rel="noopener"><i class="fa-brands fa-whatsapp"></i> WhatsApp</a></li>
-                                <li><a class="dropdown-item" href="{{ $shareLinks['Links']['twitter'] }}" target="_blank" rel="noopener"><i class="fa-brands fa-x-twitter"></i> X / Twitter</a></li>
-                                <li><a class="dropdown-item" href="{{ $shareLinks['Links']['facebook'] }}" target="_blank" rel="noopener"><i class="fa-brands fa-facebook"></i> Facebook</a></li>
-                                <li><a class="dropdown-item" href="{{ $shareLinks['Links']['email'] }}"><i class="fa-solid fa-envelope"></i> Email</a></li>
-                                <li><hr class="dropdown-divider"></li>
-                                <li><button type="button" class="dropdown-item" onclick="copyTopicShareLink()"><i class="fa-solid fa-link"></i> Copy Link</button></li>
-                            </ul>
-                        </div>
-                    @else
-                        {{-- Both the ML gateway and the PHP fallback failed to build share
-                             links (see DiscussionHubPageController::showTopic()) — show why
-                             instead of the button just vanishing. --}}
-                        <button type="button" class="btn btn-outline-secondary" disabled
-                                title="Sharing is temporarily unavailable" data-bs-toggle="tooltip">
-                            <i class="fa-solid fa-share-nodes"></i> Share
-                        </button>
-                    @endif
+                        @endif
+                    </div>
                 </div>
+
+                @if($mainPost)
+                    <div class="thread-meta">
+                        Posted by {{ $mainPost->author?->UserName ?? $mainPost->author?->name ?? 'a member' }}
+                        &bull; {{ $mainPost->CreatedAt->diffForHumans() }}
+                    </div>
+
+                    <div class="post-card">
+                        <div class="post-avatar">{{ Str::initials($mainPost->author?->UserName ?? $mainPost->author?->name ?? '?') }}</div>
+                        <div style="flex:1;">
+                            <div class="post-author">{{ $mainPost->author?->UserName ?? $mainPost->author?->name ?? 'a member' }}</div>
+                            <div class="post-content">{{ $mainPost->Content }}</div>
+                        </div>
+                    </div>
+                @endif
             </div>
 
             @if($mainPost)
-                <div class="thread-meta">
-                    Posted by {{ $mainPost->author?->UserName ?? $mainPost->author?->name ?? 'a member' }}
-                    &bull; {{ $mainPost->CreatedAt->diffForHumans() }}
-                </div>
-
-                <div class="post-card">
-                    <div class="post-avatar">{{ Str::initials($mainPost->author?->UserName ?? $mainPost->author?->name ?? '?') }}</div>
-                    <div style="flex:1;">
-                        <div class="post-author">{{ $mainPost->author?->UserName ?? $mainPost->author?->name ?? 'a member' }}</div>
-                        <div class="post-content">{{ $mainPost->Content }}</div>
-                    </div>
-                </div>
 
                 <h6 class="replies-heading">Replies</h6>
 
@@ -317,20 +376,21 @@
                         <button type="button" onclick="cancelThreadedReply()">&times;</button>
                     </div>
 
-                    <textarea name="ReplyContent" rows="3" placeholder="Write your reply here..." required></textarea>
-
-                    <input type="file" name="attachment" id="replyAttachment" style="display:none;">
-                    <div class="composer-attach-row">
-                        <button type="button" class="btn btn-outline-secondary" onclick="document.getElementById('replyAttachment').removeAttribute('accept'); document.getElementById('replyAttachment').click()">
-                            <i class="fa-solid fa-paperclip"></i> Attach file
-                        </button>
-                        <button type="button" class="btn btn-outline-secondary" onclick="document.getElementById('replyAttachment').setAttribute('accept','image/*'); document.getElementById('replyAttachment').click()">
-                            <i class="fa-solid fa-image"></i> Attach image
-                        </button>
-                    </div>
                     <div class="composer-attach-filename" id="replyAttachFilename"></div>
 
-                    <button type="submit" class="btn btn-primary">Post Reply <i class="fa-solid fa-paper-plane"></i></button>
+                    <input type="file" name="attachment" id="replyAttachment" style="display:none;">
+                    <div class="chat-pill">
+                        <button type="button" class="pill-icon-btn" title="Attach file" onclick="document.getElementById('replyAttachment').removeAttribute('accept'); document.getElementById('replyAttachment').click()">
+                            <i class="fa-solid fa-paperclip"></i>
+                        </button>
+                        <button type="button" class="pill-icon-btn" title="Attach image" onclick="document.getElementById('replyAttachment').setAttribute('accept','image/*'); document.getElementById('replyAttachment').click()">
+                            <i class="fa-solid fa-image"></i>
+                        </button>
+                        <textarea name="ReplyContent" rows="1" placeholder="Write your reply here..." required></textarea>
+                        <button type="submit" class="pill-send-btn" title="Post reply">
+                            <i class="fa-solid fa-paper-plane"></i>
+                        </button>
+                    </div>
                 </form>
             @else
                 <p class="empty-state" style="margin-top: 16px;">No discussion started in this topic yet.</p>
@@ -407,16 +467,67 @@ function startThreadedReply(replyId, authorName) {
     document.getElementById('replyContextName').textContent = authorName;
     document.getElementById('replyContextBar').classList.add('open');
     document.querySelector('.reply-form textarea[name="ReplyContent"]')?.focus();
+    sizeChatPanel();
 }
 
 function cancelThreadedReply() {
     document.getElementById('parentReplyId').value = '';
     document.getElementById('replyContextBar').classList.remove('open');
+    sizeChatPanel();
 }
 
 document.getElementById('replyAttachment')?.addEventListener('change', function () {
     document.getElementById('replyAttachFilename').textContent = this.files[0] ? this.files[0].name : '';
+    sizeChatPanel();
 });
+
+// Hard-caps the whole page to the viewport height (overflow:hidden in CSS)
+// so there is never a second, outer page-level scrollbar fighting with the
+// two inner scroll regions below - this page only ever scrolls in exactly
+// two places: .chat-panel and .right-info-panel.
+function sizeContentWorkspace() {
+    const el = document.querySelector('.content-workspace');
+    if (!el) return;
+    const top = el.getBoundingClientRect().top;
+    // A couple of px of slack: rounding from the nested height calcs below
+    // (chat-panel/right-info-panel) can otherwise leave this 1-2px too
+    // tall, which is enough for the browser to grow a real scrollbar.
+    el.style.height = (window.innerHeight - top - 4) + 'px';
+}
+window.addEventListener('resize', sizeContentWorkspace);
+sizeContentWorkspace();
+
+// WhatsApp-style scroll containment: chat-panel gets an explicit pixel
+// height filling the viewport down to the (sticky, bottom-pinned) reply
+// form, so scrolling only moves the replies inside it. Recomputed whenever
+// the reply form's own height could change (threaded-reply context bar,
+// attachment filename, window resize) so the two never overlap or leave a gap.
+function sizeChatPanel() {
+    const panel = document.querySelector('.chat-panel');
+    const form = document.querySelector('.reply-form');
+    if (!panel) return;
+    const top = panel.getBoundingClientRect().top;
+    const formHeight = form ? form.getBoundingClientRect().height : 0;
+    const bottomGap = 12;
+    const available = window.innerHeight - top - formHeight - bottomGap;
+    panel.style.height = Math.max(240, available) + 'px';
+}
+window.addEventListener('resize', sizeChatPanel);
+sizeChatPanel();
+
+// Same containment for the right sidebar (profile/topic info/participants/
+// related topics): it scrolls in its own bounded box, independent of both
+// the replies in .chat-panel and the page itself.
+function sizeRightPanel() {
+    const panel = document.querySelector('.right-info-panel');
+    if (!panel) return;
+    const top = panel.getBoundingClientRect().top;
+    const bottomGap = 24;
+    const available = window.innerHeight - top - bottomGap;
+    panel.style.height = Math.max(240, available) + 'px';
+}
+window.addEventListener('resize', sizeRightPanel);
+sizeRightPanel();
 </script>
 
 @if($mainPost)
@@ -625,6 +736,7 @@ document.getElementById('replyAttachment')?.addEventListener('change', function 
                 document.getElementById('replyContextBar').classList.remove('open');
                 document.getElementById('replyAttachment').value = '';
                 document.getElementById('replyAttachFilename').textContent = '';
+                sizeChatPanel();
                 return poll();
             }).catch(err => alert(err.message));
         });

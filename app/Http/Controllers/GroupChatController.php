@@ -106,8 +106,8 @@ class GroupChatController extends Controller
         $request->validate([
             'body' => 'required|string|max:2000',
             'exclude' => 'array',
-            'exclude.*' => 'exists:user,UserID',
-             'conversation_id' => 'nullable|exists:conversation,ConversationID',
+            'exclude.*' => 'exists:User,UserID',
+            'conversation_id' => 'nullable|exists:conversation,ConversationID',
         ]);
 
         $chatMessage = app(GroupChatService::class)->send(

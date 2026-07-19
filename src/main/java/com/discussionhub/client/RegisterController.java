@@ -23,17 +23,19 @@ public class RegisterController {
     @FXML private TextField emailField;
     @FXML private TextField usernameField;
     @FXML private PasswordField passwordField;
+    @FXML private TextField passwordTextField;
+    @FXML private Button showPasswordBtn;
     @FXML private PasswordField confirmPasswordField;
+    @FXML private TextField confirmPasswordTextField;
+    @FXML private Button showConfirmPasswordBtn;
     @FXML private Label lenLabel, upperLabel, lowerLabel, numLabel, specLabel;
     @FXML private Label statusBar;
     @FXML private Button completeRegistrationButton;
-    @FXML private Button acceptRulesButton;
     @FXML private CheckBox rulesCheckBox;
     @FXML private Label errorLabel;
 
     private DatabaseManager dbManager;
     private DeltaSyncService syncService;
-    private boolean rulesAccepted = false;
 
     public void setServices(DatabaseManager dbManager, DeltaSyncService syncService) {
         this.dbManager = dbManager;
@@ -43,6 +45,14 @@ public class RegisterController {
     @FXML
     public void initialize() {
         passwordField.textProperty().addListener((obs, oldVal, newVal) -> validatePassword(newVal));
+
+        // PasswordField has no "reveal plaintext" mode of its own (unlike a
+        // web <input type="password"> flipping to type="text") - keeping a
+        // same-spot TextField bound to the same text, shown only when
+        // revealed, is the standard JavaFX workaround. Bidirectional so
+        // typing into whichever one is visible keeps the other in sync.
+        passwordTextField.textProperty().bindBidirectional(passwordField.textProperty());
+        confirmPasswordTextField.textProperty().bindBidirectional(confirmPasswordField.textProperty());
     }
 
     private void validatePassword(String password) {
@@ -69,26 +79,24 @@ public class RegisterController {
         }
     }
 
+    // The checkbox is the sole gate on registering now - no separate
+    // "accept" button to click through, matching the web.
     @FXML
     public void onRulesChecked() {
-        acceptRulesButton.setDisable(!rulesCheckBox.isSelected());
+        boolean accepted = rulesCheckBox.isSelected();
+        completeRegistrationButton.setDisable(!accepted);
+        statusBar.setText(accepted ? "✓ RULES ACCEPTED" : "✓ STATUS: PENDING RULE ACCEPTANCE");
     }
 
+    /** The rules text sits next to the checkbox as an independent sibling
+     *  (not the checkbox's own text/graphic - see register-view.fxml for
+     *  why), so clicking it doesn't toggle the box automatically the way
+     *  clicking a real Labeled's text would. This wires that up by hand,
+     *  matching the web's <label for="rules_accepted"> behavior. */
     @FXML
-    public void onAcceptRules() {
-        rulesAccepted = true;
-        statusBar.setText("✓ RULES ACCEPTED");
-        completeRegistrationButton.setDisable(false);
-    }
-
-    @FXML
-    public void onDecline() {
-        Alert alert = new Alert(Alert.AlertType.INFORMATION);
-        alert.setTitle("Registration");
-        alert.setHeaderText(null);
-        alert.setContentText("Registration cancelled.");
-        alert.showAndWait();
-        onSignIn();
+    public void onRulesTextClicked() {
+        rulesCheckBox.setSelected(!rulesCheckBox.isSelected());
+        onRulesChecked();
     }
 
     @FXML
@@ -109,7 +117,7 @@ public class RegisterController {
             return;
         }
 
-        if (!rulesAccepted) {
+        if (!rulesCheckBox.isSelected()) {
             showError("You must accept the platform rules to proceed.");
             return;
         }
@@ -199,7 +207,25 @@ public class RegisterController {
 
     @FXML
     public void onTogglePassword() {
-        // Toggle not explicitly required here by visual spec but included for completeness if needed
+        boolean nowRevealed = !passwordTextField.isVisible();
+        passwordTextField.setVisible(nowRevealed);
+        passwordTextField.setManaged(nowRevealed);
+        passwordField.setVisible(!nowRevealed);
+        passwordField.setManaged(!nowRevealed);
+        // Single-codepoint emoji only - the multi-codepoint "eye in speech
+        // bubble" ZWJ sequence isn't in JavaFX's font, rendering as a tofu
+        // box next to a correctly-drawn eye instead of one combined glyph.
+        showPasswordBtn.setText(nowRevealed ? "🙈" : "👁");
+    }
+
+    @FXML
+    public void onToggleConfirmPassword() {
+        boolean nowRevealed = !confirmPasswordTextField.isVisible();
+        confirmPasswordTextField.setVisible(nowRevealed);
+        confirmPasswordTextField.setManaged(nowRevealed);
+        confirmPasswordField.setVisible(!nowRevealed);
+        confirmPasswordField.setManaged(!nowRevealed);
+        showConfirmPasswordBtn.setText(nowRevealed ? "🙈" : "👁");
     }
 
     private void showError(String msg) {

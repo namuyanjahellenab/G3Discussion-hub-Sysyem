@@ -56,7 +56,18 @@ class GroupChatService
 
         $message->load('user');
 
-        broadcast(new ChatMessageSent($message));
+        // The message is already durably saved above - a live-push failure
+        // (e.g. the Reverb server isn't running, as in local dev without it
+        // started) must not fail the whole send. Without this try/catch,
+        // ShouldBroadcastNow's synchronous broadcast() throws straight
+        // through to the controller, so the client sees an error and the
+        // sender's own message never appears until they refresh the page,
+        // even though it was already in the database the whole time.
+        try {
+            broadcast(new ChatMessageSent($message));
+        } catch (\Throwable $e) {
+            report($e);
+        }
 
         return $message;
     }

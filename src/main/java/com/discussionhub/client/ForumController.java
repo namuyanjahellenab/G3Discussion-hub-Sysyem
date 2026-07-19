@@ -63,25 +63,41 @@ public class ForumController {
         userInitialsLabel.setText(TextUtil.initials(name));
     }
 
+    // Cache key is the plain /api/forum response - same generic
+    // "last known good JSON, replayed through the same render()" pattern
+    // already used by Dashboard/Groups Browse/Marks, so this screen shows
+    // every joined group offline (not just the last one visited) the same
+    // way the Dashboard's own My Groups panel already does - the two used
+    // to disagree (Dashboard: all groups, here: only the last-visited one)
+    // since this screen still had its own bespoke single-group fallback.
+    private static final String FORUM_ENDPOINT = "/api/forum";
+
     private void loadForum() {
         new Thread(() -> {
-            String body = get("/api/forum");
+            String body = get(FORUM_ENDPOINT);
             if (body != null) {
                 try {
                     JSONObject json = new JSONObject(body);
+                    dbManager.cacheApiResponse(FORUM_ENDPOINT, body);
                     Platform.runLater(() -> render(json));
                     return;
                 } catch (Exception e) {
                     System.err.println("[Forum] Parse error: " + e.getMessage());
                 }
             }
-            // This overview's own stats/group-membership list isn't cached
-            // anywhere locally, so there's nothing to reconstruct for most
-            // of this screen - but the single most common case (getting
-            // back into the group you were just looking at) doesn't need
-            // that: GroupTopicsController/TopicController already have a
-            // real offline cache once you're inside them, this is just
-            // about getting back in the door.
+
+            String cached = dbManager.getCachedApiResponse(FORUM_ENDPOINT);
+            if (cached != null) {
+                try {
+                    JSONObject json = new JSONObject(cached);
+                    Platform.runLater(() -> render(json));
+                    return;
+                } catch (Exception e) {
+                    System.err.println("[Forum] Cached response parse error: " + e.getMessage());
+                }
+            }
+
+            // Never cached at all yet on this device - nothing to replay.
             Platform.runLater(this::renderOfflineFallback);
         }).start();
     }
@@ -92,31 +108,7 @@ public class ForumController {
         groupsFlowPane.getChildren().clear();
         latestTopicsBox.getChildren().clear();
 
-        if (SessionManager.lastGroupId != -1) {
-            VBox card = new VBox(10);
-            card.getStyleClass().add("group-card");
-            card.setAlignment(Pos.CENTER);
-            card.setPrefWidth(210);
-            card.setStyle("-fx-padding: 20 16;");
-            Label icon = new Label("👥");
-            icon.getStyleClass().add("group-card-icon");
-            icon.setStyle("-fx-padding: 10 14; -fx-font-size: 16;");
-            Label nameLabel = new Label(SessionManager.lastGroupName);
-            nameLabel.getStyleClass().add("heading-text");
-            nameLabel.setStyle("-fx-font-size: 15;");
-            Label offlineLabel = new Label("Saved topics available offline");
-            offlineLabel.getStyleClass().add("muted-text");
-            Button openBtn = new Button("View Forum  →");
-            openBtn.getStyleClass().add("btn-primary");
-            openBtn.setMaxWidth(Double.MAX_VALUE);
-            openBtn.setOnAction(e -> openGroupTopics(SessionManager.lastGroupId, SessionManager.lastGroupName));
-            card.getChildren().addAll(icon, nameLabel, offlineLabel, openBtn);
-            groupsFlowPane.getChildren().add(card);
-        }
-
-        Label empty = new Label(SessionManager.lastGroupId != -1
-            ? "You're offline — only your most recently viewed group is available until you reconnect."
-            : "You're offline, and no group has been viewed yet on this device to show a saved copy of.");
+        Label empty = new Label("You're offline, and this screen hasn't been loaded yet on this device to show a saved copy of.");
         empty.getStyleClass().add("muted-text");
         empty.setWrapText(true);
         empty.setStyle("-fx-padding: 24 20;");

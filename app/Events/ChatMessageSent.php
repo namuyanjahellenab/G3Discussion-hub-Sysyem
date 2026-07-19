@@ -39,7 +39,17 @@ class ChatMessageSent implements ShouldBroadcastNow
             'user_id' => $this->message->user_id,
             'author_name' => $this->message->user->UserName ?? 'Unknown',
             'body' => $this->message->body,
-            'created_at' => optional($this->message->CreatedAt)->format('Y-m-d H:i'),
+            // Human-friendly for immediate display (matches the sender's own
+            // optimistically-appended bubble, which already uses
+            // diffForHumans() via chat-bubble.blade.php) - a raw
+            // "2026-07-19 14:30" here made every OTHER member's live-received
+            // bubble look inconsistent with the sender's own.
+            'created_at' => optional($this->message->CreatedAt)->diffForHumans(),
+            // Raw ISO instant alongside it, for the desktop client to cache
+            // and re-derive an accurate relative time from later (a frozen
+            // "2 minutes ago" baked into the cache would go stale/wrong the
+            // next time it's rendered offline).
+            'created_at_iso' => $this->message->CreatedAt,
             'is_spam' => (bool) $this->message->is_spam,
         ];
     }

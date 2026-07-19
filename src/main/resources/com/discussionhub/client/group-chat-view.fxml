@@ -58,16 +58,23 @@
                                style="-fx-font-size: 10.5; -fx-text-fill: #6B8094;"/>
                     </VBox>
 
-                    <HBox spacing="10" alignment="CENTER">
+                    <!-- WhatsApp/Claude-style single rounded pill: icon buttons
+                         flush against a borderless text field, instead of three
+                         separate boxy controls in a row. -->
+                    <HBox spacing="6" alignment="CENTER"
+                          style="-fx-background-color: white; -fx-background-radius: 999;
+                                 -fx-border-color: #E1E9ED; -fx-border-radius: 999; -fx-padding: 6 6 6 16;">
+                        <Button fx:id="excludeToggleButton" text="🚫" onAction="#onToggleExclude"
+                                style="-fx-background-color: #F4F8FA; -fx-text-fill: #33455A; -fx-background-radius: 999;
+                                       -fx-min-width: 34; -fx-min-height: 34; -fx-max-width: 34; -fx-max-height: 34;
+                                       -fx-padding: 0; -fx-font-size: 13; -fx-cursor: hand;"/>
                         <TextField fx:id="messageField" promptText="Type a message…" onAction="#onSend"
                                    HBox.hgrow="ALWAYS"
-                                   style="-fx-padding: 10; -fx-background-radius: 8; -fx-border-color: #E1E9ED; -fx-border-radius: 8;"/>
-                        <Button fx:id="excludeToggleButton" text="🚫 Exclude" onAction="#onToggleExclude"
-                                style="-fx-background-color: #F4F8FA; -fx-text-fill: #33455A; -fx-font-weight: bold;
-                                       -fx-background-radius: 8; -fx-padding: 10 14; -fx-border-color: #E1E9ED; -fx-border-radius: 8;"/>
-                        <Button text="Send" onAction="#onSend"
-                                style="-fx-background-color: #26658C; -fx-text-fill: white; -fx-font-weight: bold;
-                                       -fx-background-radius: 8; -fx-padding: 10 20;"/>
+                                   style="-fx-background-color: transparent; -fx-padding: 10 4; -fx-border-width: 0; -fx-background-insets: 0;"/>
+                        <Button text="➤" onAction="#onSend"
+                                style="-fx-background-color: #26658C; -fx-text-fill: white; -fx-background-radius: 999;
+                                       -fx-min-width: 36; -fx-min-height: 36; -fx-max-width: 36; -fx-max-height: 36;
+                                       -fx-padding: 0; -fx-font-size: 14; -fx-cursor: hand;"/>
                     </HBox>
                 </VBox>
             </VBox>

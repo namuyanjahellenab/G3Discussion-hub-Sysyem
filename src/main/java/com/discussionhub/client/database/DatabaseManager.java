@@ -8,8 +8,6 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
-import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -987,8 +985,14 @@ public class DatabaseManager {
     }
 
 
+    /** A real UTC instant (e.g. "2026-07-19T16:01:29.797000Z"), matching the
+     *  format every server-provided CreatedAt timestamp already uses -
+     *  LocalDateTime.now() (the old implementation) has no zone/offset at
+     *  all, which Instant.parse() (used by TextUtil.timeAgo() to render
+     *  "X ago") rejects outright, falling back to showing that raw,
+     *  zone-less string as-is instead of a relative time. */
     private String nowAsIsoString() {
-        return LocalDateTime.now().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME);
+        return java.time.Instant.now().toString();
     }
 
     private String escapeJson(String input) {

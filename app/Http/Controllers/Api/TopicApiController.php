@@ -69,11 +69,18 @@ class TopicApiController extends Controller
             ] : null,
             'replies' => $mainPost ? $mainPost->replies->map(fn ($r) => [
                 'id' => $r->ReplyID,
+                'user_id' => $r->UserID,
                 'author_name' => $r->author->UserName ?? 'a member',
                 'is_own' => $r->UserID === $userId,
                 'is_lecturer' => $r->author->Role === 'Lecturer',
                 'content' => $r->ReplyContent,
                 'created_at' => $r->CreatedAt->diffForHumans(),
+                // Raw ISO instant alongside the human-friendly string above -
+                // the desktop client caches replies it sees live (not just
+                // ones pulled via a full sync) so they survive going offline,
+                // and a frozen "2 minutes ago" string would go stale/wrong
+                // the next time it's rendered from that cache.
+                'created_at_iso' => $r->CreatedAt,
                 'is_accepted' => (bool) $r->IsAccepted,
                 'is_flagged' => (bool) $r->IsFlagged,
                 'parent_reply_author' => $r->parentReply->author->UserName ?? null,

@@ -13,8 +13,14 @@
 
     <fx:include fx:id="sidebar" source="sidebar.fxml"/>
 
-    <ScrollPane fx:id="mainScrollPane" fitToWidth="true" HBox.hgrow="ALWAYS" style="-fx-background-color: transparent;">
-        <VBox spacing="16" style="-fx-padding: 28;">
+    <HBox HBox.hgrow="ALWAYS" spacing="20" style="-fx-padding: 28;">
+
+        <!-- MAIN: fixed top (back/title/post/heading) and fixed bottom
+             (reply composer), with only the replies in between scrolling -
+             mirrors GroupChatController's active-thread layout (fixed
+             header, ScrollPane messages, fixed composer) so scrolling here
+             moves just the replies, not the whole page/composer with them. -->
+        <VBox spacing="10" HBox.hgrow="ALWAYS" maxWidth="Infinity">
 
             <HBox alignment="CENTER_LEFT" spacing="12">
                 <Button text="← Back" onAction="#onBack"
@@ -22,86 +28,99 @@
                                -fx-border-radius: 6; -fx-background-radius: 6; -fx-font-weight: bold; -fx-padding: 7 16; -fx-cursor: hand;"/>
             </HBox>
 
-            <HBox spacing="20">
-                <!-- MAIN -->
-                <VBox spacing="10" HBox.hgrow="ALWAYS" maxWidth="Infinity">
-
-                    <HBox alignment="CENTER_LEFT" spacing="10">
-                        <Label fx:id="topicTitleLabel" text="Topic" styleClass="heading-text" style="-fx-font-size: 22;" wrapText="true" HBox.hgrow="ALWAYS"/>
-                        <Label fx:id="statusBadgeLabel" text="Open" style="-fx-background-color: #E1E9ED; -fx-text-fill: #33455A; -fx-padding: 3 10; -fx-background-radius: 999; -fx-font-size: 11; -fx-font-weight: bold;"/>
-                        <Label fx:id="restrictedBadgeLabel" text="👁 Restricted audience" visible="false" managed="false"
-                               style="-fx-background-color: #F4F8FA; -fx-text-fill: #6B8094; -fx-padding: 3 10; -fx-background-radius: 999; -fx-font-size: 10.5; -fx-font-weight: bold;"/>
-                        <Button text="⬇ Export PDF" onAction="#onExportPdf"/>
-                        <Button text="🔗 Share" onAction="#onShare"/>
-                    </HBox>
-                    <Label fx:id="threadMetaLabel" text="" styleClass="muted-text"/>
-
-                    <VBox fx:id="mainPostCard" styleClass="panel-card" spacing="6" style="-fx-padding: 18 20;"/>
-
-                    <Label text="Replies" styleClass="panel-heading" style="-fx-padding: 10 0 0 0;"/>
-
-                    <VBox fx:id="repliesBox" spacing="14" style="-fx-background-color: -surface-bg; -fx-border-color: -surface-border; -fx-border-radius: 14; -fx-background-radius: 14; -fx-padding: 16;"/>
-
-                    <VBox styleClass="panel-card" spacing="8" style="-fx-padding: 16 18;">
-                        <Label fx:id="replyContextLabel" text="" visible="false" managed="false" styleClass="muted-text"/>
-                        <TextArea fx:id="replyInput" promptText="Write your reply here..." prefRowCount="3" wrapText="true"/>
-                        <HBox alignment="CENTER_LEFT" spacing="8">
-                            <Button text="📎 Attach" onAction="#onAttachFile" styleClass="panel-link" style="-fx-background-color: transparent; -fx-padding: 0;"/>
-                            <Label fx:id="attachedFileLabel" text="" visible="false" managed="false" styleClass="muted-text"/>
-                            <Button fx:id="removeAttachmentButton" text="✕" onAction="#onRemoveAttachment" visible="false" managed="false"
-                                    style="-fx-background-color: transparent; -fx-text-fill: #D9483D; -fx-padding: 0 0 0 2; -fx-font-size: 11;"/>
-                            <Region HBox.hgrow="ALWAYS"/>
-                            <Button text="Post Reply  ✈" onAction="#onPostReply" styleClass="btn-primary"/>
-                        </HBox>
-                    </VBox>
-                </VBox>
-
-                <!-- RIGHT -->
-                <VBox spacing="20" prefWidth="280" minWidth="280">
-                    <HBox styleClass="panel-card" alignment="CENTER_LEFT" spacing="10" style="-fx-padding: 16 20;">
-                        <Label fx:id="userInitialsLabel" text="S"
-                               style="-fx-background-color: #26658C; -fx-text-fill: white; -fx-font-weight: bold;
-                                      -fx-padding: 10 12; -fx-background-radius: 20; -fx-font-size: 13;"/>
-                        <VBox spacing="1">
-                            <Label fx:id="userNameLabel" text="Student" styleClass="heading-text" style="-fx-font-size: 13.5;"/>
-                            <Label text="Student Account" styleClass="muted-text" style="-fx-font-size: 11.5;"/>
-                        </VBox>
-                    </HBox>
-
-                    <VBox styleClass="panel-card">
-                        <HBox alignment="CENTER_LEFT" style="-fx-padding: 16 20; -fx-border-color: transparent transparent #E1E9ED transparent; -fx-border-width: 0 0 1 0;">
-                            <Label text="Topic Info" styleClass="panel-heading"/>
-                        </HBox>
-                        <VBox spacing="6" style="-fx-padding: 12 20;">
-                            <HBox><Label text="Group" styleClass="muted-text"/><Region HBox.hgrow="ALWAYS"/><Label fx:id="infoGroupLabel" text="—" styleClass="heading-text"/></HBox>
-                            <HBox><Label text="Status" styleClass="muted-text"/><Region HBox.hgrow="ALWAYS"/><Label fx:id="infoStatusLabel" text="—" styleClass="heading-text"/></HBox>
-                            <HBox><Label text="Last activity" styleClass="muted-text"/><Region HBox.hgrow="ALWAYS"/><Label fx:id="infoActivityLabel" text="—" styleClass="heading-text"/></HBox>
-                        </VBox>
-                    </VBox>
-
-                    <VBox styleClass="panel-card">
-                        <HBox alignment="CENTER_LEFT" style="-fx-padding: 16 20; -fx-border-color: transparent transparent #E1E9ED transparent; -fx-border-width: 0 0 1 0;">
-                            <Label fx:id="participantsHeadingLabel" text="Participants (0)" styleClass="panel-heading"/>
-                        </HBox>
-                        <FlowPane fx:id="participantsBox" hgap="6" vgap="6" style="-fx-padding: 12 20;"/>
-                    </VBox>
-
-                    <VBox styleClass="panel-card">
-                        <HBox alignment="CENTER_LEFT" style="-fx-padding: 16 20; -fx-border-color: transparent transparent #E1E9ED transparent; -fx-border-width: 0 0 1 0;">
-                            <Label text="Related Topics" styleClass="panel-heading"/>
-                        </HBox>
-                        <VBox fx:id="relatedTopicsBox"/>
-                    </VBox>
-
-                    <VBox styleClass="announcement-banner" spacing="8" style="-fx-padding: 18 20;">
-                        <Label text="📢 TIP" style="-fx-text-fill: white; -fx-font-size: 10.5; -fx-font-weight: bold;"/>
-                        <Label text="Lecturers can mark the most helpful reply as the accepted answer to close out a discussion."
-                               wrapText="true" style="-fx-text-fill: white; -fx-font-size: 12.5;"/>
-                    </VBox>
-                </VBox>
+            <HBox alignment="CENTER_LEFT" spacing="10">
+                <Label fx:id="topicTitleLabel" text="Topic" styleClass="heading-text" style="-fx-font-size: 22;" wrapText="true" HBox.hgrow="ALWAYS"/>
+                <Label fx:id="statusBadgeLabel" text="Open" style="-fx-background-color: #E1E9ED; -fx-text-fill: #33455A; -fx-padding: 3 10; -fx-background-radius: 999; -fx-font-size: 11; -fx-font-weight: bold;"/>
+                <Label fx:id="restrictedBadgeLabel" text="👁 Restricted audience" visible="false" managed="false"
+                       style="-fx-background-color: #F4F8FA; -fx-text-fill: #6B8094; -fx-padding: 3 10; -fx-background-radius: 999; -fx-font-size: 10.5; -fx-font-weight: bold;"/>
+                <Button text="⬇ Export PDF" onAction="#onExportPdf"/>
+                <Button text="🔗 Share" onAction="#onShare"/>
             </HBox>
+            <Label fx:id="threadMetaLabel" text="" styleClass="muted-text"/>
+
+            <VBox fx:id="mainPostCard" styleClass="panel-card" spacing="6" style="-fx-padding: 18 20;"/>
+
+            <Label text="Replies" styleClass="panel-heading" style="-fx-padding: 10 0 0 0;"/>
+
+            <ScrollPane fx:id="mainScrollPane" fitToWidth="true" VBox.vgrow="ALWAYS" style="-fx-background-color: transparent;">
+                <VBox fx:id="repliesBox" spacing="14" style="-fx-background-color: -surface-bg; -fx-border-color: -surface-border; -fx-border-radius: 14; -fx-background-radius: 14; -fx-padding: 16;"/>
+            </ScrollPane>
+
+            <!-- WhatsApp/Claude-style single rounded pill: icon buttons flush
+                 against a borderless text field, instead of a boxy textarea
+                 with a separate button row below it. -->
+            <VBox spacing="6">
+                <Label fx:id="replyContextLabel" text="" visible="false" managed="false" styleClass="muted-text"/>
+                <HBox alignment="CENTER_LEFT" spacing="6">
+                    <Label fx:id="attachedFileLabel" text="" visible="false" managed="false" styleClass="muted-text"/>
+                    <Button fx:id="removeAttachmentButton" text="✕" onAction="#onRemoveAttachment" visible="false" managed="false"
+                            style="-fx-background-color: transparent; -fx-text-fill: #D9483D; -fx-padding: 0 0 0 2; -fx-font-size: 11;"/>
+                </HBox>
+                <HBox spacing="6" alignment="CENTER"
+                      style="-fx-background-color: white; -fx-background-radius: 999;
+                             -fx-border-color: #E1E9ED; -fx-border-radius: 999; -fx-padding: 6 6 6 16;">
+                    <Button text="📎" onAction="#onAttachFile"
+                            style="-fx-background-color: #F4F8FA; -fx-text-fill: #33455A; -fx-background-radius: 999;
+                                   -fx-min-width: 34; -fx-min-height: 34; -fx-max-width: 34; -fx-max-height: 34;
+                                   -fx-padding: 0; -fx-font-size: 13; -fx-cursor: hand;"/>
+                    <TextArea fx:id="replyInput" promptText="Write your reply here..." prefRowCount="1" wrapText="true"
+                              HBox.hgrow="ALWAYS"
+                              style="-fx-background-color: transparent; -fx-padding: 4 4; -fx-border-width: 0;"/>
+                    <Button text="➤" onAction="#onPostReply"
+                            style="-fx-background-color: #26658C; -fx-text-fill: white; -fx-background-radius: 999;
+                                   -fx-min-width: 36; -fx-min-height: 36; -fx-max-width: 36; -fx-max-height: 36;
+                                   -fx-padding: 0; -fx-font-size: 14; -fx-cursor: hand;"/>
+                </HBox>
+            </VBox>
         </VBox>
-    </ScrollPane>
+
+        <!-- RIGHT: scrolls independently so a long participants/related-topics
+             list never affects the replies region or composer beside it. -->
+        <ScrollPane fitToWidth="true" prefWidth="280" minWidth="280" style="-fx-background-color: transparent;">
+            <VBox spacing="20">
+                <HBox styleClass="panel-card" alignment="CENTER_LEFT" spacing="10" style="-fx-padding: 16 20;">
+                    <Label fx:id="userInitialsLabel" text="S"
+                           style="-fx-background-color: #26658C; -fx-text-fill: white; -fx-font-weight: bold;
+                                  -fx-padding: 10 12; -fx-background-radius: 20; -fx-font-size: 13;"/>
+                    <VBox spacing="1">
+                        <Label fx:id="userNameLabel" text="Student" styleClass="heading-text" style="-fx-font-size: 13.5;"/>
+                        <Label text="Student Account" styleClass="muted-text" style="-fx-font-size: 11.5;"/>
+                    </VBox>
+                </HBox>
+
+                <VBox styleClass="panel-card">
+                    <HBox alignment="CENTER_LEFT" style="-fx-padding: 16 20; -fx-border-color: transparent transparent #E1E9ED transparent; -fx-border-width: 0 0 1 0;">
+                        <Label text="Topic Info" styleClass="panel-heading"/>
+                    </HBox>
+                    <VBox spacing="6" style="-fx-padding: 12 20;">
+                        <HBox><Label text="Group" styleClass="muted-text"/><Region HBox.hgrow="ALWAYS"/><Label fx:id="infoGroupLabel" text="—" styleClass="heading-text"/></HBox>
+                        <HBox><Label text="Status" styleClass="muted-text"/><Region HBox.hgrow="ALWAYS"/><Label fx:id="infoStatusLabel" text="—" styleClass="heading-text"/></HBox>
+                        <HBox><Label text="Last activity" styleClass="muted-text"/><Region HBox.hgrow="ALWAYS"/><Label fx:id="infoActivityLabel" text="—" styleClass="heading-text"/></HBox>
+                    </VBox>
+                </VBox>
+
+                <VBox styleClass="panel-card">
+                    <HBox alignment="CENTER_LEFT" style="-fx-padding: 16 20; -fx-border-color: transparent transparent #E1E9ED transparent; -fx-border-width: 0 0 1 0;">
+                        <Label fx:id="participantsHeadingLabel" text="Participants (0)" styleClass="panel-heading"/>
+                    </HBox>
+                    <FlowPane fx:id="participantsBox" hgap="6" vgap="6" style="-fx-padding: 12 20;"/>
+                </VBox>
+
+                <VBox styleClass="panel-card">
+                    <HBox alignment="CENTER_LEFT" style="-fx-padding: 16 20; -fx-border-color: transparent transparent #E1E9ED transparent; -fx-border-width: 0 0 1 0;">
+                        <Label text="Related Topics" styleClass="panel-heading"/>
+                    </HBox>
+                    <VBox fx:id="relatedTopicsBox"/>
+                </VBox>
+
+                <VBox styleClass="announcement-banner" spacing="8" style="-fx-padding: 18 20;">
+                    <Label text="📢 TIP" style="-fx-text-fill: white; -fx-font-size: 10.5; -fx-font-weight: bold;"/>
+                    <Label text="Lecturers can mark the most helpful reply as the accepted answer to close out a discussion."
+                           wrapText="true" style="-fx-text-fill: white; -fx-font-size: 12.5;"/>
+                </VBox>
+            </VBox>
+        </ScrollPane>
+    </HBox>
 
     <Label fx:id="syncStatusLabel" text="" visible="false" managed="false"/>
 

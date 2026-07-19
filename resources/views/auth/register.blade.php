@@ -212,35 +212,20 @@
                 </li>
             </ol>
 
-            <!-- Rules Checkbox -->
+            <!-- Rules Checkbox - the sole gate on registering. Checking it
+                 directly arms the COMPLETE REGISTRATION button in the left
+                 column; there's no separate "accept" step to click through. -->
             <div class="checkbox-wrapper" style="margin-top: 20px;background-color: light blue ; padding: 15px; border-radius: 6px;">
-    
-                <input 
-                    type="checkbox" 
-                    id="rules_accepted" 
+
+                <input
+                    type="checkbox"
+                    id="rules_accepted"
                     name="rules_agreement"
                     onchange="toggleSubmitButton()"
                 >
                 <label class="checkbox-label" for="rules_accepted">
                     I have read and agree to abide by the <span style="color:blue ;">Platform Rules and guidelines</span>.. I understand that Violations may result in account termination.
                 </label>
-            </div>
-
-            <!-- Action Buttons -->
-            <div class="button-group" style="margin-top: 30px;">
-                <button 
-                    type="submit" 
-                    class="btn btn-primary" 
-                    id="acceptRulesBtn"
-                    onclick="document.getElementById('rulesHidden').value = '1'; document.getElementById('registerForm').submit();"
-                    disabled
-                    style="background: var(--blue); color: var(--white); cursor: not-allowed;"
-                >
-                    ACCEPT RULES 
-                </button>
-                <a href="{{ route('login') }}" class="btn btn-secondary">
-                    DECLINE
-                </a>
             </div>
         </div>
     </div>
@@ -296,32 +281,25 @@
             }
         }
 
-        // Toggle submit button based on rules checkbox
+        // Toggle submit button based on rules checkbox - the checkbox is now
+        // the only gate on registering, so it also drives rulesHidden
+        // directly (that used to only be set by the now-removed ACCEPT
+        // RULES button's onclick).
         function toggleSubmitButton() {
             const rulesCheckbox = document.getElementById('rules_accepted');
             const submitBtn = document.getElementById('submitBtn');
-            const acceptRulesBtn = document.getElementById('acceptRulesBtn');
-            
+            document.getElementById('rulesHidden').value = rulesCheckbox.checked ? '1' : '0';
+
             if (rulesCheckbox.checked) {
                 submitBtn.disabled = false;
                 submitBtn.style.background = 'linear-gradient(135deg, var(--primary-blue) 0%, var(--primary-blue-dark) 100%)';
                 submitBtn.style.color = 'var(--white)';
                 submitBtn.style.cursor = 'pointer';
-                
-                acceptRulesBtn.disabled = false;
-                acceptRulesBtn.style.background = 'linear-gradient(135deg, var(--primary-blue) 0%, var(--primary-blue-dark) 100%)';
-                acceptRulesBtn.style.color = 'var(--white)';
-                acceptRulesBtn.style.cursor = 'pointer';
             } else {
                 submitBtn.disabled = true;
                 submitBtn.style.background = 'var(--primary-blue)';
                 submitBtn.style.color = 'var(--white)';
                 submitBtn.style.cursor = 'not-allowed';
-                
-                acceptRulesBtn.disabled = true;
-                acceptRulesBtn.style.background = 'var(--primary-blue)';
-                acceptRulesBtn.style.color = 'var(--white)';
-                acceptRulesBtn.style.cursor = 'not-allowed';
             }
         }
 

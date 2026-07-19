@@ -93,7 +93,11 @@ class GroupChatApiController extends Controller
                 'user_id' => $m->user_id,
                 'author_name' => $m->user->UserName ?? 'Unknown',
                 'body' => $m->body,
-                'created_at' => optional($m->CreatedAt)->format('Y-m-d H:i'),
+                // Human-friendly for display, raw ISO instant alongside it
+                // for the desktop client's offline cache to re-derive an
+                // accurate relative time from later instead of a frozen one.
+                'created_at' => optional($m->CreatedAt)->diffForHumans(),
+                'created_at_iso' => $m->CreatedAt,
                 'is_spam' => (bool) $m->is_spam,
             ]),
         ]);
@@ -121,8 +125,10 @@ class GroupChatApiController extends Controller
             'user_id' => $message->user_id,
             'author_name' => $message->user->UserName ?? $request->user()->UserName,
             'body' => $message->body,
-            'created_at' => optional($message->CreatedAt)->format('Y-m-d H:i'),
+            'created_at' => optional($message->CreatedAt)->diffForHumans(),
+            'created_at_iso' => $message->CreatedAt,
             'conversation_id' => $message->ConversationID,
+            'is_spam' => (bool) $message->is_spam,
         ], 201);
     }
 }

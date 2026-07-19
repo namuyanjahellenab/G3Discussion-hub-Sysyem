@@ -4,6 +4,7 @@ import com.discussionhub.client.database.ChatMessageItem;
 import com.discussionhub.client.database.DatabaseManager;
 import com.discussionhub.client.utils.DeltaSyncService;
 import com.discussionhub.client.utils.NetworkUtil;
+import com.discussionhub.client.utils.TextUtil;
 import com.pusher.client.Pusher;
 import com.pusher.client.PusherOptions;
 import com.pusher.client.channel.PrivateChannelEventListener;
@@ -558,7 +559,8 @@ public class GroupChatController {
         for (int i = 0; i < messages.length(); i++) {
             JSONObject m = messages.getJSONObject(i);
             toCache.add(new ChatMessageItem(m.getInt("id"), activeConversationId, m.getInt("user_id"),
-                m.getString("author_name"), m.getString("body"), m.optString("created_at", ""), false));
+                m.getString("author_name"), m.getString("body"),
+                m.optString("created_at_iso", m.optString("created_at", "")), false));
         }
         new Thread(() -> dbManager.cacheMessages(activeConversationId, toCache)).start();
     }
@@ -617,7 +619,7 @@ public class GroupChatController {
 
     private VBox bubble(JSONObject m) {
         return bubble(m.getInt("user_id"), m.getString("author_name"), m.getString("body"),
-            m.optString("created_at", ""), false);
+            m.optString("created_at_iso", m.optString("created_at", "")), false);
     }
 
     private VBox bubble(int userId, String authorName, String body, String createdAt, boolean pending) {
@@ -631,7 +633,7 @@ public class GroupChatController {
             "-fx-effect: dropshadow(gaussian, #e3e6ee, 4, 0, 0, 1);" +
             (pending ? " -fx-border-style: segments(4,3); -fx-border-color: #ffcc00; -fx-border-radius: 10;" : ""));
 
-        Label author = new Label(authorName + "  ·  " + (pending ? "Pending sync…" : createdAt));
+        Label author = new Label(authorName + "  ·  " + (pending ? "Pending sync…" : TextUtil.timeAgo(createdAt)));
         author.setStyle("-fx-font-size: 10.5; -fx-font-weight: bold; -fx-text-fill: "
             + (isOwn ? "#cfe0ea" : "#6B8094") + ";");
 

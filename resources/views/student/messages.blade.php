@@ -6,6 +6,11 @@
 @php($hideGlobalErrors = true)
 
 @section('content')
+<style>
+    /* Kills the outer browser scrollbar entirely on this page - matches the
+       desktop client, which has no such thing (only chat-window scrolls). */
+    html, body { overflow: hidden; height: 100%; }
+</style>
 <div class="chat-page">
 
     <div class="chat-layout">
@@ -98,40 +103,41 @@
 
             @if($activeConversation->Type !== 'restricted')
                 {{-- only the main group thread can spawn new restricted threads --}}
-                <form action="{{ route('student.messages.store', ['groupId' => $groupId]) }}" method="POST" class="chat-composer card" data-chat-composer>
+                <form action="{{ route('student.messages.store', ['groupId' => $groupId]) }}" method="POST" class="chat-composer" data-chat-composer>
                     @csrf
-                    <textarea name="body" placeholder="Type a message..." required>{{ old('body') }}</textarea>
-
-                    <div class="chat-composer__exclude">
-                        <button type="button" class="exclude-toggle" onclick="toggleExcludePanel()">
-                            <i class="fa-solid fa-user-slash"></i> Exclude members
-                        </button>
-                        <div class="exclude-panel" id="exclude-panel">
-                            @foreach($groupMembers as $member)
-                                @if($member->UserID !== auth()->id())
-                                    <label class="exclude-option">
-                                        <input type="checkbox" name="exclude[]" value="{{ $member->UserID }}">
-                                        {{ $member->user->UserName ?? 'Member' }}
-                                    </label>
-                                @endif
-                            @endforeach
-                        </div>
+                    <div class="exclude-panel" id="exclude-panel">
+                        @foreach($groupMembers as $member)
+                            @if($member->UserID !== auth()->id())
+                                <label class="exclude-option">
+                                    <input type="checkbox" name="exclude[]" value="{{ $member->UserID }}">
+                                    {{ $member->user->UserName ?? 'Member' }}
+                                </label>
+                            @endif
+                        @endforeach
                         <p class="exclude-hint">Checking someone here moves this message (and future ones with the same exclusion) into a separate restricted thread they can't see.</p>
                     </div>
 
-                    <button type="submit" class="btn btn-primary">
-                        <i class="fa-solid fa-paper-plane"></i> Send
-                    </button>
+                    <div class="chat-pill">
+                        <button type="button" class="pill-icon-btn" onclick="toggleExcludePanel()" title="Exclude members">
+                            <i class="fa-solid fa-user-slash"></i>
+                        </button>
+                        <textarea name="body" placeholder="Type a message..." required rows="1">{{ old('body') }}</textarea>
+                        <button type="submit" class="pill-send-btn" title="Send">
+                            <i class="fa-solid fa-paper-plane"></i>
+                        </button>
+                    </div>
                 </form>
             @else
                 {{-- replying inside a restricted thread reuses the same exclusion set automatically --}}
-                <form action="{{ route('student.messages.store', ['groupId' => $groupId]) }}" method="POST" class="chat-composer card" data-chat-composer>
+                <form action="{{ route('student.messages.store', ['groupId' => $groupId]) }}" method="POST" class="chat-composer" data-chat-composer>
                     @csrf
                     <input type="hidden" name="conversation_id" value="{{ $activeConversation->ConversationID }}">
-                    <textarea name="body" placeholder="Reply in this restricted thread..." required>{{ old('body') }}</textarea>
-                    <button type="submit" class="btn btn-primary">
-                        <i class="fa-solid fa-paper-plane"></i> Send
-                    </button>
+                    <div class="chat-pill">
+                        <textarea name="body" placeholder="Reply in this restricted thread..." required rows="1">{{ old('body') }}</textarea>
+                        <button type="submit" class="pill-send-btn" title="Send">
+                            <i class="fa-solid fa-paper-plane"></i>
+                        </button>
+                    </div>
                 </form>
             @endif
 
@@ -145,7 +151,27 @@ const activeConversationId = {{ $activeConversation->ConversationID }};
 
 function toggleExcludePanel() {
     document.getElementById('exclude-panel').classList.toggle('open');
+    sizeChatWindow();
 }
+
+// WhatsApp-style scroll containment: chat-window gets an explicit pixel
+// height filling the viewport down to the (sticky, bottom-pinned) composer,
+// so scrolling only moves the messages inside it - the header, thread
+// list, and composer never move. Recomputed whenever the composer's own
+// height could change (exclude panel opened, textarea resized, window
+// resized) so the two never overlap or leave a gap.
+function sizeChatWindow() {
+    const chatWindow = document.getElementById('chat-window');
+    const composer = document.querySelector('[data-chat-composer]');
+    if (!chatWindow) return;
+    const top = chatWindow.getBoundingClientRect().top;
+    const composerHeight = composer ? composer.getBoundingClientRect().height : 0;
+    const bottomGap = 24;
+    const available = window.innerHeight - top - composerHeight - bottomGap;
+    chatWindow.style.height = Math.max(240, available) + 'px';
+}
+window.addEventListener('resize', sizeChatWindow);
+sizeChatWindow();
 
 function showChatError(message) {
     const banner = document.getElementById('chat-error-banner');
@@ -185,6 +211,11 @@ document.getElementById('chat-window').addEventListener('click', (event) => {
                 panel.classList.add('open');
                 checkbox.checked = true;
                 checkbox.closest('.exclude-option')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                // Opening the panel this way (vs the pill's own toggle
+                // button, which already calls this) grows the composer too -
+                // without resizing, chat-window doesn't shrink to make room
+                // and the panel can overlap or spill past the composer.
+                sizeChatWindow();
             }
         }
 

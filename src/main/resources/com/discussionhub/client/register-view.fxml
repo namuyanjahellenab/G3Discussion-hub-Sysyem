@@ -4,6 +4,7 @@
 <?import javafx.scene.layout.*?>
 <?import javafx.geometry.Insets?>
 <?import javafx.scene.text.Text?>
+<?import javafx.scene.text.TextFlow?>
 
 <!-- Was #0052CC throughout, its own standalone blue separate from the LUNA
      theme every post-login screen uses - mapped onto the same LUNA palette
@@ -12,10 +13,21 @@
       spacing="0" style="-fx-background-color: linear-gradient(to bottom right, #EAF1F4, #CFE3EA);">
 
     <!-- LEFT PANEL -->
-    <VBox HBox.hgrow="ALWAYS" spacing="15" style="-fx-background-color: white; -fx-padding: 30; -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.1), 10, 0, 0, 5);">
-        <Label text="CREATE AN ACCOUNT" style="-fx-text-fill: #26658C; -fx-font-size: 24; -fx-font-weight: bold;"/>
-        <Label text="Join the Discussion Hub community today." style="-fx-text-fill: #6B8094;"/>
-        <Label text="Choose a role before continuing." style="-fx-text-fill: #26658C;"/>
+    <!-- prefWidth="0" + hgrow=ALWAYS on both panels (see RIGHT PANEL below)
+         forces a real 50/50 split - without it, HBox sized each panel by its
+         own intrinsic content width (the ScrollPane's small default vs. the
+         rules text's wide default), splitting the window ~25/75 instead of
+         the even columns the web layout uses. -->
+    <VBox HBox.hgrow="ALWAYS" prefWidth="0" spacing="15" style="-fx-background-color: white; -fx-padding: 30; -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.1), 10, 0, 0, 5);">
+        <Label text="CREATE AN ACCOUNT" wrapText="true" maxWidth="Infinity" style="-fx-text-fill: #26658C; -fx-font-size: 18; -fx-font-weight: bold;"/>
+        <Label text="Join the Discussion Hub community today." wrapText="true" maxWidth="Infinity" style="-fx-text-fill: #6B8094;"/>
+        <!-- Desktop registers students only (no role-switch screen like the
+             web's register-role.blade.php), so "Student" is a plain pill
+             instead of web's clickable [Change] link. -->
+        <HBox spacing="8" alignment="CENTER_LEFT">
+            <Label text="Selected role:" style="-fx-font-weight: bold;"/>
+            <Label text="Student" style="-fx-background-color: #EEF6FF; -fx-background-radius: 6; -fx-padding: 4 8; -fx-text-fill: #26658C; -fx-font-size: 12;"/>
+        </HBox>
 
         <ScrollPane fitToWidth="true" style="-fx-background-color: transparent; -fx-background: white;">
             <VBox spacing="10">
@@ -29,8 +41,16 @@
                 <TextField fx:id="usernameField" style="-fx-padding: 10; -fx-border-radius: 6; -fx-border-color: #E1E9ED;"/>
 
                 <Label text="Password" style="-fx-font-weight: bold;"/>
+                <!-- PasswordField can't reveal its own plaintext (JavaFX has
+                     no such mode, unlike a web <input type="password"> just
+                     flipping to type="text") - a same-spot TextField, bound
+                     to the same text and shown/hidden opposite the
+                     PasswordField, is the standard workaround. -->
                 <HBox spacing="5">
-                    <PasswordField fx:id="passwordField" HBox.hgrow="ALWAYS" style="-fx-padding: 10; -fx-border-radius: 6; -fx-border-color: #E1E9ED;"/>
+                    <StackPane HBox.hgrow="ALWAYS">
+                        <PasswordField fx:id="passwordField" style="-fx-padding: 10; -fx-border-radius: 6; -fx-border-color: #E1E9ED;"/>
+                        <TextField fx:id="passwordTextField" visible="false" managed="false" style="-fx-padding: 10; -fx-border-radius: 6; -fx-border-color: #E1E9ED;"/>
+                    </StackPane>
                     <Button fx:id="showPasswordBtn" text="👁" onAction="#onTogglePassword" style="-fx-padding: 8;"/>
                 </HBox>
 
@@ -43,11 +63,17 @@
                 </VBox>
 
                 <Label text="Confirm Password" style="-fx-font-weight: bold;"/>
-                <PasswordField fx:id="confirmPasswordField" style="-fx-padding: 10; -fx-border-radius: 6; -fx-border-color: #E1E9ED;"/>
+                <HBox spacing="5">
+                    <StackPane HBox.hgrow="ALWAYS">
+                        <PasswordField fx:id="confirmPasswordField" style="-fx-padding: 10; -fx-border-radius: 6; -fx-border-color: #E1E9ED;"/>
+                        <TextField fx:id="confirmPasswordTextField" visible="false" managed="false" style="-fx-padding: 10; -fx-border-radius: 6; -fx-border-color: #E1E9ED;"/>
+                    </StackPane>
+                    <Button fx:id="showConfirmPasswordBtn" text="👁" onAction="#onToggleConfirmPassword" style="-fx-padding: 8;"/>
+                </HBox>
             </VBox>
         </ScrollPane>
 
-        <Label fx:id="statusBar" text="✓ STATUS: PENDING RULE ACCEPTANCE"
+        <Label fx:id="statusBar" text="✓ STATUS: PENDING RULE ACCEPTANCE" wrapText="true" maxWidth="Infinity"
                style="-fx-padding: 10; -fx-border-color: #26658C; -fx-border-radius: 6; -fx-text-fill: #26658C;"/>
 
         <Button fx:id="completeRegistrationButton" text="COMPLETE REGISTRATION" onAction="#onCompleteRegistration"
@@ -62,23 +88,45 @@
     </VBox>
 
     <!-- RIGHT PANEL -->
-    <VBox HBox.hgrow="ALWAYS" spacing="20" style="-fx-padding: 30; -fx-background-color: white; -fx-border-color: #E1E9ED; -fx-border-width: 0 0 0 1;">
+    <VBox HBox.hgrow="ALWAYS" prefWidth="0" spacing="20" style="-fx-padding: 30; -fx-background-color: white; -fx-border-color: #E1E9ED; -fx-border-width: 0 0 0 1;">
         <Label text="PLATFORM RULES &amp; GUIDELINES" style="-fx-font-weight: bold; -fx-font-size: 18;"/>
 
         <VBox spacing="15">
-            <Label text="1. Be Respectful: Harassment, hate speech, and personal attacks are strictly prohibited. Treat all members with courtesy and maintain a professional tone in all discussions." wrapText="true"/>
-            <Label text="2. No Spam: Do not post promotional content, redundant topics, or malicious links. Keep discussions relevant to the category and contribute meaningful value to the community." wrapText="true"/>
-            <Label text="3. Privacy: Do not share personal information or breach confidentiality." wrapText="true"/>
+            <TextFlow>
+                <Text text="1. "/>
+                <Text text="Be Respectful: " style="-fx-font-weight: bold;"/>
+                <Text text="Harassment, hate speech, and personal attacks are strictly prohibited. Treat all members with courtesy and maintain a professional tone in all discussions."/>
+            </TextFlow>
+            <TextFlow>
+                <Text text="2. "/>
+                <Text text="No Spam: " style="-fx-font-weight: bold;"/>
+                <Text text="Do not post promotional content, redundant topics, or malicious links. Keep discussions relevant to the category and contribute meaningful value to the community."/>
+            </TextFlow>
+            <TextFlow>
+                <Text text="3. "/>
+                <Text text="Privacy: " style="-fx-font-weight: bold;"/>
+                <Text text="Do not share personal information or breach confidentiality."/>
+            </TextFlow>
         </VBox>
 
-        <CheckBox fx:id="rulesCheckBox" text="I have read and agree to abide by the Platform Rules and guidelines. I understand that Violations may result in account termination."
-                  wrapText="true" onAction="#onRulesChecked"/>
-
-        <Button fx:id="acceptRulesButton" text="ACCEPT RULES" onAction="#onAcceptRules"
-                disable="true" maxWidth="Infinity"
-                style="-fx-background-color: #26658C; -fx-text-fill: white; -fx-font-weight: bold; -fx-padding: 12; -fx-background-radius: 6;"/>
-
-        <Hyperlink text="DECLINE" onAction="#onDecline" style="-fx-text-fill: #26658C;"/>
+        <!-- Sole gate on registering - checking it directly arms
+             COMPLETE REGISTRATION in the left column; there's no separate
+             "accept" step to click through, matching the web.
+             CheckBox's own `text` can't mix styles/colors, and putting a
+             wrapping TextFlow in its `graphic` (tried first) silently broke
+             the checkbox's own layout - JavaFX doesn't expect a
+             multi-line-wrapping node there. A plain empty-text CheckBox
+             with the rich TextFlow as an independent sibling avoids that;
+             onRulesTextClicked lets clicking the text toggle the box too,
+             same as clicking a web <label> does for its checkbox. -->
+        <HBox spacing="8" alignment="TOP_LEFT">
+            <CheckBox fx:id="rulesCheckBox" onAction="#onRulesChecked"/>
+            <TextFlow prefWidth="420" onMouseClicked="#onRulesTextClicked" style="-fx-cursor: hand;">
+                <Text text="I have read and agree to abide by the "/>
+                <Text text="Platform Rules and guidelines" style="-fx-fill: blue;"/>
+                <Text text=".. I understand that Violations may result in account termination."/>
+            </TextFlow>
+        </HBox>
     </VBox>
 
 </HBox>

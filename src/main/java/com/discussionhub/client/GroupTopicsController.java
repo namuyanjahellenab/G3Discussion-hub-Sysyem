@@ -186,7 +186,7 @@ public class GroupTopicsController {
         HBox titleRow = new HBox(8, title);
         titleRow.setAlignment(Pos.CENTER_LEFT);
         addUnreadBadge(titleRow, topic.getTopicId());
-        Label meta = new Label(topic.getCreatedAt());
+        Label meta = new Label(TextUtil.timeAgo(topic.getCreatedAt()));
         meta.getStyleClass().add("muted-text");
 
         row.getChildren().addAll(badges, titleRow, meta);

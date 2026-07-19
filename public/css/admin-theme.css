@@ -558,7 +558,7 @@ button:focus-visible,
 
 /* WhatsApp/Slack-style "unread since your last visit" divider in the chat
    window - see GroupChatController::index()'s lastReadMessageId. */
-.unread-divider { display: flex; align-items: center; gap: 10px; padding: 10px 4px; }
+.unread-divider { display: flex; align-items: center; gap: 10px; padding: 10px 4px; flex-shrink: 0; }
 .unread-divider::before, .unread-divider::after { content: ''; flex: 1; height: 1px; background: var(--accent-success); }
 .unread-divider span { color: var(--accent-success); font-size: 10.5px; font-weight: 700; letter-spacing: 0.5px; white-space: nowrap; }
 
@@ -566,12 +566,25 @@ button:focus-visible,
 .chat-header h2 { display: flex; align-items: center; gap: 0.5rem; font-size: 1.25rem; }
 .chat-header i { color: var(--luna-mid); }
 
+/* Height is set in px by sizeChatWindow() in messages.blade.php, filling
+   the viewport down to the composer - so only these messages scroll
+   (WhatsApp-style), not the header/composer/sidebar around them. */
 .chat-window {
     display: flex; flex-direction: column; gap: 0.9rem;
-    padding: 1.25rem; max-height: 50vh; overflow-y: auto; margin: 1rem 0;
+    padding: 1.25rem; overflow-y: auto; margin: 1rem 0;
+    scrollbar-width: thin;
 }
+/* Thin scrollbar, matching the desktop client's native ScrollPane look. */
+.chat-window::-webkit-scrollbar { width: 8px; }
+.chat-window::-webkit-scrollbar-track { background: transparent; }
+.chat-window::-webkit-scrollbar-thumb { background: var(--surface-border); border-radius: 999px; }
+.chat-window::-webkit-scrollbar-thumb:hover { background: var(--luna-light); }
 
-.chat-bubble { display: flex; align-items: flex-start; gap: 0.6rem; max-width: 75%; position: relative; }
+/* flex-shrink:0 - without it, a flex column with a constrained height
+   (chat-window's JS-computed height) can shrink its children to fit
+   instead of overflowing/scrolling, cropping or overlapping bubbles under
+   heavy message volume instead of ever showing a scrollbar. */
+.chat-bubble { display: flex; align-items: flex-start; gap: 0.6rem; max-width: 75%; position: relative; flex-shrink: 0; }
 .chat-bubble--own { align-self: flex-end; flex-direction: row-reverse; margin-left: auto; }
 
 .chat-bubble__avatar {
@@ -627,30 +640,46 @@ button:focus-visible,
 .chat-empty { text-align: center; padding: 2rem; color: var(--text-muted); }
 .chat-empty i { font-size: 1.8rem; margin-bottom: 0.5rem; display: block; color: var(--luna-light); }
 
-.chat-composer { padding: 1rem; }
-.chat-composer textarea {
-    width: 100%; min-height: 70px; border: 1px solid var(--surface-border);
-    border-radius: var(--radius-md); padding: 0.6rem; font-family: var(--font-body);
-    resize: vertical; margin-bottom: 0.6rem;
+/* Pinned to the bottom of the viewport, WhatsApp-style - never scrolls
+   away with the page, regardless of how tall the thread list or message
+   history gets. */
+.chat-composer { padding: 1rem; position: sticky; bottom: 0; z-index: 5; background: var(--surface-bg); }
+
+/* Single rounded pill bar (WhatsApp/Claude-style): icon buttons flush
+   against a borderless auto-growing textarea, all inside one pill-shaped
+   container instead of a boxy textarea-then-button-row stack. */
+.chat-pill {
+    display: flex; align-items: flex-end; gap: 0.5rem;
+    background: var(--surface-card); border: 1px solid var(--surface-border);
+    border-radius: 999px; padding: 0.5rem 0.6rem 0.5rem 1rem;
+    box-shadow: var(--shadow-soft);
+}
+.chat-pill textarea {
+    flex: 1; min-width: 0; max-height: 120px; border: none; background: transparent;
+    padding: 0.4rem 0; font-family: var(--font-body); font-size: 0.9rem;
+    resize: none; outline: none;
 }
 
-.exclude-toggle {
-    background: none; border: 1px solid var(--surface-border);
-    border-radius: var(--radius-md); padding: 0.4rem 0.8rem;
-    font-size: 0.82rem; color: var(--text-body); cursor: pointer;
+.pill-icon-btn, .pill-send-btn {
+    flex-shrink: 0; width: 36px; height: 36px; border-radius: 50%; border: none;
+    display: flex; align-items: center; justify-content: center; cursor: pointer;
+    font-size: 0.85rem;
 }
-.exclude-toggle:hover { border-color: var(--luna-mid); color: var(--luna-mid); }
+.pill-icon-btn { background: var(--surface-bg); color: var(--text-muted); }
+.pill-icon-btn:hover { background: var(--luna-lightest); color: var(--luna-mid); }
+.pill-send-btn { background: var(--luna-mid); color: #fff; }
+.pill-send-btn:hover { background: var(--luna-dark); }
 
-.exclude-panel { display: none; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.6rem; padding: 0.75rem; background: var(--surface-bg); border-radius: var(--radius-md); }
+.exclude-panel { display: none; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 0.6rem; padding: 0.75rem; background: var(--surface-card); border: 1px solid var(--surface-border); border-radius: var(--radius-md); }
 .exclude-panel.open { display: flex; }
 
 .exclude-option {
     display: flex; align-items: center; gap: 0.3rem; font-size: 0.82rem;
-    background: var(--surface-card); border: 1px solid var(--surface-border);
+    background: var(--surface-bg); border: 1px solid var(--surface-border);
     border-radius: 999px; padding: 0.3rem 0.7rem; cursor: pointer;
 }
 
-.exclude-hint { font-size: 0.72rem; color: var(--text-muted); margin-top: 0.5rem; }
+.exclude-hint { flex-basis: 100%; font-size: 0.72rem; color: var(--text-muted); margin-top: 0.3rem; }
 
 @media (max-width: 768px) {
     .chat-layout { grid-template-columns: 1fr; }
