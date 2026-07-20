@@ -38,8 +38,12 @@ import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.Iterator;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 // The desktop equivalent of the web's Group Chat (student.messages / GroupChatController):
 // main group-wide thread + any number of restricted threads (a thread that
@@ -88,6 +92,14 @@ public class GroupChatController {
     private int lastActiveConversationIdForReadTracking = 0;
     private int unreadThresholdMessageId = 0;
     private int maxSeenMessageId = 0;
+    private boolean liveUnreadBannerInserted = false;
+
+    // Diffs the message list against what's already rendered instead of
+    // clearing and rebuilding messagesBox on every 10s poll cycle (see
+    // renderMessages()) - mirrors TopicController's renderedReplyRows, which
+    // was the fix for this exact "screen blinks every 10 seconds" symptom
+    // there.
+    private final Map<Integer, VBox> renderedMessageRows = new LinkedHashMap<>();
 
     // Messages sent from elsewhere (the web, another device) have no way to
     // reach an already-open desktop chat window - same gap as TopicController -
@@ -127,9 +139,20 @@ public class GroupChatController {
         loadMyGroups();
     }
 
+    private static final String DASHBOARD_ENDPOINT = "/api/dashboard";
+
     private void loadMyGroups() {
         new Thread(() -> {
-            String body = get("/api/dashboard");
+            String body = get(DASHBOARD_ENDPOINT);
+            if (body != null) {
+                dbManager.cacheApiResponse(DASHBOARD_ENDPOINT, body);
+            } else {
+                // Offline (or the request just failed): fall back to the
+                // last-known joined-groups list instead of leaving the
+                // switcher empty - matches the generic cache-then-fallback
+                // pattern ForumController uses for the same reason.
+                body = dbManager.getCachedApiResponse(DASHBOARD_ENDPOINT);
+            }
             if (body == null) return;
             try {
                 JSONArray groups = new JSONObject(body).getJSONArray("joined_groups");
@@ -233,15 +256,22 @@ public class GroupChatController {
     private void handleIncomingMessage(PusherEvent event) {
         try {
             JSONObject m = new JSONObject(event.getData());
+            int id = m.getInt("id");
             if (m.getInt("user_id") == SessionManager.userId) return; // already shown via our own optimistic reload
             if (m.getInt("conversation_id") != activeConversationId) return; // stale event from a channel we've since left
-            if (m.getInt("id") > maxSeenMessageId) maxSeenMessageId = m.getInt("id"); // arrived while open - counts as seen
+            if (id > maxSeenMessageId) maxSeenMessageId = id; // arrived while open - counts as seen
+            if (renderedMessageRows.containsKey(id)) return; // already shown (e.g. beat the next poll here)
 
             Platform.runLater(() -> {
                 if (messagesBox.getChildren().size() == 1 && messagesBox.getChildren().get(0) instanceof Label) {
                     messagesBox.getChildren().clear(); // was showing "No messages yet."
                 }
-                messagesBox.getChildren().add(bubble(m));
+                VBox row = bubble(m);
+                messagesBox.getChildren().add(row);
+                // Registered here too (not just in renderMessages()'s poll
+                // diff) - otherwise the next 10s poll would see this id as
+                // "never rendered" and add a second, duplicate bubble for it.
+                renderedMessageRows.put(id, row);
                 scrollToBottom();
             });
         } catch (Exception e) {
@@ -251,6 +281,13 @@ public class GroupChatController {
 
     public void setGroupContext(int groupId, String groupName) {
         this.groupId = groupId;
+        // mainConversationId belongs to whichever group was loaded last, not
+        // this one - without resetting it here, switching groups while
+        // offline kept falling back to the PREVIOUS group's remembered
+        // conversation (since it's non-zero, the "not yet resolved" check in
+        // loadConversation() never re-looks-up the new group's own id), so
+        // every group's offline switch showed the same stale messages.
+        this.mainConversationId = 0;
         titleLabel.setText(groupName + " — Chat");
         loadConversation(-1);
     }
@@ -311,10 +348,11 @@ public class GroupChatController {
         syncStatusLabel.setStyle("-fx-text-fill: #D9483D; -fx-font-size: 12; -fx-font-weight: bold;");
         subtitleLabel.setText("You're offline — showing saved messages. New messages will send once you're back online.");
 
+        // No "Group Chat / Everyone in the group" item here (unlike the
+        // online thread list) - offline only ever has this one conversation
+        // to show, so a button that just reloads the same thread you're
+        // already looking at is dead weight, not a real switch target.
         threadListBox.getChildren().clear();
-        Button groupChatItem = threadItem("👥  Group Chat", "Everyone in the group", conversationId == mainConversationId, mainConversationId);
-        groupChatItem.setOnAction(e -> loadConversation(-1));
-        threadListBox.getChildren().add(groupChatItem);
 
         List<ChatMessageItem> cached = dbManager.getCachedMessages(conversationId);
         messagesBox.getChildren().clear();
@@ -416,6 +454,12 @@ public class GroupChatController {
         lastActiveConversationIdForReadTracking = newActiveConversationId;
         unreadThresholdMessageId = dbManager.getLastReadItemId("Conversation", newActiveConversationId);
         maxSeenMessageId = 0;
+        // Forget what's tracked as "already rendered" - this is a genuinely
+        // different conversation, so renderMessages() must treat every
+        // incoming message as new instead of diffing against the previous
+        // thread's rows.
+        renderedMessageRows.clear();
+        liveUnreadBannerInserted = false;
     }
 
     private void markCurrentConversationRead() {
@@ -455,10 +499,6 @@ public class GroupChatController {
 
     private void renderThreadList(JSONArray restrictedThreads) {
         threadListBox.getChildren().clear();
-
-        Button groupChatItem = threadItem("👥  Group Chat", "Everyone in the group", activeConversationId == mainConversationId, mainConversationId);
-        groupChatItem.setOnAction(e -> loadConversation(-1));
-        threadListBox.getChildren().add(groupChatItem);
 
         if (restrictedThreads.length() > 0) {
             Label heading = new Label("RESTRICTED THREADS");
@@ -530,27 +570,60 @@ public class GroupChatController {
         return btn;
     }
 
+    /**
+     * Diffs the incoming message list against what's already rendered
+     * instead of clearing and rebuilding messagesBox every 10s poll cycle -
+     * a message that's already shown is left completely alone (no remove,
+     * no re-add), so there's nothing to blink while reading or typing.
+     * Messages only ever append (MessageID is auto-increment, no
+     * re-ordering in the API response), so a never-seen id can safely be
+     * added at the end without touching anyone else's position.
+     */
     private void renderMessages(JSONArray messages) {
         markOnline();
 
-        messagesBox.getChildren().clear();
-        if (messages.isEmpty()) {
-            showStatus("No messages yet. Start the conversation.");
-        } else {
-            boolean bannerInserted = false;
-            for (int i = 0; i < messages.length(); i++) {
-                JSONObject m = messages.getJSONObject(i);
-                int id = m.getInt("id");
-                if (id > maxSeenMessageId) maxSeenMessageId = id;
-                // Receiver-only, WhatsApp-style: never for the viewer's own messages.
-                boolean isOwn = m.getInt("user_id") == SessionManager.userId;
-                if (!bannerInserted && !isOwn && unreadThresholdMessageId > 0 && id > unreadThresholdMessageId) {
-                    messagesBox.getChildren().add(buildUnreadBanner());
-                    bannerInserted = true;
-                }
-                messagesBox.getChildren().add(bubble(m));
+        Set<Integer> incomingIds = new LinkedHashSet<>();
+        for (int i = 0; i < messages.length(); i++) {
+            incomingIds.add(messages.getJSONObject(i).getInt("id"));
+        }
+
+        Iterator<Map.Entry<Integer, VBox>> it = renderedMessageRows.entrySet().iterator();
+        while (it.hasNext()) {
+            Map.Entry<Integer, VBox> entry = it.next();
+            if (!incomingIds.contains(entry.getKey())) {
+                messagesBox.getChildren().remove(entry.getValue());
+                it.remove();
             }
-            scrollToBottom();
+        }
+
+        // First render for this conversation (or coming from an empty/
+        // placeholder state) - clear whatever's there (e.g. "No messages
+        // yet") before appending the real rows below.
+        if (!messages.isEmpty() && renderedMessageRows.isEmpty() && !messagesBox.getChildren().isEmpty()) {
+            messagesBox.getChildren().clear();
+        }
+
+        for (int i = 0; i < messages.length(); i++) {
+            JSONObject m = messages.getJSONObject(i);
+            int id = m.getInt("id");
+            if (id > maxSeenMessageId) maxSeenMessageId = id;
+
+            if (renderedMessageRows.containsKey(id)) continue; // untouched - already shown
+
+            // Receiver-only, WhatsApp-style: never for the viewer's own messages.
+            boolean isOwn = m.getInt("user_id") == SessionManager.userId;
+            if (!liveUnreadBannerInserted && !isOwn && unreadThresholdMessageId > 0 && id > unreadThresholdMessageId) {
+                messagesBox.getChildren().add(buildUnreadBanner());
+                liveUnreadBannerInserted = true;
+            }
+
+            VBox row = bubble(m);
+            messagesBox.getChildren().add(row);
+            renderedMessageRows.put(id, row);
+        }
+
+        if (messages.isEmpty() && messagesBox.getChildren().isEmpty()) {
+            showStatus("No messages yet. Start the conversation.");
         }
 
         // Keep the local cache warm so an offline fallback later has

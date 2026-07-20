@@ -97,6 +97,14 @@ public class TopicController {
     // own always-updated path, or the relative time would freeze forever at
     // whatever it said when the row was first drawn.
     private final Map<Integer, Label> renderedReplyTimeLabels = new HashMap<>();
+    // Same "don't touch it if nothing changed" idea for the offline/cached
+    // path (renderCached()), which - unlike the live path above - doesn't
+    // diff row-by-row and just rebuilds repliesBox wholesale. Two
+    // consecutive offline polls almost always see identical cached data (the
+    // cache doesn't change between polls while offline), so skipping the
+    // rebuild entirely on a signature match kills the "blinks and jumps to
+    // the top every 10s while offline" symptom at the source.
+    private String renderedCachedSignature = null;
     private String renderedMainPostSignature;
 
     // Local "unread" tracking (see DatabaseManager's ReadState table) - the
@@ -149,6 +157,7 @@ public class TopicController {
         renderedReplySignatures.clear();
         renderedReplyTimeLabels.clear();
         renderedMainPostSignature = null;
+        renderedCachedSignature = null;
         unreadThresholdReplyId = dbManager.getLastReadItemId("Topic", topicId);
         liveUnreadBannerInserted = false;
         maxSeenReplyId = 0;
@@ -236,7 +245,21 @@ public class TopicController {
                 mainPost != null ? dbManager.getCachedReplies(mainPost.getPostId()) : new ArrayList<>();
             Platform.runLater(() -> {
                 markOffline();
+                // Same pixel-offset scroll preservation as the online path
+                // above - belt-and-suspenders alongside renderCached()'s own
+                // signature check, in case the cache genuinely did change
+                // (e.g. a reply synced in) and the rebuild isn't skipped.
+                javafx.scene.Node content = mainScrollPane.getContent();
+                double viewportHeight = mainScrollPane.getViewportBounds().getHeight();
+                double maxScrollBefore = Math.max(1, content.getBoundsInLocal().getHeight() - viewportHeight);
+                double pixelOffset = mainScrollPane.getVvalue() * maxScrollBefore;
+
                 renderCached(cachedTopic, mainPost, cachedReplies);
+
+                Platform.runLater(() -> {
+                    double maxScrollAfter = Math.max(1, content.getBoundsInLocal().getHeight() - viewportHeight);
+                    mainScrollPane.setVvalue(Math.min(1.0, pixelOffset / maxScrollAfter));
+                });
             });
         }).start();
     }
@@ -278,6 +301,19 @@ public class TopicController {
 
         mainPostId = mainPost.getPostId();
         String mainAuthorName = resolveAuthorName(mainPost.getUserId(), mainPost.getAuthorName());
+
+        // Identical to what's already rendered (the overwhelmingly common
+        // case for back-to-back offline polls, since the cache doesn't
+        // change between them) - skip the rebuild entirely instead of
+        // tearing repliesBox down and redrawing the exact same thing, which
+        // is what caused the visible blink and reset the scroll to the top.
+        String signature = mainPost.getPostId() + "|" + mainPost.getContent() + "|" + mainPost.isPending() + "|"
+            + replies.size() + "|" + (replies.isEmpty() ? 0 : replies.get(replies.size() - 1).getReplyId());
+        if (signature.equals(renderedCachedSignature)) {
+            return;
+        }
+        renderedCachedSignature = signature;
+
         threadMetaLabel.setText("Posted by " + mainAuthorName);
         mainPostCard.getChildren().setAll(buildMainPostBubble(mainAuthorName, mainPost.getContent(), mainPost.isPending()));
 

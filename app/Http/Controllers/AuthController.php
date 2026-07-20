@@ -10,6 +10,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Validation\Rules\Password;
 
 class AuthController extends Controller
 {
@@ -90,7 +91,17 @@ public function apiRegister(Request $request)
         'full_name' => ['required', 'string', 'min:3', 'max:255'],
         'email' => ['required', 'string', 'email', 'max:255', 'unique:User,Email'],
         'username' => ['required', 'string', 'min:3', 'max:255', 'unique:User,Handle', 'alpha_dash'],
-        'password' => ['required', 'string', 'min:8', 'confirmed'],
+        // Same composition rule as the web's RegisterRequest (mixed case +
+        // number + symbol, not just length) - this endpoint used to only
+        // check min:8+confirmed, letting a password like "password1" through
+        // on desktop that the web would have rejected.
+        'password' => [
+            'required',
+            'string',
+            'min:8',
+            'confirmed',
+            Password::min(8)->mixedCase()->numbers()->symbols(),
+        ],
         'rules_accepted' => ['required', 'accepted'],
     ]);
 
