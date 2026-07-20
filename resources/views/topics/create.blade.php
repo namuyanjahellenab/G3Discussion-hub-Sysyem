@@ -2,7 +2,7 @@
 
 {{-- This page renders its own inline error block below — skip the layout's
      generic global banner to avoid showing the same error twice. --}}
-@php($hideGlobalErrors = true)
+@php $hideGlobalErrors = true; @endphp
 
 @section('content')
 <style>
