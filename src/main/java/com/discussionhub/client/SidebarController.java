@@ -74,7 +74,23 @@ public class SidebarController {
         this.dbManager = dbManager;
         this.syncService = syncService;
         applyCollapsedState();
+        applyRoleVisibility();
         startNotificationPolling();
+    }
+
+    // Desktop-only: a Lecturer's nav is trimmed to Dashboard/Topic
+    // Discussions/Settings - the other items (My Questions, Group Chat,
+    // Marks, Quizzes, Recommend) are student-specific features a lecturer
+    // account has no use for here. Same styling/layout as the student
+    // sidebar throughout, just fewer buttons - not a separate look. The web
+    // lecturer UI is untouched; this only ever runs on the desktop client.
+    private void applyRoleVisibility() {
+        if (!"Lecturer".equalsIgnoreCase(SessionManager.role)) return;
+
+        for (Button btn : new Button[]{myQuestionsBtn, groupChatBtn, marksBtn, quizzesBtn, recommendBtn}) {
+            btn.setVisible(false);
+            btn.setManaged(false);
+        }
     }
 
     // Lets a host screen run cleanup (stop polling timers, disconnect a

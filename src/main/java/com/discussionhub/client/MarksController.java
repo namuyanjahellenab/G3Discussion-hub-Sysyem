@@ -35,6 +35,7 @@ public class MarksController {
     @FXML private VBox groupsBox;
     @FXML private Label userInitialsLabel;
     @FXML private Label userNameLabel;
+    @FXML private Label userRoleLabel;
     @FXML private SidebarController sidebarController;
 
     private static final String MARKS_ENDPOINT = "/api/marks";
@@ -52,6 +53,7 @@ public class MarksController {
             ? SessionManager.userEmail : SessionManager.fullName;
         userNameLabel.setText(name);
         userInitialsLabel.setText(TextUtil.initials(name));
+        userRoleLabel.setText((SessionManager.role == null || SessionManager.role.isBlank() ? "Student" : SessionManager.role) + " Account");
 
         load();
     }

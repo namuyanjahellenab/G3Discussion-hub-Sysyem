@@ -45,11 +45,11 @@
                     <Label text="UNREAD NOTIFICATIONS" styleClass="stat-label"/>
                     <Label fx:id="statNotificationsLabel" text="0" styleClass="stat-value"/>
                 </VBox>
-                <VBox styleClass="stat-card" style="-fx-padding: 18 20;" HBox.hgrow="ALWAYS" maxWidth="Infinity">
+                <VBox fx:id="participationCard" styleClass="stat-card" style="-fx-padding: 18 20;" HBox.hgrow="ALWAYS" maxWidth="Infinity">
                     <Label text="PARTICIPATION" styleClass="stat-label"/>
                     <Label fx:id="statParticipationLabel" text="0 / 10" styleClass="stat-value"/>
                 </VBox>
-                <VBox styleClass="stat-card" style="-fx-padding: 18 20;" HBox.hgrow="ALWAYS" maxWidth="Infinity">
+                <VBox fx:id="quizAvgCard" styleClass="stat-card" style="-fx-padding: 18 20;" HBox.hgrow="ALWAYS" maxWidth="Infinity">
                     <Label text="QUIZ AVERAGE" styleClass="stat-label"/>
                     <Label fx:id="statQuizAvgLabel" text="—" styleClass="stat-value"/>
                 </VBox>
@@ -87,7 +87,7 @@
                                       -fx-padding: 10 12; -fx-background-radius: 20; -fx-font-size: 13;"/>
                         <VBox spacing="1">
                             <Label fx:id="userNameLabel" text="Student" styleClass="heading-text" style="-fx-font-size: 13.5;"/>
-                            <Label text="Student Account" styleClass="muted-text" style="-fx-font-size: 11.5;"/>
+                            <Label fx:id="userRoleLabel" text="Student Account" styleClass="muted-text" style="-fx-font-size: 11.5;"/>
                         </VBox>
                     </HBox>
 

@@ -157,11 +157,35 @@
         .hover-actions button { background: var(--surface-bg); }
     }
 
-    .attach-file { display: flex; align-items: center; gap: 10px; background: var(--surface-bg); border: 1px solid var(--surface-border); border-radius: 10px; padding: 8px 12px; margin-top: 8px; max-width: 280px; text-decoration: none; }
+    .attach-file { display: flex; align-items: center; gap: 10px; background: var(--surface-bg); border: 1px solid var(--surface-border); border-radius: 10px; padding: 8px 12px; margin-bottom: 6px; max-width: 280px; text-decoration: none; }
     .attach-file .icon { width: 32px; height: 32px; border-radius: 8px; background: var(--luna-mid); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 14px; flex-shrink: 0; }
-    .attach-file .fname { font-size: 12.5px; font-weight: 600; color: var(--text-heading); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .attach-img { margin-top: 8px; border-radius: 12px; overflow: hidden; border: 1px solid var(--surface-border); max-width: 260px; }
-    .attach-img img { width: 100%; display: block; }
+    .attach-file .fname { font-size: 12.5px; font-weight: 600; color: var(--text-heading); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; min-width: 0; }
+    .attach-file .attach-download-icon { flex-shrink: 0; color: var(--text-muted); font-size: 13px; }
+    .attach-file:hover .attach-download-icon { color: var(--luna-mid); }
+
+    /* Capped height (not just width) - a tall/portrait screenshot used to
+       render at full native height with no limit, so one reply with an
+       image attached could fill the entire visible replies area on its
+       own. object-fit:cover crops to fit the cap instead of stretching;
+       clicking the image still opens the untouched full-size original in a
+       new tab, and the small download icon saves it directly. */
+    /* Plain block (not inline-block) - the reply text before this is a
+       plain text node, and an inline-block image sat on the SAME line as
+       that text instead of dropping to its own line below it, since
+       inline-block content shares line boxes with surrounding inline
+       content the way a block-level element never does. That's what made
+       the caption look glued to the image's bottom edge instead of sitting
+       cleanly underneath it. max-width alone still caps the width fine
+       without needing inline-block. */
+    .attach-img { position: relative; margin-bottom: 6px; border-radius: 12px; overflow: hidden; border: 1px solid var(--surface-border); max-width: 260px; }
+    .attach-img img { width: 100%; max-height: 220px; object-fit: cover; display: block; cursor: zoom-in; }
+    .attach-img__download {
+        position: absolute; top: 6px; right: 6px; width: 26px; height: 26px;
+        background: rgba(0, 0, 0, 0.55); color: #fff; border-radius: 50%;
+        display: flex; align-items: center; justify-content: center; font-size: 11.5px;
+        opacity: 0; transition: opacity .15s ease;
+    }
+    .attach-img:hover .attach-img__download { opacity: 1; }
 
     .reply-context-bar { display: none; align-items: center; justify-content: space-between; background: var(--luna-lightest); border: 1px solid var(--luna-light); border-radius: var(--radius-md); padding: 8px 12px; font-size: 12.5px; color: var(--luna-dark); margin-bottom: 10px; }
     .reply-context-bar.open { display: flex; }
@@ -330,18 +354,27 @@
                                     @if($reply->IsFlagged)
                                         <span class="tag-chip flagged" style="margin-bottom: 6px;"><i class="fa-solid fa-flag"></i> Flagged</span>
                                     @endif
-                                    {{ $reply->ReplyContent }}
-
+                                    {{-- Attachment first, caption text after - matches WhatsApp's
+                                         photo/file-then-caption order, not text-then-attachment. --}}
                                     @if($reply->Attachment)
                                         @if($reply->AttachmentType === 'image')
-                                            <div class="attach-img"><img src="{{ \Illuminate\Support\Facades\Storage::url($reply->Attachment) }}" alt="Attachment"></div>
+                                            <div class="attach-img">
+                                                <a href="{{ \Illuminate\Support\Facades\Storage::url($reply->Attachment) }}" target="_blank" rel="noopener" title="View full size">
+                                                    <img src="{{ \Illuminate\Support\Facades\Storage::url($reply->Attachment) }}" alt="Attachment">
+                                                </a>
+                                                <a class="attach-img__download" href="{{ \Illuminate\Support\Facades\Storage::url($reply->Attachment) }}" download title="Download">
+                                                    <i class="fa-solid fa-download"></i>
+                                                </a>
+                                            </div>
                                         @else
-                                            <a class="attach-file" href="{{ \Illuminate\Support\Facades\Storage::url($reply->Attachment) }}" target="_blank" rel="noopener">
+                                            <a class="attach-file" href="{{ \Illuminate\Support\Facades\Storage::url($reply->Attachment) }}" download title="Download {{ basename($reply->Attachment) }}">
                                                 <div class="icon"><i class="fa-solid fa-file"></i></div>
                                                 <div class="fname">{{ basename($reply->Attachment) }}</div>
+                                                <i class="fa-solid fa-download attach-download-icon"></i>
                                             </a>
                                         @endif
                                     @endif
+                                    {{ $reply->ReplyContent }}
                                 </div>
                             </div>
 
@@ -619,8 +652,11 @@ sizeRightPanel();
         let attachHtml = '';
         if (r.attachment_url) {
             attachHtml = r.attachment_type === 'image'
-                ? `<div class="attach-img"><img src="${escapeHtml(r.attachment_url)}" alt="Attachment"></div>`
-                : `<a class="attach-file" href="${escapeHtml(r.attachment_url)}" target="_blank" rel="noopener"><div class="icon"><i class="fa-solid fa-file"></i></div><div class="fname">${escapeHtml(r.attachment_name || '')}</div></a>`;
+                ? `<div class="attach-img">
+                        <a href="${escapeHtml(r.attachment_url)}" target="_blank" rel="noopener" title="View full size"><img src="${escapeHtml(r.attachment_url)}" alt="Attachment"></a>
+                        <a class="attach-img__download" href="${escapeHtml(r.attachment_url)}" download title="Download"><i class="fa-solid fa-download"></i></a>
+                   </div>`
+                : `<a class="attach-file" href="${escapeHtml(r.attachment_url)}" download title="Download ${escapeHtml(r.attachment_name || '')}"><div class="icon"><i class="fa-solid fa-file"></i></div><div class="fname">${escapeHtml(r.attachment_name || '')}</div><i class="fa-solid fa-download attach-download-icon"></i></a>`;
         }
 
         const row = document.createElement('div');
@@ -639,8 +675,8 @@ sizeRightPanel();
                 <div class="reply-bubble">
                     ${acceptedHtml}
                     ${flaggedHtml}
-                    ${escapeHtml(r.content)}
                     ${attachHtml}
+                    ${escapeHtml(r.content)}
                 </div>
             </div>
             <div class="hover-actions">${actionsHtmlFor(r)}</div>

@@ -38,6 +38,7 @@ public class ForumController {
     @FXML private Label syncStatusLabel;
     @FXML private Label userInitialsLabel;
     @FXML private Label userNameLabel;
+    @FXML private Label userRoleLabel;
     @FXML private Label statGroupsLabel;
     @FXML private Label statTopicsLabel;
     @FXML private FlowPane groupsFlowPane;
@@ -61,6 +62,7 @@ public class ForumController {
             ? SessionManager.userEmail : SessionManager.fullName;
         userNameLabel.setText(name);
         userInitialsLabel.setText(TextUtil.initials(name));
+        userRoleLabel.setText((SessionManager.role == null || SessionManager.role.isBlank() ? "Student" : SessionManager.role) + " Account");
     }
 
     // Cache key is the plain /api/forum response - same generic

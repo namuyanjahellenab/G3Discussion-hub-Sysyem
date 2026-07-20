@@ -34,8 +34,15 @@
                 <Label text="Full Name" style="-fx-font-weight: bold;"/>
                 <TextField fx:id="fullNameField" promptText="Nakato Vannesah" style="-fx-padding: 10; -fx-border-radius: 6; -fx-border-color: #E1E9ED;"/>
 
+                <!-- Same pre-provisioned whitelist gate as the web's student
+                     registration path (see RegisterRequest/AuthController) -
+                     only a number an admin already loaded from the class
+                     roster (Admin -> Student IDs) can be used to register. -->
+                <Label text="Student ID Number" style="-fx-font-weight: bold;"/>
+                <TextField fx:id="studentIdField" promptText="e.g. A-1" style="-fx-padding: 10; -fx-border-radius: 6; -fx-border-color: #E1E9ED;"/>
+
                 <Label text="Email Address" style="-fx-font-weight: bold;"/>
-                <TextField fx:id="emailField" style="-fx-padding: 10; -fx-border-radius: 6; -fx-border-color: #E1E9ED;"/>
+                <TextField fx:id="emailField" promptText="e.g. you@mak.ug" style="-fx-padding: 10; -fx-border-radius: 6; -fx-border-color: #E1E9ED;"/>
 
                 <Label text="Username" style="-fx-font-weight: bold;"/>
                 <TextField fx:id="usernameField" style="-fx-padding: 10; -fx-border-radius: 6; -fx-border-color: #E1E9ED;"/>

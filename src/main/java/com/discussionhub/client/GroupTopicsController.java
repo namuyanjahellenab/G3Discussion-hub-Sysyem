@@ -56,6 +56,7 @@ public class GroupTopicsController {
     @FXML private Label groupTitleLabel;
     @FXML private Label userInitialsLabel;
     @FXML private Label userNameLabel;
+    @FXML private Label userRoleLabel;
     @FXML private Label groupTopicCountLabel;
     @FXML private TextField searchField;
     @FXML private HBox filterRow;
@@ -96,6 +97,7 @@ public class GroupTopicsController {
             ? SessionManager.userEmail : SessionManager.fullName;
         userNameLabel.setText(name);
         userInitialsLabel.setText(TextUtil.initials(name));
+        userRoleLabel.setText((SessionManager.role == null || SessionManager.role.isBlank() ? "Student" : SessionManager.role) + " Account");
     }
 
     public void setGroupContext(int groupId, String groupName) {

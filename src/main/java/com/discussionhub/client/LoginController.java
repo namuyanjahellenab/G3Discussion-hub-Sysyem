@@ -72,12 +72,14 @@ public class LoginController {
                         String userIdStr = extractJsonValue(result, "id");
                         int userId = userIdStr.isEmpty() ? 1 : Integer.parseInt(userIdStr);
                         String name = extractJsonValue(result, "name");
+                        String role = extractJsonValue(result, "role");
                         String themeColor = extractJsonValue(result, "theme_color");
 
                         SessionManager.token = token;
                         SessionManager.userId = userId;
                         SessionManager.userEmail = email;
                         SessionManager.fullName = name;
+                        SessionManager.role = role;
                         SessionManager.currentTheme = themeColor.isEmpty() ? "luna" : themeColor;
 
                         dbManager.ensureDeviceState(SessionManager.userId);

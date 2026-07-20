@@ -91,6 +91,9 @@
         <li class="{{ request()->routeIs('admin.lecturer-staff.index') ? 'active' : '' }}">
             <a href="{{ route('admin.lecturer-staff.index') }}"><i class="fa-solid fa-id-card"></i> Lecturer Staff IDs</a>
         </li>
+        <li class="{{ request()->routeIs('admin.student-ids.index') ? 'active' : '' }}">
+            <a href="{{ route('admin.student-ids.index') }}"><i class="fa-solid fa-id-card-clip"></i> Student IDs</a>
+        </li>
     </ul>
 </div>
 

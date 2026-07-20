@@ -50,15 +50,31 @@
                 @if (isset($role) && $role === 'lecturer')
     <div class="form-group">
         <label for="staff_id_number">Staff ID Number:</label>
-        <input 
-            type="text" 
-            id="staff_id_number" 
-            name="staff_id_number" 
+        <input
+            type="text"
+            id="staff_id_number"
+            name="staff_id_number"
             placeholder="e.g. STF-2024-118"
             value="{{ old('staff_id_number') }}"
             required
         >
         @error('staff_id_number')
+            <div class="field-error">{{ $message }}</div>
+        @enderror
+    </div>
+@endif
+                @if (isset($role) && $role === 'student')
+    <div class="form-group">
+        <label for="student_id_number">Student ID Number:</label>
+        <input
+            type="text"
+            id="student_id_number"
+            name="student_id_number"
+            placeholder="e.g. STU-2024-118"
+            value="{{ old('student_id_number') }}"
+            required
+        >
+        @error('student_id_number')
             <div class="field-error">{{ $message }}</div>
         @enderror
     </div>

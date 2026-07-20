@@ -50,6 +50,7 @@ public class SettingsController {
     @FXML private Label errorLabel;
     @FXML private Label userInitialsLabel;
     @FXML private Label userNameLabel;
+    @FXML private Label userRoleLabel;
     @FXML private HBox themeSwatchesBox;
     @FXML private SidebarController sidebarController;
 
@@ -70,6 +71,7 @@ public class SettingsController {
             ? SessionManager.userEmail : SessionManager.fullName;
         userNameLabel.setText(name);
         userInitialsLabel.setText(TextUtil.initials(name));
+        userRoleLabel.setText((SessionManager.role == null || SessionManager.role.isBlank() ? "Student" : SessionManager.role) + " Account");
 
         buildThemeSwatches();
     }
@@ -207,6 +209,7 @@ public class SettingsController {
         SessionManager.userId = 0;
         SessionManager.userEmail = "";
         SessionManager.fullName = "";
+        SessionManager.role = "";
         SessionManager.currentTheme = "luna";
         SessionManager.sidebarCollapsed = false;
         loadLogin();

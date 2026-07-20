@@ -5,6 +5,10 @@ public class SessionManager {
     public static int userId = 1;
     public static String userEmail = "";
     public static String fullName = "";
+    // "Student", "Lecturer", etc. - set from /api/login's response. Used by
+    // SidebarController to trim the nav down to Dashboard/Topic Discussions/
+    // Settings only for a logged-in Lecturer on desktop (web is unaffected).
+    public static String role = "";
 
     // "luna" (default), "black", "brown", or "green" - matches User.ThemeColor
     // on the web side exactly. WindowUtil.applyScene() reads this on every

@@ -44,6 +44,7 @@ public class DashboardController {
 
     @FXML private Label userInitialsLabel;
     @FXML private Label userNameLabel;
+    @FXML private Label userRoleLabel;
     @FXML private Label syncStatusLabel;
     @FXML private Label lastSyncLabel;
     @FXML private VBox pendingUploadsCard;
@@ -55,6 +56,8 @@ public class DashboardController {
     @FXML private Label statNotificationsLabel;
     @FXML private Label statParticipationLabel;
     @FXML private Label statQuizAvgLabel;
+    @FXML private VBox participationCard;
+    @FXML private VBox quizAvgCard;
 
     @FXML private Label upcomingQuizTitleLabel;
     @FXML private Label upcomingQuizMetaLabel;
@@ -148,6 +151,17 @@ public class DashboardController {
             ? SessionManager.userEmail : SessionManager.fullName;
         userNameLabel.setText(name);
         userInitialsLabel.setText(TextUtil.initials(name));
+        userRoleLabel.setText((SessionManager.role == null || SessionManager.role.isBlank() ? "Student" : SessionManager.role) + " Account");
+
+        // Participation and Quiz Average are per-student metrics a lecturer
+        // doesn't personally accumulate (they assign/grade these, not earn
+        // them) - hidden for a Lecturer account, same as the sidebar trim.
+        if ("Lecturer".equalsIgnoreCase(SessionManager.role)) {
+            participationCard.setVisible(false);
+            participationCard.setManaged(false);
+            quizAvgCard.setVisible(false);
+            quizAvgCard.setManaged(false);
+        }
     }
 
     private static final String DASHBOARD_ENDPOINT = "/api/dashboard";

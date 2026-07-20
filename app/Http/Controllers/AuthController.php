@@ -89,7 +89,10 @@ public function apiRegister(Request $request)
 {
     $validated = $request->validate([
         'full_name' => ['required', 'string', 'min:3', 'max:255'],
-        'email' => ['required', 'string', 'email', 'max:255', 'unique:User,Email'],
+        // Desktop always registers as Student, so the @mak.ug domain rule
+        // always applies here (unlike the web's RegisterRequest, which only
+        // adds it when the selected role is student).
+        'email' => ['required', 'string', 'email', 'max:255', 'unique:User,Email', 'regex:/@mak\.ug$/i'],
         'username' => ['required', 'string', 'min:3', 'max:255', 'unique:User,Handle', 'alpha_dash'],
         // Same composition rule as the web's RegisterRequest (mixed case +
         // number + symbol, not just length) - this endpoint used to only
@@ -103,7 +106,27 @@ public function apiRegister(Request $request)
             Password::min(8)->mixedCase()->numbers()->symbols(),
         ],
         'rules_accepted' => ['required', 'accepted'],
+        // Same pre-provisioned-ID gate as the web's student path - this
+        // endpoint used to create a Student account with no verification at
+        // all, which would have completely bypassed the whitelist the web
+        // now enforces.
+        'student_id_number' => ['required', 'string', 'exists:StudentIDs,StudentIDNumber'],
+    ], [
+        'email.regex' => 'Students must register with a @mak.ug email address.',
+        'student_id_number.required' => 'Student ID number is required.',
+        'student_id_number.exists' => 'This student ID is invalid or has already been used. Please contact your administrator.',
     ]);
+
+    $studentRecord = \App\Models\StudentId::where('StudentIDNumber', $validated['student_id_number'])
+        ->where('IsUsed', false)
+        ->first();
+
+    if (!$studentRecord) {
+        return response()->json([
+            'message' => 'This student ID is invalid or has already been used. Please contact your administrator.',
+            'errors' => ['student_id_number' => ['This student ID is invalid or has already been used. Please contact your administrator.']],
+        ], 422);
+    }
 
     $user = User::create([
         'UserName' => $validated['full_name'],
@@ -115,6 +138,11 @@ public function apiRegister(Request $request)
         'Status' => 'Active',
         'RulesAccepted' => true,
         'LastActive' => now(),
+    ]);
+
+    $studentRecord->update([
+        'IsUsed' => true,
+        'LinkedUserID' => $user->UserID,
     ]);
 
     Log::info('User registered successfully via desktop client', [
@@ -150,6 +178,7 @@ public function apiLogin(Request $request)
           'id'    => $user->UserID,
           'email' => $user->Email,
           'name'  => $user->UserName,
+          'role' => $user->Role,
           'theme_color' => $user->ThemeColor ?? 'luna',
       ],
   ]);
@@ -212,6 +241,7 @@ public function apiLogin(Request $request)
 
     try {
         $staffRecord = null;
+        $studentRecord = null;
 
         if ($role === 'lecturer') {
             $staffRecord = \App\Models\LecturerStaffId::where('StaffIDNumber', $request->staff_id_number)
@@ -221,6 +251,21 @@ public function apiLogin(Request $request)
             if (!$staffRecord) {
                 return back()
                     ->withErrors(['staff_id_number' => 'This staff ID is invalid or has already been used. Please contact your administrator.'])
+                    ->withInput($request->except('password', 'password_confirmation'));
+            }
+        }
+
+        // Same pre-provisioned-ID gate as lecturers, so anyone registering
+        // as a student needs a number an admin already loaded from the
+        // class roster - self-declaring "student" alone used to be enough.
+        if ($role === 'student') {
+            $studentRecord = \App\Models\StudentId::where('StudentIDNumber', $request->student_id_number)
+                ->where('IsUsed', false)
+                ->first();
+
+            if (!$studentRecord) {
+                return back()
+                    ->withErrors(['student_id_number' => 'This student ID is invalid or has already been used. Please contact your administrator.'])
                     ->withInput($request->except('password', 'password_confirmation'));
             }
         }
@@ -239,6 +284,13 @@ public function apiLogin(Request $request)
 
         if ($staffRecord) {
             $staffRecord->update([
+                'IsUsed' => true,
+                'LinkedUserID' => $user->UserID,
+            ]);
+        }
+
+        if ($studentRecord) {
+            $studentRecord->update([
                 'IsUsed' => true,
                 'LinkedUserID' => $user->UserID,
             ]);

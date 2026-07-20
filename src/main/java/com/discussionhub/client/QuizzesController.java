@@ -49,6 +49,7 @@ public class QuizzesController {
     @FXML private VBox tabContentBox;
     @FXML private Label userInitialsLabel;
     @FXML private Label userNameLabel;
+    @FXML private Label userRoleLabel;
     @FXML private SidebarController sidebarController;
 
     private DatabaseManager dbManager;
@@ -66,6 +67,7 @@ public class QuizzesController {
             ? SessionManager.userEmail : SessionManager.fullName;
         userNameLabel.setText(name);
         userInitialsLabel.setText(TextUtil.initials(name));
+        userRoleLabel.setText((SessionManager.role == null || SessionManager.role.isBlank() ? "Student" : SessionManager.role) + " Account");
 
         load();
     }

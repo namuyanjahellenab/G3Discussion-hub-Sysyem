@@ -38,6 +38,7 @@ public class RecommendController {
     @FXML private Label syncStatusLabel;
     @FXML private Label userInitialsLabel;
     @FXML private Label userNameLabel;
+    @FXML private Label userRoleLabel;
     @FXML private FlowPane interestTagsBox;
     @FXML private VBox topicsBox;
     @FXML private SidebarController sidebarController;
@@ -55,6 +56,7 @@ public class RecommendController {
             ? SessionManager.userEmail : SessionManager.fullName;
         userNameLabel.setText(name);
         userInitialsLabel.setText(TextUtil.initials(name));
+        userRoleLabel.setText((SessionManager.role == null || SessionManager.role.isBlank() ? "Student" : SessionManager.role) + " Account");
 
         loadRecommendations();
     }

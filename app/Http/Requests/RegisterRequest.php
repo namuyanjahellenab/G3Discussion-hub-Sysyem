@@ -32,6 +32,13 @@ class RegisterRequest extends FormRequest
             $rules['staff_id_number'] = ['required', 'string', 'exists:LecturerStaffIDs,StaffIDNumber'];
         }
 
+        if (session('registration_role') === 'student') {
+            $rules['student_id_number'] = ['required', 'string', 'exists:StudentIDs,StudentIDNumber'];
+            // Only students are restricted to this domain - lecturers keep
+            // whatever email their staff ID registration already used.
+            $rules['email'][] = 'regex:/@mak\.ug$/i';
+        }
+
         return $rules;
     }
 
@@ -44,6 +51,7 @@ class RegisterRequest extends FormRequest
             'email.required' => 'Email address is required.',
             'email.email' => 'Please enter a valid email address.',
             'email.unique' => 'This email address is already registered.',
+            'email.regex' => 'Students must register with a @mak.ug email address.',
             'username.required' => 'Username is required.',
             'username.min' => 'Username must be at least 3 characters.',
             'username.unique' => 'This username is already taken.',
@@ -54,6 +62,8 @@ class RegisterRequest extends FormRequest
             'rules_accepted.accepted' => 'You must accept the platform rules to proceed.',
             'staff_id_number.required' => 'Staff ID number is required for lecturer registration.',
             'staff_id_number.exists' => 'This staff ID number was not recognized. Please contact your administrator.',
+            'student_id_number.required' => 'Student ID number is required for student registration.',
+            'student_id_number.exists' => 'This student ID number was not recognized. Please contact your administrator.',
         ];
     }
 }

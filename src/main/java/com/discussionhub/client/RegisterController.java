@@ -20,6 +20,7 @@ import java.nio.charset.StandardCharsets;
 public class RegisterController {
 
     @FXML private TextField fullNameField;
+    @FXML private TextField studentIdField;
     @FXML private TextField emailField;
     @FXML private TextField usernameField;
     @FXML private PasswordField passwordField;
@@ -102,12 +103,13 @@ public class RegisterController {
     @FXML
     public void onCompleteRegistration() {
         String name = fullNameField.getText();
+        String studentId = studentIdField.getText();
         String email = emailField.getText();
         String username = usernameField.getText();
         String password = passwordField.getText();
         String confirm = confirmPasswordField.getText();
 
-        if (name.isEmpty() || email.isEmpty() || username.isEmpty() || password.isEmpty()) {
+        if (name.isEmpty() || studentId.isEmpty() || email.isEmpty() || username.isEmpty() || password.isEmpty()) {
             showError("All fields are required.");
             return;
         }
@@ -133,6 +135,7 @@ public class RegisterController {
 
                 org.json.JSONObject payload = new org.json.JSONObject();
                 payload.put("full_name", name);
+                payload.put("student_id_number", studentId);
                 payload.put("email", email);
                 payload.put("username", username);
                 payload.put("password", password);

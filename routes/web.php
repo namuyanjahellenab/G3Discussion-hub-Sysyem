@@ -236,6 +236,10 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
     Route::delete('/lecturer-staff/{staffId}', [AdminLecturerStaffController::class, 'destroy'])->name('lecturer-staff.destroy');
     Route::post('/lecturer-staff/{user}/promote', [AdminLecturerStaffController::class, 'promote'])->name('lecturer-staff.promote');
 Route::post('/lecturer-staff/{user}/demote', [AdminLecturerStaffController::class, 'demote'])->name('lecturer-staff.demote');
+
+    Route::get('/student-ids', [\App\Http\Controllers\AdminStudentIdController::class, 'index'])->name('student-ids.index');
+    Route::post('/student-ids', [\App\Http\Controllers\AdminStudentIdController::class, 'store'])->name('student-ids.store');
+    Route::delete('/student-ids/{studentId}', [\App\Http\Controllers\AdminStudentIdController::class, 'destroy'])->name('student-ids.destroy');
     Route::get('/blacklist', [\App\Http\Controllers\Admin\AdminBlacklistController::class, 'index'])->name('blacklist');
 Route::post('/blacklist', [\App\Http\Controllers\Admin\AdminBlacklistController::class, 'store'])->name('blacklist.store');
 Route::delete('/blacklist/{blacklist}', [\App\Http\Controllers\Admin\AdminBlacklistController::class, 'destroy'])->name('blacklist.destroy');

@@ -67,6 +67,7 @@ public class TopicController {
     @FXML private Button removeAttachmentButton;
     @FXML private Label userInitialsLabel;
     @FXML private Label userNameLabel;
+    @FXML private Label userRoleLabel;
     @FXML private Label infoGroupLabel;
     @FXML private Label infoStatusLabel;
     @FXML private Label infoActivityLabel;
@@ -147,6 +148,7 @@ public class TopicController {
             ? SessionManager.userEmail : SessionManager.fullName;
         userNameLabel.setText(name);
         userInitialsLabel.setText(TextUtil.initials(name));
+        userRoleLabel.setText((SessionManager.role == null || SessionManager.role.isBlank() ? "Student" : SessionManager.role) + " Account");
     }
 
     public void loadTopic(String topicTitle, int topicId) {
@@ -745,20 +747,87 @@ public class TopicController {
         }
 
         if ("image".equals(type)) {
+            // Capped height, not just width - a tall/portrait screenshot
+            // used to render at full native height with nothing limiting
+            // it, so one reply with an image attached could fill the whole
+            // visible replies area on its own. preserveRatio keeps it from
+            // distorting; clicking still opens the untouched full-size
+            // original via openAttachment().
             String imageSource = isCached ? cachedFile.toURI().toString() : fullUrl;
-            ImageView imageView = new ImageView(new Image(imageSource, 260, 0, true, true, true));
+            ImageView imageView = new ImageView(new Image(imageSource, 260, 220, true, true, true));
             imageView.setPreserveRatio(true);
             imageView.setFitWidth(260);
+            imageView.setFitHeight(220);
             imageView.setStyle("-fx-cursor: hand;");
             imageView.setOnMouseClicked(e -> openAttachment(fullUrl, cachedFile));
-            VBox.setMargin(imageView, new Insets(4, 0, 0, 0));
-            return imageView;
+
+            Button downloadBtn = new Button("⬇ Save");
+            downloadBtn.setStyle("-fx-background-color: #F4F8FA; -fx-text-fill: #33455A; -fx-font-size: 10.5; "
+                + "-fx-padding: 3 8; -fx-background-radius: 6; -fx-cursor: hand;");
+            downloadBtn.setOnAction(e -> downloadAttachment(fullUrl, cachedFile, name));
+
+            VBox wrapper = new VBox(4, imageView, downloadBtn);
+            VBox.setMargin(wrapper, new Insets(4, 0, 0, 0));
+            return wrapper;
         }
 
         Label fileLink = new Label("📎 " + name);
         fileLink.setStyle("-fx-text-fill: #26658C; -fx-font-weight: bold; -fx-font-size: 12; -fx-cursor: hand; -fx-underline: true;");
         fileLink.setOnMouseClicked(e -> openAttachment(fullUrl, cachedFile));
-        return fileLink;
+
+        Button downloadBtn = new Button("⬇");
+        downloadBtn.setStyle("-fx-background-color: transparent; -fx-text-fill: #6B8094; -fx-font-size: 12; -fx-padding: 0 0 0 6; -fx-cursor: hand;");
+        downloadBtn.setOnAction(e -> downloadAttachment(fullUrl, cachedFile, name));
+
+        HBox fileRow = new HBox(fileLink, downloadBtn);
+        fileRow.setAlignment(Pos.CENTER_LEFT);
+        return fileRow;
+    }
+
+    /** Small, simple "Save As" for an attachment - copies the already-cached
+     *  local file if there is one (the common case, since attachments get
+     *  cached in the background as soon as they're viewed), otherwise fetches
+     *  it fresh. Mirrors onExportPdf()'s FileChooser pattern. */
+    private void downloadAttachment(String fullUrl, File cachedFile, String suggestedName) {
+        new Thread(() -> {
+            byte[] bytes = null;
+            if (cachedFile.isFile()) {
+                try {
+                    bytes = Files.readAllBytes(cachedFile.toPath());
+                } catch (IOException e) {
+                    System.err.println("[Topic] Couldn't read cached attachment: " + e.getMessage());
+                }
+            }
+            if (bytes == null) {
+                try {
+                    HttpURLConnection conn = (HttpURLConnection) URI.create(fullUrl).toURL().openConnection();
+                    conn.setRequestMethod("GET");
+                    if (conn.getResponseCode() == 200) {
+                        bytes = conn.getInputStream().readAllBytes();
+                    }
+                } catch (Exception e) {
+                    System.err.println("[Topic] Couldn't download attachment: " + e.getMessage());
+                }
+            }
+            final byte[] finalBytes = bytes;
+            Platform.runLater(() -> {
+                if (finalBytes == null) {
+                    Alert alert = new Alert(Alert.AlertType.ERROR, "Couldn't download this attachment — check your connection.");
+                    alert.showAndWait();
+                    return;
+                }
+                FileChooser chooser = new FileChooser();
+                chooser.setInitialFileName(suggestedName);
+                File file = chooser.showSaveDialog(topicTitleLabel.getScene().getWindow());
+                if (file != null) {
+                    try {
+                        Files.write(file.toPath(), finalBytes);
+                    } catch (IOException e) {
+                        System.err.println("[Topic] Error saving attachment: " + e.getMessage());
+                    }
+                }
+            });
+        }).start();
     }
 
     private void openAttachment(String fullUrl, File cachedFile) {
