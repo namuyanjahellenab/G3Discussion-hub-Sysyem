@@ -59,7 +59,7 @@ Route::get('/topics/create/{group}', [DiscussionHubPageController::class, 'creat
     ->middleware('verified')->name('topics.create');
 
 Route::post('/topics', [DiscussionHubPageController::class, 'storeTopic'])
-    ->middleware('verified')->name('topics.store');
+    ->middleware(['verified', 'blacklist'])->name('topics.store');
 
 Route::get('/topics/my-questions', [DiscussionHubPageController::class, 'myQuestions'])
     ->middleware('verified')->name('topics.my-questions');
@@ -68,7 +68,7 @@ Route::get('/topics/{topic}', [DiscussionHubPageController::class, 'showTopic'])
     ->middleware('verified')->name('topics.show');
 
 Route::post('/posts/{post}/reply', [DiscussionHubPageController::class, 'storeReply'])
-    ->middleware('verified')->name('posts.reply');
+    ->middleware(['verified', 'blacklist'])->name('posts.reply');
 
 Route::post('/replies/{reply}/accept', [DiscussionHubPageController::class, 'acceptAnswer'])
     ->middleware('verified')->name('replies.accept');
@@ -95,7 +95,7 @@ Route::delete('/replies/{reply}', [DiscussionHubPageController::class, 'deleteRe
         ->name('messages.index');
 
 Route::post('/messages', [DiscussionHubPageController::class, 'storeMessage'])
-        ->middleware('verified')
+        ->middleware(['verified', 'blacklist'])
         ->name('messages.store');
 
     Route::get('/messages/poll', [DiscussionHubPageController::class, 'pollMessages'])
@@ -264,5 +264,5 @@ Route::patch('/notifications/read-all', [DiscussionHubPageController::class, 'ma
     ->middleware('verified')->name('notifications.read.all');
     Route::middleware('auth')->group(function () {
     Route::get('/groups/{groupId}/messages/{conversationId?}', [GroupChatController::class, 'index'])->name('student.messages');
-    Route::post('/groups/{groupId}/messages', [GroupChatController::class, 'store'])->name('student.messages.store');
+    Route::post('/groups/{groupId}/messages', [GroupChatController::class, 'store'])->middleware('blacklist')->name('student.messages.store');
 });

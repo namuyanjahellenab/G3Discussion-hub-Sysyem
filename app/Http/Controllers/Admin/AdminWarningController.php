@@ -5,6 +5,8 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Warning;
 use App\Models\Blacklist;
+use App\Models\Notification;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -24,12 +26,22 @@ class AdminWarningController extends Controller
         DB::transaction(function () use ($validated) {
             // WarningNo = sequential count of warnings ever issued to this user
             $nextWarningNo = Warning::where('UserID', $validated['UserID'])->count() + 1;
+            $expiryDate = now()->addDays(self::WARNING_EXPIRY_DAYS);
 
             Warning::create([
                 'UserID'     => $validated['UserID'],
                 'WarningNo'  => $nextWarningNo,
                 'Reason'     => $validated['Reason'],
-                'ExpiryDate' => now()->addDays(self::WARNING_EXPIRY_DAYS),
+                'ExpiryDate' => $expiryDate,
+            ]);
+
+            // Warnings carry no IssuedBy column (anonymous by design), so the
+            // student-facing message never names an admin either.
+            Notification::create([
+                'UserID'  => $validated['UserID'],
+                'Message' => "You've received warning #{$nextWarningNo} from an administrator: \"{$validated['Reason']}\". This warning stays on your record until {$expiryDate->format('d M Y')}.",
+                'Status'  => false,
+                'Type'    => 'Warning',
             ]);
 
             $this->maybeAutoBlacklist($validated['UserID']);
@@ -61,13 +73,26 @@ class AdminWarningController extends Controller
             return; // don't stack a second active blacklist
         }
 
+        $endDate = now()->addDays(self::AUTO_BLACKLIST_DAYS);
+
         Blacklist::create([
             'UserID'    => $userId,
             'StartDate' => now(),
-            'EndDate'   => now()->addDays(self::AUTO_BLACKLIST_DAYS),
+            'EndDate'   => $endDate,
             'Reason'    => 'Auto-blacklisted: reached ' . self::WARNING_THRESHOLD . ' active warnings',
             'Type'      => 'Auto',
             'IssuedBy'  => null, // system-issued, no admin
+        ]);
+
+        // Keep User.Status in sync with the Blacklist table so the login
+        // gate (AuthController) and any Status-based checks stay accurate.
+        User::where('UserID', $userId)->update(['Status' => 'Blacklisted']);
+
+        Notification::create([
+            'UserID'  => $userId,
+            'Message' => "Your account has been automatically restricted until {$endDate->format('d M Y')} for reaching " . self::WARNING_THRESHOLD . ' active warnings. You will not be able to post or send messages until then.',
+            'Status'  => false,
+            'Type'    => 'Blacklist',
         ]);
     }
 }

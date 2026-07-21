@@ -1,831 +1,547 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="csrf-token" content="{{ csrf_token() }}">
-    <title>Configure Quiz | Discussion Hub</title>
-    <link rel="preconnect" href="https://fonts.bunny.net">
-    <link href="https://fonts.bunny.net/css?family=sora:400,500,600,700|inter:400,500,600,700&display=swap" rel="stylesheet" />
-    @vite(['resources/css/icons.css'])
-    <link rel="stylesheet" href="{{ asset('css/admin-theme.css') }}">
-    <style>
-        :root {
-            --surface-page: var(--surface-bg);
-            --shell-max: 1280px;
-        }
-
-        * { box-sizing: border-box; }
-
-        html, body { min-height: 100%; }
-
-        body {
-            margin: 0;
-            font-family: var(--font-body);
-            background: var(--surface-page);
-            color: var(--text-body);
-        }
-
-        h1, h2, h3, h4, h5, h6 {
-            font-family: var(--font-display);
-            color: var(--text-heading);
-            letter-spacing: -0.02em;
-        }
-
-        .sidebar-panel {
-            background: var(--surface-card);
-            border-right: 1px solid var(--surface-border);
-            min-height: 100vh;
-        }
-
-        .sidebar-brand {
-            font-family: var(--font-display);
-            color: var(--text-heading) !important;
-            font-weight: 600;
-            letter-spacing: 0.02em;
-            border-bottom: 1px solid var(--surface-border);
-        }
-
-        .sidebar-brand i {
-            color: var(--luna-mid);
-        }
-
-        .sidebar-menu {
-            list-style: none;
-            margin: 0;
-            padding: 12px 0;
-        }
-
-        .sidebar-menu li {
-            list-style: none;
-        }
-
-        .sidebar-menu li a {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            padding: 9px 20px;
-            font-family: var(--font-body);
-            color: var(--text-body) !important;
-            text-decoration: none !important;
-            border-left: 3px solid transparent;
-        }
-
-        .sidebar-menu li a:hover {
-            background: var(--surface-bg);
-            color: var(--text-heading) !important;
-        }
-
-        .sidebar-menu li a i {
-            color: var(--luna-mid) !important;
-            width: 16px;
-            text-align: center;
-        }
-
-        .sidebar-menu li.active a {
-            background: var(--accent-amber) !important;
-            color: #fff !important;
-            font-weight: 600;
-        }
-
-        .sidebar-menu li.active a i {
-            color: #fff !important;
-        }
-
-        .sidebar-menu li a.disabled {
-            opacity: 0.55;
-            pointer-events: none;
-        }
-
-        .app-shell { display: flex; min-height: 100vh; }
-        .main { flex: 1; min-width: 0; }
-
-        .topbar {
-            background: var(--surface-card);
-            border-bottom: 1px solid var(--surface-border);
-            min-height: 72px;
-            padding: 14px 28px;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 18px;
-            position: sticky;
-            top: 0;
-            z-index: 30;
-            box-shadow: var(--shadow-soft);
-        }
-
-        .topbar-left, .topbar-right { display: flex; align-items: center; gap: 12px; }
-
-        .topbar-search {
-            flex: 1;
-            max-width: 420px;
-            position: relative;
-        }
-
-        .topbar-search i {
-            position: absolute;
-            left: 14px;
-            top: 50%;
-            transform: translateY(-50%);
-            color: var(--text-muted);
-            font-size: 13px;
-        }
-
-        .topbar-search input {
-            width: 100%;
-            border: 1px solid var(--surface-border);
-            background: var(--surface-bg);
-            border-radius: 999px;
-            padding: 10px 16px 10px 38px;
-            font-family: var(--font-body);
-            font-size: 13px;
-            color: var(--text-heading);
-            outline: none;
-        }
-
-        .topbar-search input:focus {
-            border-color: var(--luna-light);
-            background: #fff;
-            box-shadow: 0 0 0 0.2rem rgba(84, 172, 191, 0.18);
-        }
-
-        .icon-btn {
-            width: 38px;
-            height: 38px;
-            border-radius: 10px;
-            background: var(--surface-bg);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: var(--text-heading);
-            font-size: 14px;
-            cursor: pointer;
-            position: relative;
-            border: 1px solid transparent;
-        }
-
-        .icon-btn:hover { background: #EAF1F4; }
-        .icon-btn .dot {
-            position: absolute;
-            top: 8px;
-            right: 8px;
-            width: 7px;
-            height: 7px;
-            border-radius: 50%;
-            background: var(--accent-danger);
-        }
-
-        .user-chip {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            padding: 6px 12px 6px 6px;
-            border-radius: 999px;
-            background: var(--surface-bg);
-            border: 1px solid var(--surface-border);
-            cursor: pointer;
-        }
-
-        .user-chip .avatar {
-            width: 32px;
-            height: 32px;
-            border-radius: 50%;
-            background: var(--luna-mid);
-            color: #fff;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-weight: 700;
-            font-size: 12px;
-            flex-shrink: 0;
-        }
-
-        .user-chip .meta { line-height: 1.2; }
-        .user-chip .name { font-size: 13px; font-weight: 600; color: var(--text-heading); }
-        .user-chip .role { font-size: 11px; color: var(--text-muted); }
-        .user-chip .chevron { font-size: 10px; color: var(--text-muted); }
-
-        .content { padding: 28px; max-width: var(--shell-max); padding-bottom: 110px; }
-
-        .breadcrumb {
-            font-size: 12px;
-            color: var(--text-muted);
-            margin-bottom: 8px;
-            font-family: var(--font-body);
-        }
-
-        .breadcrumb a { color: var(--luna-mid); text-decoration: none; }
-        .breadcrumb a:hover { text-decoration: underline; }
-
-        .page-header {
-            display: flex;
-            align-items: flex-start;
-            justify-content: space-between;
-            margin-bottom: 24px;
-            flex-wrap: wrap;
-            gap: 12px;
-        }
-
-        .page-title {
-            font-size: 24px;
-            font-weight: 800;
-            color: var(--text-heading);
-            letter-spacing: -0.3px;
-            margin: 0;
-        }
-
-        .header-actions { display: flex; gap: 10px; flex-wrap: wrap; }
-
-        .btn {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            gap: 8px;
-            padding: 0.55rem 1rem;
-            border-radius: var(--radius-md);
-            font-family: var(--font-body);
-            font-size: 13px;
-            font-weight: 600;
-            line-height: 1.2;
-            cursor: pointer;
-            border: 1px solid transparent;
-            box-shadow: var(--shadow-soft);
-            transition: transform 0.12s ease, box-shadow 0.12s ease, background-color 0.15s ease, border-color 0.15s ease;
-        }
-
-        .btn:active { transform: scale(0.98); }
-        .btn svg { width: 14px; height: 14px; }
-
-        .btn-outline-secondary {
-            background: var(--surface-card);
-            color: var(--text-body);
-            border-color: var(--surface-border);
-        }
-
-        .btn-outline-secondary:hover {
-            background: var(--surface-bg);
-            color: var(--text-heading);
-            border-color: var(--surface-border);
-        }
-
-        .btn-primary {
-            background: var(--luna-mid);
-            color: #fff;
-            border-color: var(--luna-mid);
-        }
-
-        .btn-primary:hover {
-            background: var(--luna-dark);
-            border-color: var(--luna-dark);
-        }
-
-        .card {
-            background: var(--surface-card);
-            border: 1px solid var(--surface-border);
-            border-top: 3px solid var(--luna-mid);
-            border-radius: var(--radius-lg);
-            box-shadow: var(--shadow-soft);
-            margin-bottom: 16px;
-        }
-
-        .card-body { padding: 20px; }
-
-        .field-label {
-            font-size: 11px;
-            font-weight: 700;
-            color: var(--text-muted);
-            letter-spacing: 0.08em;
-            text-transform: uppercase;
-            margin-bottom: 6px;
-            display: block;
-            font-family: var(--font-body);
-        }
-
-        .form-control, .form-select {
-            width: 100%;
-            padding: 0.5rem 0.8rem;
-            border: 1px solid var(--surface-border);
-            border-radius: var(--radius-md);
-            font-size: 14px;
-            color: var(--text-heading);
-            background: #fff;
-            font-family: var(--font-body);
-            box-shadow: none;
-            outline: none;
-        }
-
-        .form-control:focus, .form-select:focus {
-            border-color: var(--luna-light);
-            box-shadow: 0 0 0 0.2rem rgba(84, 172, 191, 0.2);
-        }
-
-        .field-row {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 14px;
-            margin-bottom: 14px;
-        }
-
-        .field-row-3 {
-            display: grid;
-            grid-template-columns: 1fr 1fr 1fr;
-            gap: 14px;
-            margin-bottom: 14px;
-        }
-
-        .field-group { margin-bottom: 14px; }
-
-        .questions-header {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 12px;
-            margin-bottom: 16px;
-            flex-wrap: wrap;
-        }
-
-        .questions-count { display: flex; align-items: center; gap: 10px; }
-
-        .q-count-badge {
-            min-width: 48px;
-            height: 30px;
-            padding: 0 12px;
-            border-radius: 999px;
-            background: var(--luna-mid);
-            color: #fff;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 12px;
-            font-weight: 800;
-            letter-spacing: 0.04em;
-        }
-
-        .questions-title {
-            font-family: var(--font-display);
-            font-size: 12px;
-            font-weight: 800;
-            color: var(--text-muted);
-            letter-spacing: 0.12em;
-            text-transform: uppercase;
-        }
-
-        .btn-add {
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            padding: 0.55rem 1rem;
-            border-radius: var(--radius-md);
-            font-family: var(--font-body);
-            font-size: 13px;
-            font-weight: 600;
-            border: 1px solid transparent;
-            box-shadow: var(--shadow-medium);
-            position: fixed;
-            right: 24px;
-            bottom: 24px;
-            z-index: 999;
-        }
-
-        .btn-add svg { width: 13px; height: 13px; }
-
-        .q-card {
-            border: 1px solid var(--surface-border);
-            border-radius: var(--radius-lg);
-            margin-bottom: 12px;
-            overflow: hidden;
-            transition: border-color 0.15s ease, box-shadow 0.15s ease;
-            background: var(--surface-card);
-        }
-
-        .q-card:focus-within {
-            border-color: var(--luna-light);
-            box-shadow: 0 0 0 0.2rem rgba(84, 172, 191, 0.12);
-        }
-
-        .q-card-header {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 12px;
-            padding: 12px 16px;
-            background: var(--surface-bg);
-            border-bottom: 1px solid var(--surface-border);
-        }
-
-        .q-card-title { font-size: 13px; font-weight: 700; color: var(--text-heading); }
-
-        .q-type-badge {
-            font-size: 10px;
-            font-weight: 800;
-            padding: 2px 7px;
-            border-radius: 999px;
-            letter-spacing: 0.5px;
-        }
-
-        .badge-mcq { background: rgba(84, 172, 191, 0.14); color: var(--luna-mid); }
-        .badge-text { background: rgba(23, 91, 128, 0.12); color: var(--luna-dark); }
-
-        .q-card-body { padding: 16px; }
-        .q-row { display: grid; grid-template-columns: 1fr auto; gap: 12px; margin-bottom: 12px; align-items: end; }
-        .q-row-type { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px; }
-
-        .options-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 8px; }
-
-        .option-row {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            background: var(--surface-bg);
-            border: 1px solid var(--surface-border);
-            border-radius: var(--radius-md);
-            padding: 6px 10px;
-            transition: border-color 0.15s ease, box-shadow 0.15s ease;
-        }
-
-        .option-row:focus-within {
-            border-color: var(--luna-light);
-            box-shadow: 0 0 0 0.2rem rgba(84, 172, 191, 0.12);
-        }
-
-        .option-row.correct-option {
-            border-color: var(--accent-success);
-            background: var(--accent-success-bg);
-        }
-
-        .option-radio {
-            accent-color: var(--luna-mid);
-            width: 14px;
-            height: 14px;
-            cursor: pointer;
-            flex-shrink: 0;
-        }
-
-        .option-input {
-            border: none;
-            background: none;
-            font-size: 13px;
-            color: var(--text-heading);
-            outline: none;
-            width: 100%;
-            font-family: var(--font-body);
-        }
-
-        .correct-label {
-            font-size: 10px;
-            font-weight: 700;
-            color: var(--accent-success);
-            white-space: nowrap;
-            display: none;
-            font-family: var(--font-body);
-        }
-
-        .option-row.correct-option .correct-label { display: block; }
-
-        .q-card-header .btn-danger {
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            padding: 4px 10px;
-            border-radius: 999px;
-            border: 1px solid rgba(217, 72, 61, 0.28);
-            background: var(--surface-card);
-            color: var(--accent-danger);
-            font-family: var(--font-body);
-            font-size: 11px;
-            font-weight: 700;
-            line-height: 1;
-            box-shadow: none;
-        }
-
-        .q-card-header .btn-danger:hover {
-            background: var(--accent-danger-bg);
-        }
-
-        .q-card-header .btn-danger svg {
-            width: 12px;
-            height: 12px;
-        }
-
-        .options-actions {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            margin-top: 8px;
-            flex-wrap: wrap;
-        }
-
-        .btn-add-option {
-            background: var(--surface-card);
-            border: 1px dashed var(--surface-border);
-            color: var(--text-muted);
-            border-radius: var(--radius-md);
-            padding: 5px 12px;
-            font-size: 12px;
-            font-family: var(--font-body);
-            cursor: pointer;
-            transition: border-color 0.15s ease, color 0.15s ease, background 0.15s ease;
-        }
-
-        .btn-add-option:hover {
-            border-color: var(--luna-mid);
-            color: var(--luna-mid);
-            background: var(--surface-bg);
-        }
-
-        .correct-hint {
-            font-size: 11px;
-            color: var(--text-muted);
-            display: inline-flex;
-            align-items: center;
-            gap: 4px;
-            font-family: var(--font-body);
-        }
-
-        .correct-hint svg { width: 12px; height: 12px; color: var(--accent-success); }
-
-        .open-text-area {
-            width: 100%;
-            padding: 8px 12px;
-            border: 1px solid var(--surface-border);
-            border-radius: var(--radius-md);
-            font-size: 13px;
-            color: var(--text-body);
-            background: var(--surface-bg);
-            resize: none;
-            outline: none;
-            font-family: var(--font-body);
-        }
-
-        .auto-note {
-            background: var(--surface-card);
-            border: 1px solid var(--surface-border);
-            border-left: 4px solid var(--luna-mid);
-            border-radius: var(--radius-lg);
-            padding: 12px 14px;
-            margin-top: 16px;
-            box-shadow: var(--shadow-soft);
-        }
-
-        .auto-note-title {
-            font-size: 11px;
-            font-weight: 700;
-            color: var(--luna-mid);
-            letter-spacing: 0.5px;
-            text-transform: uppercase;
-            display: flex;
-            align-items: center;
-            gap: 5px;
-            margin-bottom: 6px;
-            font-family: var(--font-body);
-        }
-
-        .auto-note-title svg { width: 13px; height: 13px; }
-        .auto-note-text { font-size: 12px; color: var(--text-body); line-height: 1.5; font-family: var(--font-body); }
-
-        .alert {
-            padding: 10px 14px;
-            border-radius: var(--radius-md);
-            font-size: 13px;
-            margin-bottom: 16px;
-            display: none;
-            align-items: center;
-            gap: 8px;
-            box-shadow: var(--shadow-soft);
-            font-family: var(--font-body);
-        }
-
-        .alert.show { display: flex; }
-        .alert-success { background: var(--accent-success-bg); color: #1B6B3A; border: 1px solid #ABE5C8; }
-        .alert-error { background: var(--accent-danger-bg); color: var(--accent-danger); border: 1px solid #FFBDAD; }
-        .alert svg { width: 15px; height: 15px; flex-shrink: 0; }
-
-        .empty-state {
-            text-align: center;
-            padding: 28px 20px;
-            border: 1px dashed var(--surface-border);
-            border-radius: var(--radius-lg);
-            background: var(--surface-bg);
-            color: var(--text-muted);
-            font-size: 13px;
-            font-family: var(--font-body);
-        }
-
-        @media (max-width: 1024px) {
-            .topbar { padding: 14px 20px; flex-wrap: wrap; justify-content: flex-end; }
-            .topbar-search { order: 3; flex-basis: 100%; max-width: none; }
-        }
-
-        @media (max-width: 768px) {
-            .content { padding: 20px 16px 24px; }
-            .field-row, .field-row-3, .options-grid, .q-row, .q-row-type { grid-template-columns: 1fr; }
-            .header-actions { width: 100%; }
-            .header-actions .btn { flex: 1 1 0; }
-            .user-chip .role { display: none; }
-        }
-    </style>
-</head>
-<body class="quiz-schedule-page">
-    <div class="app-shell">
-        @include('layouts.sidebar')
-
-        <div class="main" id="mainContent">
-            <header class="topbar">
-                <div class="topbar-left">
-                    <div class="topbar-search">
-                        <i class="fa-solid fa-magnifying-glass"></i>
-                        <input type="search" placeholder="Search quizzes, groups, students">
-                    </div>
-                </div>
-
-                <div class="topbar-right">
-                    <div id="notification-bell-wrapper" style="position: relative;">
-                        <button class="icon-btn" type="button" id="notification-bell" title="Notifications" aria-label="Notifications">
-                            <i class="fa-regular fa-bell"></i>
-                            <span id="notification-badge" style="display:none; position:absolute; top:2px; right:2px; background:var(--accent-danger); color:#fff; border-radius:50%; font-size:0.6rem; line-height:1; padding:2px 4px; font-weight:700;"></span>
-                        </button>
-                        <div id="notification-dropdown" style="display:none; position:absolute; right:0; top:44px; width:300px; max-height:380px; overflow-y:auto; background:#fff; border:1px solid #e4e7ec; border-radius:10px; box-shadow:0 8px 24px rgba(16,24,40,0.14); z-index:2000;">
-                            <div style="padding:12px 16px; border-bottom:1px solid #e4e7ec; display:flex; justify-content:space-between; align-items:center;">
-                                <strong style="font-size:0.85rem; color:#101828;">Notifications</strong>
-                                <span id="mark-all-read" style="font-size:0.75rem; cursor:pointer; font-weight:600;">Mark all read</span>
-                            </div>
-                            <div id="notification-list">
-                                <div style="padding:16px; font-size:0.8rem; color:#667085;">Loading...</div>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="user-chip" aria-label="Account menu">
-                        <div class="avatar">{{ Str::initials(auth()->user()->UserName ?? 'L') }}</div>
-                        <div class="meta">
-                            <div class="name">{{ auth()->user()->UserName ?? 'Lecturer' }}</div>
-                            <div class="role">Lecturer</div>
-                        </div>
-                        <i class="fa-solid fa-chevron-down chevron"></i>
-                    </div>
-                </div>
-            </header>
-
-            <main class="content">
-                <div class="breadcrumb"><a href="{{ route('quiz.latest-results') }}">Quizzes</a> › Configure Quiz</div>
-
-                <div class="page-header">
-                    <h1 class="page-title">SCHEDULE QUIZ</h1>
-                    <div class="header-actions">
-                        <a href="{{ route('quiz.drafts') }}" class="btn btn-outline-secondary">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-                            MY DRAFTS
-                        </a>
-                        <button class="btn btn-outline-secondary" onclick="saveDraft()">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
-                            SAVE DRAFT
-                        </button>
-                        <button class="btn btn-primary" onclick="publishQuiz()">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
-                            PUBLISH QUIZ
-                        </button>
-                    </div>
-                </div>
-
-                <div class="alert alert-success" id="successMsg">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
-                    <span id="successText"></span>
-                </div>
-                <div class="alert alert-error" id="errorMsg">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
-                    <span id="errorText"></span>
-                </div>
-
-                <div class="card">
-                    <div class="card-body">
-                        <div class="field-group">
-                            <label class="field-label" for="Title">Quiz Title</label>
-                            <input type="text" id="Title" class="form-control" placeholder="e.g. Week 5 - Python Basics">
-                        </div>
-
-                        <div class="field-row">
-                            <div>
-                                <label class="field-label" for="GroupSelector">Group Selector</label>
-                                <select id="GroupSelector" class="form-select">
-                                    <option value="">-- Select Group --</option>
-                                    @foreach($groups as $group)
-                                        <option value="{{ $group->GroupID }}">{{ $group->GroupName }}</option>
-                                    @endforeach
-                                </select>
-                            </div>
-                            <div>
-                                <label class="field-label" for="TargetCategory">Subject Category Selector</label>
-                                <select id="TargetCategory" class="form-select">
-                                    <option value="">-- Select Category --</option>
-                                    <option value="Science">Science</option>
-                                    <option value="Math">Math</option>
-                                    <option value="English">English</option>
-                                    <option value="History">History</option>
-                                    <option value="All Students">All Students</option>
-                                </select>
-                            </div>
-                        </div>
-
-                        <div class="field-row-3">
-                            <div>
-                                <label class="field-label" for="DateInput">
-                                    <span style="display:flex;align-items:center;gap:4px;">
-                                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-                                        Date Input
-                                    </span>
-                                </label>
-                                <input type="date" id="DateInput" class="form-control">
-                            </div>
-                            <div>
-                                <label class="field-label" for="TimeInput">
-                                    <span style="display:flex;align-items:center;gap:4px;">
-                                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-                                        Start Time Input
-                                    </span>
-                                </label>
-                                <input type="time" id="TimeInput" class="form-control">
-                            </div>
-                            <div>
-                                <label class="field-label" for="Duration">
-                                    <span style="display:flex;align-items:center;gap:4px;">
-                                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-                                        Duration (Min)
-                                    </span>
-                                </label>
-                                <input type="number" id="Duration" class="form-control" placeholder="30" min="1">
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="card">
-                    <div class="card-body">
-                        <div class="questions-header">
-                            <div class="questions-count">
-                                <div class="q-count-badge" id="qCountBadge">0</div>
-                                <span class="questions-title">Questions</span>
-                            </div>
-                            <button class="btn btn-primary btn-add" onclick="addQuestion()">
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-                                ADD QUESTION
-                            </button>
-                        </div>
-
-                        <div id="questionsList"></div>
-
-                        <div id="emptyState" class="empty-state">
-                            No questions yet. Click <strong>ADD QUESTION</strong> to get started.
-                        </div>
-                    </div>
-                </div>
-
-                <div class="auto-note">
-                    <div class="auto-note-title">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-                        [SYSTEM] Auto-Submit Behaviour Note
-                    </div>
-                    <div class="auto-note-text">
-                        Quiz auto-submits when countdown reaches 0:00. Late joiners receive remaining time only. Ensure all instructions are clear before publishing.
-                    </div>
-                </div>
-            </main>
+@extends('layouts.app')
+
+@section('content')
+<style>
+    .content { padding: 28px; max-width: 1280px; padding-bottom: 110px; }
+
+    .breadcrumb {
+        font-size: 12px;
+        color: var(--text-muted);
+        margin-bottom: 8px;
+        font-family: var(--font-body);
+    }
+
+    .breadcrumb a { color: var(--luna-mid); text-decoration: none; }
+    .breadcrumb a:hover { text-decoration: underline; }
+
+    .page-header {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        margin-bottom: 24px;
+        flex-wrap: wrap;
+        gap: 12px;
+    }
+
+    .page-title {
+        font-size: 24px;
+        font-weight: 800;
+        color: var(--text-heading);
+        letter-spacing: -0.3px;
+        margin: 0;
+        font-family: var(--font-display);
+    }
+
+    .header-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+
+    .btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        padding: 0.55rem 1rem;
+        border-radius: var(--radius-md);
+        font-family: var(--font-body);
+        font-size: 13px;
+        font-weight: 600;
+        line-height: 1.2;
+        cursor: pointer;
+        border: 1px solid transparent;
+        box-shadow: var(--shadow-soft);
+        transition: transform 0.12s ease, box-shadow 0.12s ease, background-color 0.15s ease, border-color 0.15s ease;
+    }
+
+    .btn:active { transform: scale(0.98); }
+    .btn svg { width: 14px; height: 14px; }
+
+    .btn-outline-secondary {
+        background: var(--surface-card);
+        color: var(--text-body);
+        border-color: var(--surface-border);
+    }
+
+    .btn-outline-secondary:hover {
+        background: var(--surface-bg);
+        color: var(--text-heading);
+        border-color: var(--surface-border);
+    }
+
+    .btn-primary {
+        background: var(--luna-mid);
+        color: #fff;
+        border-color: var(--luna-mid);
+    }
+
+    .btn-primary:hover {
+        background: var(--luna-dark);
+        border-color: var(--luna-dark);
+    }
+
+    .card {
+        background: var(--surface-card);
+        border: 1px solid var(--surface-border);
+        border-top: 3px solid var(--luna-mid);
+        border-radius: var(--radius-lg);
+        box-shadow: var(--shadow-soft);
+        margin-bottom: 16px;
+    }
+
+    .card-body { padding: 20px; }
+
+    .field-label {
+        font-size: 11px;
+        font-weight: 700;
+        color: var(--text-muted);
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        margin-bottom: 6px;
+        display: block;
+        font-family: var(--font-body);
+    }
+
+    .form-control, .form-select {
+        width: 100%;
+        padding: 0.5rem 0.8rem;
+        border: 1px solid var(--surface-border);
+        border-radius: var(--radius-md);
+        font-size: 14px;
+        color: var(--text-heading);
+        background: #fff;
+        font-family: var(--font-body);
+        box-shadow: none;
+        outline: none;
+    }
+
+    .form-control:focus, .form-select:focus {
+        border-color: var(--luna-light);
+        box-shadow: 0 0 0 0.2rem rgba(84, 172, 191, 0.2);
+    }
+
+    .field-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 14px;
+        margin-bottom: 14px;
+    }
+
+    .field-row-3 {
+        display: grid;
+        grid-template-columns: 1fr 1fr 1fr;
+        gap: 14px;
+        margin-bottom: 14px;
+    }
+
+    .field-group { margin-bottom: 14px; }
+
+    .questions-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        margin-bottom: 16px;
+        flex-wrap: wrap;
+    }
+
+    .questions-count { display: flex; align-items: center; gap: 10px; }
+
+    .q-count-badge {
+        min-width: 48px;
+        height: 30px;
+        padding: 0 12px;
+        border-radius: 999px;
+        background: var(--luna-mid);
+        color: #fff;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 12px;
+        font-weight: 800;
+        letter-spacing: 0.04em;
+    }
+
+    .questions-title {
+        font-family: var(--font-display);
+        font-size: 12px;
+        font-weight: 800;
+        color: var(--text-muted);
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+    }
+
+    .btn-add {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 0.55rem 1rem;
+        border-radius: var(--radius-md);
+        font-family: var(--font-body);
+        font-size: 13px;
+        font-weight: 600;
+        border: 1px solid transparent;
+        box-shadow: var(--shadow-medium);
+        position: fixed;
+        right: 24px;
+        bottom: 24px;
+        z-index: 999;
+    }
+
+    .btn-add svg { width: 13px; height: 13px; }
+
+    .q-card {
+        border: 1px solid var(--surface-border);
+        border-radius: var(--radius-lg);
+        margin-bottom: 12px;
+        overflow: hidden;
+        transition: border-color 0.15s ease, box-shadow 0.15s ease;
+        background: var(--surface-card);
+    }
+
+    .q-card:focus-within {
+        border-color: var(--luna-light);
+        box-shadow: 0 0 0 0.2rem rgba(84, 172, 191, 0.12);
+    }
+
+    .q-card-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 12px 16px;
+        background: var(--surface-bg);
+        border-bottom: 1px solid var(--surface-border);
+    }
+
+    .q-card-title { font-size: 13px; font-weight: 700; color: var(--text-heading); }
+
+    .q-type-badge {
+        font-size: 10px;
+        font-weight: 800;
+        padding: 2px 7px;
+        border-radius: 999px;
+        letter-spacing: 0.5px;
+    }
+
+    .badge-mcq { background: rgba(84, 172, 191, 0.14); color: var(--luna-mid); }
+    .badge-text { background: rgba(23, 91, 128, 0.12); color: var(--luna-dark); }
+
+    .q-card-body { padding: 16px; }
+    .q-row { display: grid; grid-template-columns: 1fr auto; gap: 12px; margin-bottom: 12px; align-items: end; }
+    .q-row-type { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px; }
+
+    .options-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 8px; }
+
+    .option-row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        background: var(--surface-bg);
+        border: 1px solid var(--surface-border);
+        border-radius: var(--radius-md);
+        padding: 6px 10px;
+        transition: border-color 0.15s ease, box-shadow 0.15s ease;
+    }
+
+    .option-row:focus-within {
+        border-color: var(--luna-light);
+        box-shadow: 0 0 0 0.2rem rgba(84, 172, 191, 0.12);
+    }
+
+    .option-row.correct-option {
+        border-color: var(--accent-success);
+        background: var(--accent-success-bg);
+    }
+
+    .option-radio {
+        accent-color: var(--luna-mid);
+        width: 14px;
+        height: 14px;
+        cursor: pointer;
+        flex-shrink: 0;
+    }
+
+    .option-input {
+        border: none;
+        background: none;
+        font-size: 13px;
+        color: var(--text-heading);
+        outline: none;
+        width: 100%;
+        font-family: var(--font-body);
+    }
+
+    .correct-label {
+        font-size: 10px;
+        font-weight: 700;
+        color: var(--accent-success);
+        white-space: nowrap;
+        display: none;
+        font-family: var(--font-body);
+    }
+
+    .option-row.correct-option .correct-label { display: block; }
+
+    .q-card-header .btn-danger {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 4px 10px;
+        border-radius: 999px;
+        border: 1px solid rgba(217, 72, 61, 0.28);
+        background: var(--surface-card);
+        color: var(--accent-danger);
+        font-family: var(--font-body);
+        font-size: 11px;
+        font-weight: 700;
+        line-height: 1;
+        box-shadow: none;
+    }
+
+    .q-card-header .btn-danger:hover {
+        background: var(--accent-danger-bg);
+    }
+
+    .q-card-header .btn-danger svg {
+        width: 12px;
+        height: 12px;
+    }
+
+    .options-actions {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-top: 8px;
+        flex-wrap: wrap;
+    }
+
+    .btn-add-option {
+        background: var(--surface-card);
+        border: 1px dashed var(--surface-border);
+        color: var(--text-muted);
+        border-radius: var(--radius-md);
+        padding: 5px 12px;
+        font-size: 12px;
+        font-family: var(--font-body);
+        cursor: pointer;
+        transition: border-color 0.15s ease, color 0.15s ease, background 0.15s ease;
+    }
+
+    .btn-add-option:hover {
+        border-color: var(--luna-mid);
+        color: var(--luna-mid);
+        background: var(--surface-bg);
+    }
+
+    .correct-hint {
+        font-size: 11px;
+        color: var(--text-muted);
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        font-family: var(--font-body);
+    }
+
+    .correct-hint svg { width: 12px; height: 12px; color: var(--accent-success); }
+
+    .open-text-area {
+        width: 100%;
+        padding: 8px 12px;
+        border: 1px solid var(--surface-border);
+        border-radius: var(--radius-md);
+        font-size: 13px;
+        color: var(--text-body);
+        background: var(--surface-bg);
+        resize: none;
+        outline: none;
+        font-family: var(--font-body);
+    }
+
+    .auto-note {
+        background: var(--surface-card);
+        border: 1px solid var(--surface-border);
+        border-left: 4px solid var(--luna-mid);
+        border-radius: var(--radius-lg);
+        padding: 12px 14px;
+        margin-top: 16px;
+        box-shadow: var(--shadow-soft);
+    }
+
+    .auto-note-title {
+        font-size: 11px;
+        font-weight: 700;
+        color: var(--luna-mid);
+        letter-spacing: 0.5px;
+        text-transform: uppercase;
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        margin-bottom: 6px;
+        font-family: var(--font-body);
+    }
+
+    .auto-note-title svg { width: 13px; height: 13px; }
+    .auto-note-text { font-size: 12px; color: var(--text-body); line-height: 1.5; font-family: var(--font-body); }
+
+    .alert {
+        padding: 10px 14px;
+        border-radius: var(--radius-md);
+        font-size: 13px;
+        margin-bottom: 16px;
+        display: none;
+        align-items: center;
+        gap: 8px;
+        box-shadow: var(--shadow-soft);
+        font-family: var(--font-body);
+    }
+
+    .alert.show { display: flex; }
+    .alert-success { background: var(--accent-success-bg); color: #1B6B3A; border: 1px solid #ABE5C8; }
+    .alert-error { background: var(--accent-danger-bg); color: var(--accent-danger); border: 1px solid #FFBDAD; }
+    .alert svg { width: 15px; height: 15px; flex-shrink: 0; }
+
+    .empty-state {
+        text-align: center;
+        padding: 28px 20px;
+        border: 1px dashed var(--surface-border);
+        border-radius: var(--radius-lg);
+        background: var(--surface-bg);
+        color: var(--text-muted);
+        font-size: 13px;
+        font-family: var(--font-body);
+    }
+
+    @media (max-width: 768px) {
+        .content { padding: 20px 16px 24px; }
+        .field-row, .field-row-3, .options-grid, .q-row, .q-row-type { grid-template-columns: 1fr; }
+        .header-actions { width: 100%; }
+        .header-actions .btn { flex: 1 1 0; }
+    }
+</style>
+
+<div class="content">
+    <div class="breadcrumb"><a href="{{ route('quiz.latest-results') }}">Quizzes</a> › Configure Quiz</div>
+
+    <div class="page-header">
+        <h1 class="page-title">SCHEDULE QUIZ</h1>
+        <div class="header-actions">
+            <a href="{{ route('quiz.drafts') }}" class="btn btn-outline-secondary">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                MY DRAFTS
+            </a>
+            <button class="btn btn-outline-secondary" onclick="saveDraft()">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+                SAVE DRAFT
+            </button>
+            <button class="btn btn-primary" onclick="publishQuiz()">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+                PUBLISH QUIZ
+            </button>
         </div>
     </div>
 
+    <div class="alert alert-success" id="successMsg">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+        <span id="successText"></span>
+    </div>
+    <div class="alert alert-error" id="errorMsg">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
+        <span id="errorText"></span>
+    </div>
+
+    <div class="card">
+        <div class="card-body">
+            <div class="field-group">
+                <label class="field-label" for="Title">Quiz Title</label>
+                <input type="text" id="Title" class="form-control" placeholder="e.g. Week 5 - Python Basics">
+            </div>
+
+            <div class="field-row">
+                <div>
+                    <label class="field-label" for="GroupSelector">Group Selector</label>
+                    <select id="GroupSelector" class="form-select">
+                        <option value="">-- Select Group --</option>
+                        @foreach($groups as $group)
+                            <option value="{{ $group->GroupID }}">{{ $group->GroupName }}</option>
+                        @endforeach
+                    </select>
+                </div>
+                <div>
+                    <label class="field-label" for="TargetCategory">Subject Category Selector</label>
+                    <select id="TargetCategory" class="form-select">
+                        <option value="">-- Select Category --</option>
+                        <option value="Science">Science</option>
+                        <option value="Math">Math</option>
+                        <option value="English">English</option>
+                        <option value="History">History</option>
+                        <option value="All Students">All Students</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="field-row-3">
+                <div>
+                    <label class="field-label" for="DateInput">
+                        <span style="display:flex;align-items:center;gap:4px;">
+                            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                            Date Input
+                        </span>
+                    </label>
+                    <input type="date" id="DateInput" class="form-control">
+                </div>
+                <div>
+                    <label class="field-label" for="TimeInput">
+                        <span style="display:flex;align-items:center;gap:4px;">
+                            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                            Start Time Input
+                        </span>
+                    </label>
+                    <input type="time" id="TimeInput" class="form-control">
+                </div>
+                <div>
+                    <label class="field-label" for="Duration">
+                        <span style="display:flex;align-items:center;gap:4px;">
+                            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                            Duration (Min)
+                        </span>
+                    </label>
+                    <input type="number" id="Duration" class="form-control" placeholder="30" min="1">
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-body">
+            <div class="questions-header">
+                <div class="questions-count">
+                    <div class="q-count-badge" id="qCountBadge">0</div>
+                    <span class="questions-title">Questions</span>
+                </div>
+                <button class="btn btn-primary btn-add" onclick="addQuestion()">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                    ADD QUESTION
+                </button>
+            </div>
+
+            <div id="questionsList"></div>
+
+            <div id="emptyState" class="empty-state">
+                No questions yet. Click <strong>ADD QUESTION</strong> to get started.
+            </div>
+        </div>
+    </div>
+
+    <div class="auto-note">
+        <div class="auto-note-title">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+            [SYSTEM] Auto-Submit Behaviour Note
+        </div>
+        <div class="auto-note-text">
+            Quiz auto-submits when countdown reaches 0:00. Late joiners receive remaining time only. Ensure all instructions are clear before publishing.
+        </div>
+    </div>
+</div>
+
 <script>
-    // ── SIDEBAR TOGGLE ──────────────────────────────────────────
-    let sidebarOpen = true;
-
-    function toggleSidebar() {
-        const sidebar  = document.getElementById('sidebar');
-        const topbar   = document.getElementById('topbar');
-        const main     = document.getElementById('main');
-        const overlay  = document.getElementById('overlay');
-        const isMobile = window.innerWidth <= 768;
-
-        if (isMobile) {
-            sidebar.classList.toggle('show-mobile');
-            overlay.classList.toggle('show', sidebar.classList.contains('show-mobile'));
-        } else {
-            sidebarOpen = !sidebarOpen;
-            sidebar.classList.toggle('hidden', !sidebarOpen);
-            topbar.classList.toggle('full', !sidebarOpen);
-            main.classList.toggle('full', !sidebarOpen);
-        }
-    }
-
-    function closeSidebar() {
-        document.getElementById('sidebar').classList.remove('show-mobile');
-        document.getElementById('overlay').classList.remove('show');
-    }
-
-    window.addEventListener('resize', () => {
-        if (window.innerWidth > 768) {
-            document.getElementById('overlay').classList.remove('show');
-            document.getElementById('sidebar').classList.remove('show-mobile');
-        }
-    });
-
     // ── QUESTION MANAGEMENT ──────────────────────────────────────
     let questionCount  = 0;
     let optionCounts   = {};
@@ -1160,6 +876,4 @@ if (!groupId)   return showError('Please select a group.');
         populateDraft(@json($draft));
     @endif
 </script>
-@include('layouts.sidebar-notifications-script')
-</body>
-</html>
+@endsection

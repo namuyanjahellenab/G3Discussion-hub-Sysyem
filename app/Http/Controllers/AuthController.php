@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Http\Requests\LoginRequest;
 use App\Http\Requests\RegisterRequest;
 use App\Http\Requests\RoleSelectionRequest;
+use App\Models\Blacklist;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -36,10 +37,15 @@ class AuthController extends Controller
             ->withInput($request->only('email'));
     }
 
-    if ($user->Status === 'Blacklisted') {
+    // Query the Blacklist table directly rather than trusting User.Status —
+    // it's the actual source of truth for who's currently restricted, and
+    // lets the message carry the real reason/duration instead of a generic
+    // "contact support" line.
+    $activeBlacklist = Blacklist::where('UserID', $user->UserID)->active()->latest('CreatedAt')->first();
+    if ($activeBlacklist) {
         Log::warning('Login failed: User blacklisted', ['user_id' => $user->UserID]);
         return back()
-            ->withErrors(['email' => 'This account has been blacklisted. Please contact support.'])
+            ->withErrors(['email' => "This account is restricted until {$activeBlacklist->EndDate->format('d M Y')}. Reason: {$activeBlacklist->Reason}. Please contact an administrator if you believe this is a mistake."])
             ->withInput($request->only('email'));
     }
 
@@ -166,8 +172,15 @@ public function apiLogin(Request $request)
         return response()->json(['message' => 'Invalid credentials'], 401);
     }
 
-    if ($user->Status === 'blacklisted' || $user->Status === 'suspended') {
-        return response()->json(['message' => 'Account is ' . $user->Status], 403);
+    $activeBlacklist = Blacklist::where('UserID', $user->UserID)->active()->latest('CreatedAt')->first();
+    if ($activeBlacklist) {
+        return response()->json([
+            'message' => "Account is restricted until {$activeBlacklist->EndDate->format('d M Y')}. Reason: {$activeBlacklist->Reason}.",
+        ], 403);
+    }
+
+    if ($user->Status === 'Suspended') {
+        return response()->json(['message' => 'Account is Suspended'], 403);
     }
 
     $token = $user->createToken('javafx-desktop')->plainTextToken;

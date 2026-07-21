@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Announcement;
 use App\Models\AnnouncementExclusion;
+use App\Models\Blacklist;
 use App\Models\Quiz;
 use App\Models\QuizResult;
 use App\Models\Group;
@@ -12,6 +13,7 @@ use App\Models\Notification;
 use App\Models\Post;
 use App\Models\Reply;
 use App\Models\Topic;
+use App\Models\Warning;
 use App\Services\ParticipationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -119,9 +121,18 @@ class DashboardController extends Controller
         ->latest('CreatedAt')
         ->first();
 
+    // Surfaced as a dashboard banner/panel — a blacklisted or warned student
+    // otherwise has no way to see this (the AuthController login gate only
+    // catches it on a fresh login, not an already-open session).
+    $activeBlacklist = Blacklist::where('UserID', $user->UserID)->active()->latest('CreatedAt')->first();
+    $activeWarnings = Warning::where('UserID', $user->UserID)
+        ->where('ExpiryDate', '>', now())
+        ->orderByDesc('CreatedAt')
+        ->get();
+
     return view('dashboard.index', compact(
         'joined_groups', 'notifications', 'recentActivity', 'notificationsCount',
-        'snapshot', 'upcomingQuiz', 'latestAnnouncement'
+        'snapshot', 'upcomingQuiz', 'latestAnnouncement', 'activeBlacklist', 'activeWarnings'
     ))
         ->with('showSidebar', true)
         ->with('showNavbar', true);
