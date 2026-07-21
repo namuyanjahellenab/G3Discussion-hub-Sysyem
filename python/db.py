@@ -16,6 +16,8 @@ _logger = logging.getLogger(__name__)
 
 
 def _db_connect() -> Connection:
+    # Opens a fresh connection using Laravel's own DB_* env vars - raises on
+    # failure, which every caller below catches and treats as "unreachable".
     return pymysql.connect(
         host=os.environ.get("DB_HOST", "127.0.0.1"),
         port=int(os.environ.get("DB_PORT", 3306)),

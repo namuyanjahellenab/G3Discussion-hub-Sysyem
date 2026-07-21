@@ -1,8 +1,13 @@
-# Versions of dependencies required after installing python on your machine
+# Runtime dependencies - versions confirmed against what's actually
+# installed and imported by app.py/catalog.py/config.py/db.py/pdf.py/
+# share.py/spam.py in this environment.
 Flask==3.0.3
 Werkzeug==3.0.1
-pandas==2.2.3
 scikit-learn==1.6.0
 PyMySQL==1.2.0
 python-dotenv==1.0.1
 xhtml2pdf==0.2.17
+
+# Test-only dependency (test_app.py / `pytest` in the README) - not
+# imported by the running gateway itself.
+pytest==7.4.0

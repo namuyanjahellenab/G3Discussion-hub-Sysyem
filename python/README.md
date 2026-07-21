@@ -23,9 +23,9 @@ them unqualified and tests can keep monkeypatching functions directly on the
 `app` module (e.g. `monkeypatch.setattr(appModule, "_fetch_user_recent_text", ...)`).
 
 ## Endpoints
-- `POST /classify` — predict a category for a piece of text (with a local ML spam short-circuit).
-- `POST /recommend` — rank categories for a user; personalized from their real post/reply history, or trending-category-based for cold-start users with no activity yet.
-- `POST /recommend-groups` — suggest groups a user hasn't joined, ranked by member count and recent activity.
+- `POST /classify` — predict a category for a piece of text (with a local ML spam/relevance short-circuit).
+- `POST /recommend-topics` — rank specific candidate topics for a user by relevance to their interests/recent activity.
+- `POST /trending-groups` — rank every group by member count + weighted recent activity, joined or not.
 - `POST /export-topic-pdf` — render a topic + its posts/replies as a downloadable PDF (no PHP/Dompdf involvement on this side).
 - `POST /topic-share-links` — build a canonical share URL, text snippet, and WhatsApp/Twitter/Facebook/Email links for a topic.
 
@@ -55,10 +55,12 @@ to the static seed catalog / empty results) instead of erroring.
   that's a static seed list enriched with real `Topic` data from the
   database, rebuilt on a ~60s TTL — this is how it "retrains" without a
   separate training pipeline.
-- `/recommend` checks the user's real `Post`/`Reply` history first: if
-  they have none, it returns trending categories (recent engagement,
-  scoped to their groups, falling back platform-wide); otherwise it blends
-  their real recent content into the TF-IDF ranking.
+- `/recommend-topics` scores each candidate topic's title against the
+  caller's stated interests, recent messages, and their real `Post`/`Reply`
+  history (fetched here via `db.py`). If none of those yield any usable
+  text, every topic gets a flat `0.0` relevance score — the caller (Laravel's
+  `RecommendationScorer`) is what blends that with real engagement signals
+  so a cold-start user still sees something reasonable, not this endpoint.
 - Content moderation (`spam.py`) uses two local TF-IDF + Naive Bayes
   classifiers trained at import time on a small bundled dataset — one spots
   spam, one spots generic off-topic/casual text. No external API, no key,

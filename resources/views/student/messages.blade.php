@@ -28,10 +28,6 @@
                 @endforeach
             @endif
 
-            <div class="thread-list__header">
-                <i class="fa-solid fa-comments"></i> Threads
-            </div>
-
             <a href="{{ route('student.messages', ['groupId' => $groupId]) }}"
                class="thread-item {{ $activeConversation->ConversationID === $mainConversation->ConversationID ? 'thread-item--active' : '' }}">
                 <i class="fa-solid fa-people-group"></i>
@@ -103,7 +99,7 @@
 
             @if($activeConversation->Type !== 'restricted')
                 {{-- only the main group thread can spawn new restricted threads --}}
-                <form action="{{ route('student.messages.store', ['groupId' => $groupId]) }}" method="POST" class="chat-composer" data-chat-composer>
+                <form action="{{ route('student.messages.store', ['groupId' => $groupId]) }}" method="POST" class="chat-composer" enctype="multipart/form-data" data-chat-composer>
                     @csrf
                     <div class="exclude-panel" id="exclude-panel">
                         @foreach($groupMembers as $member)
@@ -117,11 +113,21 @@
                         <p class="exclude-hint">Checking someone here moves this message (and future ones with the same exclusion) into a separate restricted thread they can't see.</p>
                     </div>
 
+                    <div class="attachment-preview" data-attachment-preview style="display:none;">
+                        <i class="fa-solid fa-paperclip"></i>
+                        <span data-attachment-name></span>
+                        <button type="button" data-attachment-clear title="Remove attachment">&times;</button>
+                    </div>
+
                     <div class="chat-pill">
                         <button type="button" class="pill-icon-btn" onclick="toggleExcludePanel()" title="Exclude members">
                             <i class="fa-solid fa-user-slash"></i>
                         </button>
-                        <textarea name="body" placeholder="Type a message..." required rows="1">{{ old('body') }}</textarea>
+                        <input type="file" name="attachment" data-attachment-input hidden accept=".pdf,.doc,.docx,.ppt,.pptx,.png,.jpg,.jpeg,.zip">
+                        <button type="button" class="pill-icon-btn" data-attachment-trigger title="Attach a file">
+                            <i class="fa-solid fa-paperclip"></i>
+                        </button>
+                        <textarea name="body" placeholder="Type a message..." rows="1">{{ old('body') }}</textarea>
                         <button type="submit" class="pill-send-btn" title="Send">
                             <i class="fa-solid fa-paper-plane"></i>
                         </button>
@@ -129,11 +135,22 @@
                 </form>
             @else
                 {{-- replying inside a restricted thread reuses the same exclusion set automatically --}}
-                <form action="{{ route('student.messages.store', ['groupId' => $groupId]) }}" method="POST" class="chat-composer" data-chat-composer>
+                <form action="{{ route('student.messages.store', ['groupId' => $groupId]) }}" method="POST" class="chat-composer" enctype="multipart/form-data" data-chat-composer>
                     @csrf
                     <input type="hidden" name="conversation_id" value="{{ $activeConversation->ConversationID }}">
+
+                    <div class="attachment-preview" data-attachment-preview style="display:none;">
+                        <i class="fa-solid fa-paperclip"></i>
+                        <span data-attachment-name></span>
+                        <button type="button" data-attachment-clear title="Remove attachment">&times;</button>
+                    </div>
+
                     <div class="chat-pill">
-                        <textarea name="body" placeholder="Reply in this restricted thread..." required rows="1">{{ old('body') }}</textarea>
+                        <input type="file" name="attachment" data-attachment-input hidden accept=".pdf,.doc,.docx,.ppt,.pptx,.png,.jpg,.jpeg,.zip">
+                        <button type="button" class="pill-icon-btn" data-attachment-trigger title="Attach a file">
+                            <i class="fa-solid fa-paperclip"></i>
+                        </button>
+                        <textarea name="body" placeholder="Reply in this restricted thread..." rows="1">{{ old('body') }}</textarea>
                         <button type="submit" class="pill-send-btn" title="Send">
                             <i class="fa-solid fa-paper-plane"></i>
                         </button>
@@ -153,6 +170,37 @@ function toggleExcludePanel() {
     document.getElementById('exclude-panel').classList.toggle('open');
     sizeChatWindow();
 }
+
+// Attach-file: clicking the paperclip opens the hidden file input; picking
+// a file shows a removable filename chip above the pill (same slot pattern
+// the exclude panel uses), so the user knows what's about to be sent.
+document.querySelectorAll('[data-chat-composer]').forEach((form) => {
+    const trigger = form.querySelector('[data-attachment-trigger]');
+    const input = form.querySelector('[data-attachment-input]');
+    const preview = form.querySelector('[data-attachment-preview]');
+    if (!trigger || !input || !preview) return;
+
+    const nameEl = preview.querySelector('[data-attachment-name]');
+    const clearBtn = preview.querySelector('[data-attachment-clear]');
+
+    trigger.addEventListener('click', () => input.click());
+
+    input.addEventListener('change', () => {
+        if (input.files.length) {
+            nameEl.textContent = input.files[0].name;
+            preview.style.display = 'flex';
+        } else {
+            preview.style.display = 'none';
+        }
+        sizeChatWindow();
+    });
+
+    clearBtn.addEventListener('click', () => {
+        input.value = '';
+        preview.style.display = 'none';
+        sizeChatWindow();
+    });
+});
 
 // WhatsApp-style scroll containment: chat-window gets an explicit pixel
 // height filling the viewport down to the (sticky, bottom-pinned) composer,
@@ -219,9 +267,96 @@ document.getElementById('chat-window').addEventListener('click', (event) => {
             }
         }
 
+        if (action === 'edit') {
+            startEditingBubble(bubble);
+        }
+
+        if (action === 'delete') {
+            deleteBubble(bubble);
+        }
+
         bubble.querySelector('.chat-bubble__actions')?.classList.remove('open');
     }
 });
+
+const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '';
+
+// Swaps the message text for an inline textarea + Save/Cancel, matching
+// the sender-only Edit action in chat-bubble.blade.php. Only the text can
+// change here - an already-sent attachment can't be swapped out.
+function startEditingBubble(bubble) {
+    const bodyEl = bubble.querySelector('[data-message-body]');
+    if (!bodyEl || bubble.querySelector('[data-edit-form]')) return;
+
+    const originalText = bubble.dataset.body || '';
+    const editForm = document.createElement('div');
+    editForm.setAttribute('data-edit-form', '');
+    editForm.innerHTML = `
+        <textarea class="chat-edit-textarea" rows="2"></textarea>
+        <div class="chat-edit-actions">
+            <button type="button" data-edit-cancel>Cancel</button>
+            <button type="button" data-edit-save>Save</button>
+        </div>
+    `;
+    editForm.querySelector('textarea').value = originalText;
+    bodyEl.replaceWith(editForm);
+    editForm.querySelector('textarea').focus();
+
+    editForm.querySelector('[data-edit-cancel]').addEventListener('click', () => {
+        editForm.replaceWith(bodyEl);
+    });
+
+    editForm.querySelector('[data-edit-save]').addEventListener('click', async () => {
+        const newBody = editForm.querySelector('textarea').value.trim();
+        if (!newBody) return;
+
+        try {
+            const res = await fetch(`/group-messages/${bubble.dataset.messageId}`, {
+                method: 'PATCH',
+                headers: {
+                    'X-CSRF-TOKEN': csrfToken,
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ body: newBody }),
+            });
+            const data = await res.json().catch(() => null);
+            if (!res.ok || !data?.success) {
+                showChatError(data?.message || 'Could not save your edit.');
+                return;
+            }
+            const wrapper = document.createElement('div');
+            wrapper.innerHTML = data.html;
+            bubble.replaceWith(wrapper.firstElementChild);
+        } catch (err) {
+            console.error('Edit error', err);
+            showChatError('Something went wrong saving your edit.');
+        }
+    });
+}
+
+async function deleteBubble(bubble) {
+    if (!confirm('Delete this message?')) return;
+
+    try {
+        const res = await fetch(`/group-messages/${bubble.dataset.messageId}`, {
+            method: 'DELETE',
+            headers: {
+                'X-CSRF-TOKEN': csrfToken,
+                'Accept': 'application/json',
+            },
+        });
+        const data = await res.json().catch(() => null);
+        if (!res.ok || !data?.success) {
+            showChatError(data?.message || 'Could not delete your message.');
+            return;
+        }
+        bubble.remove();
+    } catch (err) {
+        console.error('Delete error', err);
+        showChatError('Something went wrong deleting your message.');
+    }
+}
 
 document.addEventListener('click', (event) => {
     if (!event.target.closest('.chat-bubble__actions')) {
@@ -270,9 +405,24 @@ document.querySelectorAll('[data-chat-composer]').forEach((form) => {
             }
 
             if (data?.success && data?.html) {
+                // Spam or not, the sender always sees their own bubble -
+                // chat-bubble.blade.php renders the "under review" badge on
+                // it when data.pending is true (GroupChatController::store).
+                // Other members simply never receive it (no broadcast, and
+                // index() excludes it from anyone else's view).
                 chatWindow.insertAdjacentHTML('beforeend', data.html);
                 chatWindow.scrollTop = chatWindow.scrollHeight;
                 textarea.value = '';
+
+                if (data.pending) {
+                    showChatError(data.message || 'Your message was flagged for review - only you can see it until an admin approves it.');
+                }
+
+                const attachmentInput = form.querySelector('[data-attachment-input]');
+                const attachmentPreview = form.querySelector('[data-attachment-preview]');
+                if (attachmentInput) attachmentInput.value = '';
+                if (attachmentPreview) attachmentPreview.style.display = 'none';
+                sizeChatWindow();
             }
         } catch (err) {
             console.error('Fetch error', err);
@@ -316,10 +466,34 @@ function buildRemoteBubble(e) {
         </div>
     `;
     const bubble = wrapper.firstElementChild;
+    const content = bubble.querySelector('.chat-bubble__content');
     bubble.querySelector('.chat-bubble__meta strong').textContent = e.author_name;
     bubble.querySelector('.chat-bubble__meta span').textContent = e.created_at;
-    bubble.querySelector('.chat-bubble__content p').textContent = e.body;
+
+    const bodyEl = content.querySelector('p');
+    if (e.body) {
+        bodyEl.textContent = e.body;
+    } else {
+        bodyEl.remove();
+    }
+
+    if (e.attachment_url) {
+        const link = document.createElement('a');
+        link.href = e.attachment_url;
+        link.target = '_blank';
+        link.className = 'chat-bubble__attachment';
+        link.innerHTML = `<i class="fa-solid fa-paperclip"></i> ${e.attachment_name || 'Attachment'}`;
+        content.appendChild(link);
+    }
+
     return bubble;
+}
+
+// Echo/Pusher no longer auto-connects on every page load (see
+// resources/js/echo.js) - only this page, which actually needs live
+// updates, pays for opening the WebSocket connection.
+if (window.initEcho) {
+    window.initEcho();
 }
 
 if (window.Echo) {

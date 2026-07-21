@@ -25,20 +25,60 @@ class AttachmentUploader
     {
         $extension = strtolower($file->getClientOriginalExtension());
         $isImage = in_array($extension, ['png', 'jpg', 'jpeg', 'gif', 'webp'], true);
+        $safeOriginalName = self::sanitizeName($file->getClientOriginalName());
 
         if ($isImage && function_exists('imagecreatefromstring')) {
             $resized = self::resize($file->getRealPath(), $extension);
             if ($resized !== null) {
-                $path = $directory . '/' . uniqid('img_', true) . '.jpg';
+                // Re-encoded as JPEG regardless of the original format, so the
+                // stored filename's extension is forced to .jpg to match the
+                // actual bytes - only the basename (what the user sees/downloads
+                // as) comes from their original filename.
+                $baseName = pathinfo($safeOriginalName, PATHINFO_FILENAME) . '.jpg';
+                $path = $directory . '/' . uniqid('', true) . '--' . $baseName;
                 Storage::disk($disk)->put($path, $resized);
 
                 return ['path' => $path, 'type' => 'image'];
             }
         }
 
-        $path = $file->store($directory, $disk);
+        // storeAs (not store()) so the filename on disk keeps the user's
+        // original name after the uniqid prefix - store() alone discards it
+        // in favor of a random hash, which is all downloads/attachment links
+        // showed until now instead of a recognizable name. The uniqid prefix
+        // still guarantees no collision between two uploads named the same.
+        $path = $file->storeAs($directory, uniqid('', true) . '--' . $safeOriginalName, $disk);
 
         return ['path' => $path, 'type' => $isImage ? 'image' : 'file'];
+    }
+
+    /**
+     * The human-readable filename to show/download an attachment as -
+     * strips the "{uniqid}--" collision-avoidance prefix store() adds, so
+     * the user sees the name they originally uploaded instead of the prefix
+     * or a random storage hash.
+     */
+    public static function displayName(string $path): string
+    {
+        $base = basename($path);
+        $separatorPosition = strpos($base, '--');
+
+        return $separatorPosition === false ? $base : substr($base, $separatorPosition + 2);
+    }
+
+    /**
+     * Strip anything but a conservative safe character set so the stored
+     * filename can't traverse directories, break the uniqid separator, or
+     * carry characters some filesystems/URLs choke on - while still reading
+     * as the original name.
+     */
+    private static function sanitizeName(string $originalName): string
+    {
+        $originalName = basename($originalName);
+        $sanitized = preg_replace('/[^A-Za-z0-9._ -]/', '_', $originalName);
+        $sanitized = trim($sanitized, '.');
+
+        return $sanitized !== '' ? $sanitized : 'file';
     }
 
     /**

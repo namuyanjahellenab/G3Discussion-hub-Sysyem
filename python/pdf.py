@@ -69,6 +69,9 @@ _TOPIC_PDF_TEMPLATE = """
 
 
 def _slugify(text: str) -> str:
+    # Turns a topic title into a safe PDF filename fragment, e.g.
+    # "Merge Sort Help!" -> "merge-sort-help". Falls back to "discussion"
+    # if nothing alphanumeric survives (e.g. an emoji-only title).
     slug = re.sub(r"[^a-z0-9]+", "-", text.lower()).strip("-")
     return slug or "discussion"
 
