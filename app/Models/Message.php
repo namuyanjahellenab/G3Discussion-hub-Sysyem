@@ -24,7 +24,17 @@ public function topic()
 }
 
     public function conversation()
-    {
-        return $this->belongsTo(Conversation::class, 'ConversationID', 'ConversationID');
-    }
+{
+    return $this->belongsTo(Conversation::class, 'ConversationID', 'ConversationID');
+}
+
+public function parentMessage()
+{
+    return $this->belongsTo(Message::class, 'ParentMessageID');
+}
+
+public function replies()
+{
+    return $this->hasMany(Message::class, 'ParentMessageID');
+}
 }
