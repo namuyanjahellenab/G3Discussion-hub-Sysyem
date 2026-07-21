@@ -42,6 +42,12 @@
                                         data-bs-target="#editGroupModal{{ $group->GroupID }}">
                                     Edit
                                 </button>
+                                <form method="POST" action="{{ route('admin.groups.destroy', $group->GroupID) }}"
+                                      onsubmit="return confirm('Delete this group permanently? This cannot be undone.');" style="display:inline;">
+                                    @csrf
+                                    @method('DELETE')
+                                    <button type="submit" class="btn btn-sm btn-outline-danger">Delete</button>
+                                </form>
                             </td>
                         </tr>
                     @empty
