@@ -57,4 +57,25 @@ class Reply extends Model
 
         return $flag;
     }
+
+    /**
+     * Withdraw this user's own flag - the counterpart to flagBy(), for
+     * "I reported that by mistake". If removing it drops the count back
+     * below the escalation threshold, IsFlagged is cleared too rather than
+     * staying permanently flagged from a report that's since been retracted.
+     */
+    public function unflagBy(int $userId): void
+    {
+        $this->flags()->where('FlaggedByUserID', $userId)->delete();
+
+        $threshold = (int) config('moderation.flag_escalation_threshold', 2);
+        if ($this->IsFlagged && $this->flags()->count() < $threshold) {
+            $this->update(['IsFlagged' => false]);
+
+            $groupId = $this->post?->topic?->GroupID;
+            if ($groupId) {
+                app(\App\Services\ParticipationService::class)->recalculate($this->UserID, $groupId);
+            }
+        }
+    }
 }

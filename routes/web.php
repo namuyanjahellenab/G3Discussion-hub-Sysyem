@@ -79,6 +79,9 @@ Route::post('/posts/{post}/flag', [DiscussionHubPageController::class, 'flagPost
 Route::post('/replies/{reply}/flag', [DiscussionHubPageController::class, 'flagReply'])
     ->middleware('verified')->name('replies.flag');
 
+Route::delete('/replies/{reply}/flag', [DiscussionHubPageController::class, 'unflagReply'])
+    ->middleware('verified')->name('replies.unflag');
+
 Route::delete('/replies/{reply}', [DiscussionHubPageController::class, 'deleteReply'])
     ->middleware('verified')->name('replies.destroy');
 

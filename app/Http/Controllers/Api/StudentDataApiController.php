@@ -116,7 +116,7 @@ class StudentDataApiController extends Controller
             ->exists();
 
         $myTopics = Topic::where('CreatedBy', $userId)
-            ->with(['group', 'replies' => fn ($q) => $q->where('IsAccepted', true)->with('author')])
+            ->with(['group', 'mainPost', 'replies' => fn ($q) => $q->where('IsAccepted', true)->with('author')])
             ->withCount('replies')
             ->latest('CreatedAt')
             ->paginate(20)
@@ -125,7 +125,10 @@ class StudentDataApiController extends Controller
 
                 return [
                     'id' => $topic->TopicID,
-                    'title' => $topic->Title,
+                    // The actual question text (the opening post's content),
+                    // not the topic title - mirrors topics/my-questions.blade.php
+                    // on the web side, which shows the same thing.
+                    'title' => $topic->mainPost?->Content ?: $topic->Title,
                     'group_name' => $topic->group->GroupName ?? null,
                     'reply_count' => $topic->replies_count,
                     'has_unread_answer' => $hasUnreadReplyNotification && $topic->replies_count > 0,

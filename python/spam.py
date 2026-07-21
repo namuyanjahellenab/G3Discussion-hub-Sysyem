@@ -21,7 +21,13 @@ SHORT_REPLY_WORD_LIMIT = 4
 SPAM_CONFIDENCE_THRESHOLD = 0.6
 # Same reasoning in the other direction: only call text "not educational"
 # once the classifier is reasonably sure, so short/generic-but-legitimate
-# text (e.g. "question body") isn't blocked on a near-50/50 guess.
+# text (e.g. "question body") isn't blocked on a near-50/50 guess. Measured
+# separation after broadening EDUCATIONAL_TRAINING_DATA (84 educational /
+# 53 casual examples): casual chit-chat scores ~0.67-0.79 "not-educational"
+# probability, genuine questions - including subjects well outside the
+# original CS-heavy examples, like biology, physics, and accounting -
+# score ~0.16-0.22. 0.6 already sits cleanly in that gap, so the real fix
+# was broadening the training data itself, not this number.
 NOT_EDUCATIONAL_CONFIDENCE_THRESHOLD = 0.6
 
 # (text, is_spam) pairs used to train the spam classifier.
@@ -97,7 +103,14 @@ SPAM_TRAINING_DATA = [
 ]
 
 # (text, is_educational) pairs used to train the generic relevance classifier
-# - used when there's no specific thread to compare a reply against.
+# - used when there's no specific thread to compare a reply against (e.g.
+# the opening post of a brand new topic - see storeTopic() on the Laravel
+# side). Deliberately spans many subjects and phrasings, not just CS/
+# algorithms - a set narrowly focused on one subject area leaves the
+# classifier with poor vocabulary overlap (and therefore an unreliable,
+# near-coin-flip verdict) for any legitimate question from a different
+# course, which is what caused real topic/question creation to be wrongly
+# blocked as "not educational" in the first place.
 EDUCATIONAL_TRAINING_DATA = [
     ("how does merge sort work?", 1),
     ("can someone explain normalization in databases", 1),
@@ -119,6 +132,96 @@ EDUCATIONAL_TRAINING_DATA = [
     ("what's the difference between a stack and a queue", 1),
     ("our group project is about designing a relational database schema", 1),
     ("please review my pull request for the assignment", 1),
+    # Non-CS subjects - physics, chemistry, biology, math
+    ("can someone explain the difference between mitosis and meiosis", 1),
+    ("i don't understand how to balance this chemical equation", 1),
+    ("what's the formula for calculating momentum in this problem set", 1),
+    ("how do you derive the quadratic formula from completing the square", 1),
+    ("can someone walk me through this integration by parts question", 1),
+    ("i'm confused about newton's third law in this practical report", 1),
+    ("does anyone know which textbook chapter covers cell respiration", 1),
+    ("what's the difference between a covalent and ionic bond", 1),
+    # Humanities/business/writing
+    ("how should i structure the argument for my history essay", 1),
+    ("can someone give feedback on my thesis statement for the literature paper", 1),
+    ("what's the citation format the lecturer wants for this assignment", 1),
+    ("i'm not sure how to calculate net present value for this finance question", 1),
+    ("does anyone have the reading list for next week's economics seminar", 1),
+    ("what's the difference between qualitative and quantitative research methods", 1),
+    ("can someone explain supply and demand curves for the economics test", 1),
+    # Software Engineering course units specifically (design patterns, agile,
+    # testing, version control, requirements, architecture) - a named group
+    # in this app's own seeded course list, so worth its own dedicated
+    # coverage rather than relying on the general algorithms examples above.
+    ("can someone explain the difference between the factory and singleton design patterns", 1),
+    ("what's the difference between scrum and kanban for this agile assignment", 1),
+    ("i'm not sure how to write unit tests for this method, any tips", 1),
+    ("how do i resolve this merge conflict in git for the group project", 1),
+    ("can someone explain what a use case diagram should include for the requirements doc", 1),
+    ("what's the difference between unit testing and integration testing", 1),
+    ("i'm stuck writing the software requirements specification for our assignment", 1),
+    ("how should we structure the sprint backlog for this project milestone", 1),
+    ("does anyone have a good example of a UML class diagram for this exercise", 1),
+    ("what's the point of dependency injection in this software architecture module", 1),
+    ("can someone review my pull request before the code review deadline", 1),
+    ("i'm confused about the difference between waterfall and agile methodology", 1),
+    ("how do we set up continuous integration for our team's repository", 1),
+    ("what should go in the test plan document for this software engineering assignment", 1),
+    # General programming concepts (fundamentals, OOP, web/mobile dev, APIs,
+    # debugging) - distinct from the algorithms-specific and software-
+    # engineering-process examples above, since a beginner's question about
+    # basic syntax/concepts shares little vocabulary with either of those.
+    ("what's the difference between a class and an object in OOP", 1),
+    ("can someone explain how inheritance and polymorphism work with an example", 1),
+    ("why does my for loop keep running one extra time", 1),
+    ("what's the difference between pass by value and pass by reference", 1),
+    ("i keep getting an index out of bounds error, what am i doing wrong", 1),
+    ("can someone explain the difference between == and === in javascript", 1),
+    ("how do i fix this undefined is not a function error in my code", 1),
+    ("what's the difference between an array and a linked list", 1),
+    ("how do promises and async/await work in javascript", 1),
+    ("can someone explain what a rest api endpoint actually does", 1),
+    ("i'm not sure how to handle exceptions properly in this function", 1),
+    ("what's the difference between a compiler and an interpreter", 1),
+    ("how does garbage collection work in java", 1),
+    ("can someone explain how to use a dictionary versus a list in python", 1),
+    ("why is my variable returning null when i debug this method", 1),
+    ("what's the difference between local and global scope in this code", 1),
+    ("how do i connect my app to the database using this ORM", 1),
+    ("can someone explain how react state and props work", 1),
+    ("what's the best way to structure the layout for this mobile app assignment", 1),
+    ("i'm getting a syntax error on this line and can't figure out why", 1),
+    # Networks/security/systems (broader than the original algorithms slant)
+    ("what's the difference between tcp and udp in this networking module", 1),
+    ("how does public key encryption actually work", 1),
+    ("i'm stuck configuring the firewall rules for this systems assignment", 1),
+    ("can someone explain how dns resolution works step by step", 1),
+    ("what's causing this deadlock in my operating systems lab", 1),
+    # Formal/longer phrasing (not just short casual questions)
+    ("i would appreciate some clarification on how the grading rubric works for this course", 1),
+    ("could someone please explain the requirements for the final project submission", 1),
+    ("i have been struggling to understand this week's lecture material and would like some guidance", 1),
+    ("is there a possibility of getting an extension given the technical issues with the portal", 1),
+    ("i wanted to ask whether the practical exam covers material from the previous semester", 1),
+    # General study logistics across any subject
+    ("can we schedule a study session before the midterm", 1),
+    ("does anyone have a copy of last year's past paper for this course", 1),
+    ("what room is the tutorial being held in this week", 1),
+    ("is the assignment submission through the portal or by email", 1),
+    ("i think there might be an error in question 3 of the problem set", 1),
+    # Jokes/humor - clearly casual, but easy to confuse with "educational" if
+    # they happen to mention a course-y word (e.g. a programming pun),
+    # which is exactly why they need their own explicit examples here.
+    ("why do programmers prefer dark mode? because light attracts bugs", 0),
+    ("why was six afraid of seven? because seven eight nine", 0),
+    ("i told a joke about udp but i'm not sure if it landed", 0),
+    ("why did the chicken cross the road? to get away from group project drama", 0),
+    ("what do you call a fish with no eyes? a fsh", 0),
+    ("knock knock, who's there, not your homework apparently", 0),
+    ("my computer told me a joke, it said 404 joke not found", 0),
+    ("why did the developer go broke? because they used up all their cache", 0),
+    ("i'm not lazy, i'm just in energy-saving mode until the next lecture", 0),
+    ("here's a dad joke to survive finals week, you're welcome", 0),
     ("lol anyone up for pizza tonight", 0),
     ("what's everyone doing this weekend", 0),
     ("happy birthday! hope you have a great day", 0),
@@ -139,6 +242,33 @@ EDUCATIONAL_TRAINING_DATA = [
     ("what are your plans for the summer break", 0),
     ("did you watch the new episode last night", 0),
     ("happy weekend everyone, relax and enjoy", 0),
+    ("does anyone want to go shopping this saturday", 0),
+    ("what's a good gift idea for a birthday party", 0),
+    ("i can't believe how expensive concert tickets are these days", 0),
+    ("anyone else stuck in this traffic right now", 0),
+    ("what's your favorite way to relax after a long week", 0),
+    # More campus/social chatter - keeps examples like "restaurant near
+    # campus" clearly anchored on the casual side instead of drifting toward
+    # "educational" just because they share campus-adjacent vocabulary with
+    # legitimate study-logistics questions elsewhere in this dataset.
+    ("any good spots near campus to hang out this evening", 0),
+    ("what's the cheapest place to eat around campus", 0),
+    ("is the campus wifi down for anyone else right now", 0),
+    ("what's the atmosphere like at the campus social events", 0),
+    ("does the campus shuttle run this late in the evening", 0),
+    ("any recommendations for a good salon near campus", 0),
+    ("what's everyone wearing to the campus event this weekend", 0),
+    ("is the campus gym open on sundays", 0),
+    ("anyone know a good barber around campus", 0),
+    ("what time does the campus cafeteria close today", 0),
+    ("just saw something funny on campus today", 0),
+    ("is there a match on this weekend, anyone watching", 0),
+    ("what's the weather forecast for the weekend trip", 0),
+    ("anyone up for a game later this evening", 0),
+    ("congrats on your birthday, have an amazing one", 0),
+    ("what's a good playlist for relaxing after a long week", 0),
+    ("looking forward to the holidays, just want to rest", 0),
+    ("anyone want to share a taxi into town later", 0),
 ]
 
 

@@ -7,6 +7,7 @@ use App\Services\AttachmentUploader;
 use Illuminate\Broadcasting\PrivateChannel;
 use Illuminate\Contracts\Broadcasting\ShouldBroadcastNow;
 use Illuminate\Queue\SerializesModels;
+use Illuminate\Support\Facades\Storage;
 
 // Fired the moment a chat message is created (whether via the live REST
 // endpoint or an offline device's queued sync push) so every other member
@@ -40,9 +41,15 @@ class ChatMessageSent implements ShouldBroadcastNow
             'user_id' => $this->message->user_id,
             'author_name' => $this->message->user->UserName ?? 'Unknown',
             'body' => $this->message->body,
-            'attachment_url' => $this->message->Attachment
-                ? route('student.messages.attachment', $this->message->MessageID)
-                : null,
+            // A plain public storage URL, not the session-authenticated
+            // student.messages.attachment route - a live-broadcast event
+            // reaches both the web JS listener AND the desktop client (which
+            // authenticates via Bearer token, not a browser session/cookie;
+            // opening a session-gated URL from the desktop's default browser
+            // would just hit the login page). Same public-URL pattern
+            // TopicApiController's reply attachments already use.
+            'attachment_url' => $this->message->Attachment ? Storage::url($this->message->Attachment) : null,
+            'attachment_type' => $this->message->AttachmentType,
             'attachment_name' => $this->message->Attachment
                 ? AttachmentUploader::displayName($this->message->Attachment)
                 : null,

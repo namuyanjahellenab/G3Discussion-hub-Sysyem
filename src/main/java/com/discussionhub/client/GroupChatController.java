@@ -692,10 +692,24 @@ public class GroupChatController {
 
     private VBox bubble(JSONObject m) {
         return bubble(m.getInt("user_id"), m.getString("author_name"), m.getString("body"),
-            m.optString("created_at_iso", m.optString("created_at", "")), false);
+            m.optString("created_at_iso", m.optString("created_at", "")), false,
+            m.isNull("attachment_url") ? null : m.optString("attachment_url", null),
+            m.optString("attachment_type", null),
+            m.optString("attachment_name", null));
     }
 
     private VBox bubble(int userId, String authorName, String body, String createdAt, boolean pending) {
+        return bubble(userId, authorName, body, createdAt, pending, null, null, null);
+    }
+
+    /**
+     * attachmentUrl null means "no attachment" - was previously the only
+     * overload, which is why a message sent with a file but no text (see
+     * GroupChatApiController::index()) rendered as an empty bubble: there
+     * was nothing here that could show one at all.
+     */
+    private VBox bubble(int userId, String authorName, String body, String createdAt, boolean pending,
+                         String attachmentUrl, String attachmentType, String attachmentName) {
         boolean isOwn = userId == SessionManager.userId;
 
         VBox bubble = new VBox(3);
@@ -709,16 +723,50 @@ public class GroupChatController {
         Label author = new Label(authorName + "  ·  " + (pending ? "Pending sync…" : TextUtil.timeAgo(createdAt)));
         author.setStyle("-fx-font-size: 10.5; -fx-font-weight: bold; -fx-text-fill: "
             + (isOwn ? "#cfe0ea" : "#6B8094") + ";");
+        bubble.getChildren().add(author);
 
-        Label bodyLabel = new Label(body);
-        bodyLabel.setWrapText(true);
-        bodyLabel.setStyle("-fx-font-size: 13; -fx-text-fill: " + (isOwn ? "white" : "#33455A") + ";");
+        if (body != null && !body.isBlank()) {
+            Label bodyLabel = new Label(body);
+            bodyLabel.setWrapText(true);
+            bodyLabel.setStyle("-fx-font-size: 13; -fx-text-fill: " + (isOwn ? "white" : "#33455A") + ";");
+            bubble.getChildren().add(bodyLabel);
+        }
 
-        bubble.getChildren().addAll(author, bodyLabel);
+        if (attachmentUrl != null) {
+            bubble.getChildren().add(buildAttachmentNode(attachmentUrl,
+                attachmentType != null ? attachmentType : "file",
+                attachmentName != null ? attachmentName : "attachment", isOwn));
+        }
 
         VBox wrapper = new VBox(bubble);
         wrapper.setAlignment(isOwn ? Pos.CENTER_RIGHT : Pos.CENTER_LEFT);
         return wrapper;
+    }
+
+    /**
+     * Deliberately simpler than TopicController's buildAttachmentNode (no
+     * image preview, no offline caching yet) - a clickable name plus a
+     * download button is what was actually missing (the bug: an attachment
+     * with no visible name at all). url is a plain public storage path from
+     * the server (see GroupChatApiController), so it opens directly.
+     */
+    private javafx.scene.Node buildAttachmentNode(String url, String type, String name, boolean isOwn) {
+        String fullUrl = url.startsWith("http") ? url : BASE_URL + url;
+        String linkColor = isOwn ? "#cfe0ea" : "#26658C";
+
+        Label fileLink = new Label("📎 " + name);
+        fileLink.setWrapText(true);
+        fileLink.setStyle("-fx-text-fill: " + linkColor + "; -fx-font-weight: bold; -fx-font-size: 12; "
+            + "-fx-cursor: hand; -fx-underline: true;");
+        fileLink.setOnMouseClicked(e -> {
+            try {
+                java.awt.Desktop.getDesktop().browse(URI.create(fullUrl));
+            } catch (Exception ex) {
+                System.err.println("[GroupChat] Couldn't open attachment: " + ex.getMessage());
+            }
+        });
+
+        return fileLink;
     }
 
     private void showStatus(String text) {

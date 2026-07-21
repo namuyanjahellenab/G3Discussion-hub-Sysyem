@@ -26,7 +26,7 @@ class TopicApiController extends Controller
         abort_if($topic->exclusions()->where('UserID', $userId)->exists(), 403);
 
         $mainPost = Post::where('TopicID', $topic->TopicID)
-            ->with(['author', 'replies.author', 'replies.parentReply.author'])
+            ->with(['author', 'replies.author', 'replies.parentReply.author', 'replies.flags'])
             ->oldest('CreatedAt')
             ->first();
 
@@ -88,6 +88,9 @@ class TopicApiController extends Controller
                 'can_delete' => $r->UserID === $userId || in_array($request->user()->Role, ['Lecturer', 'Administrator'], true),
                 'can_accept' => !$r->IsAccepted && $mainPost && ($userId === $mainPost->UserID || $request->user()->Role === 'Lecturer'),
                 'can_flag' => $r->UserID !== $userId,
+                // flags is eager-loaded on the query below - checking it in
+                // memory instead of an exists() query per reply.
+                'has_flagged' => $r->flags->contains('FlaggedByUserID', $userId),
                 'attachment_url' => $r->Attachment ? Storage::url($r->Attachment) : null,
                 'attachment_type' => $r->AttachmentType,
                 'attachment_name' => $r->Attachment ? basename($r->Attachment) : null,
@@ -155,6 +158,15 @@ class TopicApiController extends Controller
     {
         $request->validate(['Reason' => 'nullable|string|max:250']);
         $reply->flagBy($request->user()->UserID, $request->input('Reason'));
+
+        return response()->json(['success' => true]);
+    }
+
+    // Counterpart to flagReply() - "I reported that by mistake". Mirrors
+    // DiscussionHubPageController::unflagReply().
+    public function unflagReply(Request $request, Reply $reply)
+    {
+        $reply->unflagBy($request->user()->UserID);
 
         return response()->json(['success' => true]);
     }
