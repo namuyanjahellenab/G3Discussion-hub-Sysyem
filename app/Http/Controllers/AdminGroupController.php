@@ -64,4 +64,5 @@ class AdminGroupController extends Controller
         return redirect()->route('admin.groups.index')
             ->with('success', 'Group deleted successfully.');
     }
+
 }
