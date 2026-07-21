@@ -61,10 +61,17 @@ class GroupBrowseService
 
     private function annotate(Collection $groups, int $userId): Collection
     {
-        return $groups->map(function ($group) use ($userId) {
-            $group->userJoined = GroupStudent::where('GroupID', $group->GroupID)
-                ->where('UserID', $userId)
-                ->exists();
+        // One query for every group's membership instead of one exists()
+        // query per group (was N+1 - trendingGroups()+browsableGroups()
+        // together were issuing 10+ near-identical queries on a single page
+        // load for a page with barely a dozen groups, scaling worse as the
+        // groups table grows).
+        $joinedGroupIds = GroupStudent::where('UserID', $userId)
+            ->whereIn('GroupID', $groups->pluck('GroupID'))
+            ->pluck('GroupID');
+
+        return $groups->map(function ($group) use ($joinedGroupIds) {
+            $group->userJoined = $joinedGroupIds->contains($group->GroupID);
 
             // CourseCode is a persisted column now (see the
             // add_course_code_to_groups_table migration) - only fall back to

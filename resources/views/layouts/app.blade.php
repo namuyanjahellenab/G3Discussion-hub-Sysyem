@@ -11,13 +11,28 @@
              properties (and the Bootstrap --bs-primary/--bs-primary-rgb
              retint) exist the instant the browser starts computing styles -
              admin-theme.css declares the same variables, but as an external
-             file it's requested last and can visibly arrive after the
-             Bootstrap CDN link already painted stock blue on bg-primary/
-             text-primary/bg-opacity-* elements (cards' icon chips, badges,
-             progress bars). Inlining removes that race instead of hoping
-             the external file wins it. Keep this in sync with the :root /
-             body[data-theme=...] blocks at the top of admin-theme.css. --}}
+             file it's requested last and can visibly arrive after Bootstrap
+             (bundled via Vite below) already painted stock blue on
+             bg-primary/text-primary/bg-opacity-* elements (cards' icon
+             chips, badges, progress bars). Inlining removes that race
+             instead of hoping the external file wins it. Keep this in sync
+             with the :root / body[data-theme=...] blocks at the top of
+             admin-theme.css. --}}
         <style>
+            /* Every sidebar link is a full page navigation (this is a
+               traditional server-rendered app, not a SPA) - by default that
+               means the browser blanks the page to white the instant you
+               click, then paints the new one once it arrives, which reads
+               as "the page disappears" even when the new page loads fast.
+               This is the native browser API for smoothing exactly that
+               (Chrome/Edge 111+): it cross-fades between the old and new
+               page instead of a hard blank-then-paint. No JS, no SPA
+               conversion, and it silently no-ops in browsers that don't
+               support it yet (Firefox/Safari) - same as today there, no
+               regression possible. */
+            @view-transition {
+                navigation: auto;
+            }
             :root {
                 --luna-lightest: #A7EBF2;
                 --luna-light:    #54ACBF;
@@ -51,17 +66,14 @@
             }
         </style>
 
-        <!-- Fonts -->
-        <link rel="preconnect" href="https://fonts.bunny.net">
-        <link href="https://fonts.bunny.net/css?family=figtree:400,500,600&display=swap" rel="stylesheet" />
-
-        <!-- Styles -->
-        <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
-        <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-T3c6CoIi6uLrA9TneNEoa7RxnatzjcDSCmG1MXxSR1GAsXEV/Dwwykc2MPK8M2HN" crossorigin="anonymous">
-        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
-        {{-- Font Awesome is bundled via app.css/Vite below, not the cdnjs CDN
-             link this used to be — that CDN was silently unreachable for at
-             least one real user, blanking every icon app-wide. --}}
+        {{-- Fonts, Bootstrap, Bootstrap Icons, and Font Awesome are all
+             bundled locally via Vite (resources/css/app.css /
+             resources/js/app.js) instead of loaded from
+             fonts.bunny.net/cdn.jsdelivr.net - those external requests
+             measured 1.7-7 seconds EACH on this network (vs 2-40ms for
+             every local asset), and they're render-blocking on every full
+             page navigation. Same versions as before, so nothing visually
+             changes; --}}
         @vite(['resources/css/app.css', 'resources/js/app.js'])
         {{-- filemtime query strings bust the browser cache whenever these
              plain public/css/ files change (no Vite build step covers them) -
@@ -135,7 +147,9 @@
             </div>
         </div>
 
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-C6RzsynM9kWDrMNeT87bh95OGNyZPhcTNXj1NW7RuBCsyN/o0jlpcV8Qyq46cDfL" crossorigin="anonymous" defer></script>
+        {{-- Bootstrap JS is bundled into resources/js/app.js (loaded via
+             @vite above) instead of this cdn.jsdelivr.net script tag -
+             same reasoning as the CSS/font bundling at the top of <head>. --}}
         {{-- filemtime query string busts the browser cache whenever this
              file changes - it's a plain public/js/ file (no Vite build
              step), so without this a browser that already cached an older

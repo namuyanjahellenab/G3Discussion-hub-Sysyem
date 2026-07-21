@@ -2,13 +2,28 @@
 
 import os
 
+# Category assigned when nothing beats SIMILARITY_FLOOR against the catalog.
 DEFAULT_CATEGORY = "General Chat"
+# Minimum cosine similarity a text needs against the best-matching catalog
+# category before that category is trusted - below this, the match is
+# treated as noise and DEFAULT_CATEGORY is used instead.
 SIMILARITY_FLOOR = 0.05
+# How long a built category catalog is reused before catalog.py rebuilds it
+# from the database again.
 CATALOG_TTL_SECONDS = 60
+# How many days back "recent activity" (posts/replies) counts toward a
+# group's trending score.
 TRENDING_WINDOW_DAYS = 14
+# Max number of a user's own recent posts/replies pulled in for
+# recommendation ranking.
 RECENT_ACTIVITY_LIMIT = 10
+# Max number of groups returned by the trending-groups endpoint.
 TRENDING_GROUP_LIMIT = 5
+# How much more a post/reply counts than a plain membership when ranking
+# trending groups (see db.py's trending query).
 GROUP_ACTIVITY_WEIGHT = 2
+# Max seconds to wait for a database connection before giving up and
+# falling back to "database unavailable" behavior.
 DB_CONNECT_TIMEOUT_SECONDS = 3
 
 
@@ -18,10 +33,14 @@ def _expected_token() -> str | None:
 
 
 def _token_prefix() -> str:
+    # Prefix stripped off the Authorization header before comparing against
+    # the expected token, e.g. "Bearer " in "Bearer <token>".
     return os.environ.get("GATEWAY_TOKEN_PREFIX", "Bearer ")
 
 
 def _is_authorized(req) -> bool:
+    # True only if the request's Authorization header carries the expected
+    # prefix and exactly matches the shared secret token.
     expected = _expected_token()
     if not expected:
         return False
@@ -33,6 +52,7 @@ def _is_authorized(req) -> bool:
 
 
 def _default_category() -> str:
+    # Env override for DEFAULT_CATEGORY, falling back to the constant above.
     return os.environ.get("DEFAULT_CATEGORY", DEFAULT_CATEGORY)
 
 

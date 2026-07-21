@@ -110,4 +110,11 @@ class AdminFlaggedContentController extends Controller
 
         return back()->with('success', 'Message unflagged.');
     }
+
+    public function destroyMessage(Message $message)
+    {
+        $message->delete();
+
+        return back()->with('success', 'Message deleted.');
+    }
 }

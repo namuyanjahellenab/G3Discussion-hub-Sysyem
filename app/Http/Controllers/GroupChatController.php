@@ -7,8 +7,10 @@ use App\Models\ConversationMember;
 use App\Models\GroupStudent;
 use App\Models\Message;
 use App\Models\ReadState;
+use App\Services\AttachmentUploader;
 use App\Services\GroupChatService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 
 class GroupChatController extends Controller
 {
@@ -53,7 +55,16 @@ class GroupChatController extends Controller
             $activeConversation = $mainConversation;
         }
 
+        // Spam-flagged messages are held out of every OTHER member's view
+        // until an admin clears them (AdminFlaggedContentController::
+        // dismissMessage) - flagging exists to stop them flooding the
+        // group. The sender is the one exception: they still see their own
+        // pending message (chat-bubble.blade.php marks it "under review")
+        // so it doesn't look like it silently vanished.
         $messages = Message::where('ConversationID', $activeConversation->ConversationID)
+            ->where(function ($q) use ($userId) {
+                $q->where('is_spam', false)->orWhere('user_id', $userId);
+            })
             ->orderBy('CreatedAt')
             ->with('user') // requires user() belongsTo on Message, add if missing
             ->get();
@@ -84,6 +95,7 @@ class GroupChatController extends Controller
         foreach ($allConversationIds as $convId) {
             $lastRead = $lastReadByConversation[$convId] ?? 0;
             $threadUnreadCounts[$convId] = Message::where('ConversationID', $convId)
+                ->where('is_spam', false)
                 ->where('MessageID', '>', $lastRead)
                 ->count();
         }
@@ -104,30 +116,110 @@ class GroupChatController extends Controller
     public function store(Request $request, $groupId)
     {
         $request->validate([
-            'body' => 'required|string|max:2000',
+            'body' => 'nullable|string|max:2000',
             'exclude' => 'array',
             'exclude.*' => 'exists:User,UserID',
             'conversation_id' => 'nullable|exists:conversation,ConversationID',
+            'attachment' => ['nullable', 'file', 'mimes:pdf,doc,docx,ppt,pptx,png,jpg,jpeg,zip', 'max:20480'],
         ]);
+
+        if (blank($request->input('body')) && !$request->hasFile('attachment')) {
+            $message = 'Please enter a message or attach a file.';
+
+            if ($request->wantsJson() || $request->header('Accept') === 'application/json') {
+                return response()->json([
+                    'success' => false,
+                    'message' => $message,
+                    'errors' => ['body' => [$message]],
+                ], 422);
+            }
+
+            return back()->withErrors(['body' => $message]);
+        }
+
+        $attachmentPath = null;
+        $attachmentType = null;
+
+        if ($request->hasFile('attachment')) {
+            $stored = AttachmentUploader::store($request->file('attachment'));
+            $attachmentPath = $stored['path'];
+            $attachmentType = $stored['type'];
+        }
 
         $chatMessage = app(GroupChatService::class)->send(
             $groupId,
             auth()->id(),
-            $request->input('body'),
+            (string) $request->input('body', ''),
             $request->input('exclude', []),
-            $request->input('conversation_id')
+            $request->input('conversation_id'),
+            $attachmentPath,
+            $attachmentType
         );
 
         $wantsJson = $request->wantsJson() || $request->header('Accept') === 'application/json';
 
+        // Spam is saved (see GroupChatService::send) and never broadcast to
+        // other members, but the sender still sees their own bubble -
+        // chat-bubble.blade.php renders a "flagged for review" notice on it
+        // (via $msg->is_spam) instead of it looking like it silently
+        // vanished. It stays invisible to everyone else until an admin
+        // clears it (index() only shows another member their own spam).
         if ($wantsJson) {
             return response()->json([
                 'success' => true,
+                'pending' => (bool) $chatMessage->is_spam,
                 'html' => view('student.partials.chat-bubble', [
                     'msg' => $chatMessage,
                     'canExclude' => $chatMessage->conversation->Type !== 'restricted',
                 ])->render(),
             ]);
+        }
+
+        return back();
+    }
+
+    /**
+     * Only the sender can edit their own message, and only its text - an
+     * attachment already sent can't be swapped out here, same limitation
+     * the forum chat's own deleteMessage() places on editing (it doesn't
+     * even offer edit, only delete).
+     */
+    public function update(Request $request, Message $message)
+    {
+        abort_unless($message->user_id === auth()->id(), 403, 'You can only edit your own messages.');
+
+        $request->validate([
+            'body' => 'required|string|max:2000',
+        ]);
+
+        $message->update(['body' => $request->input('body')]);
+        $message->load('user');
+
+        if ($request->wantsJson() || $request->header('Accept') === 'application/json') {
+            return response()->json([
+                'success' => true,
+                'html' => view('student.partials.chat-bubble', [
+                    'msg' => $message,
+                    'canExclude' => $message->conversation->Type !== 'restricted',
+                ])->render(),
+            ]);
+        }
+
+        return back();
+    }
+
+    public function destroy(Request $request, Message $message)
+    {
+        abort_unless($message->user_id === auth()->id(), 403, 'You can only delete your own messages.');
+
+        if ($message->Attachment) {
+            Storage::disk('public')->delete($message->Attachment);
+        }
+
+        $message->delete();
+
+        if ($request->wantsJson() || $request->header('Accept') === 'application/json') {
+            return response()->json(['success' => true]);
         }
 
         return back();

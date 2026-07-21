@@ -12,7 +12,7 @@ class Message extends Model
    protected $table = 'message';
 protected $primaryKey = 'MessageID';
 
-protected $fillable = ['TopicID', 'user_id', 'ConversationID', 'body', 'is_spam'];
+protected $fillable = ['TopicID', 'user_id', 'ConversationID', 'body', 'is_spam', 'Attachment', 'AttachmentType'];
 
     public function user()
     {
@@ -24,7 +24,17 @@ public function topic()
 }
 
     public function conversation()
-    {
-        return $this->belongsTo(Conversation::class, 'ConversationID', 'ConversationID');
-    }
+{
+    return $this->belongsTo(Conversation::class, 'ConversationID', 'ConversationID');
+}
+
+public function parentMessage()
+{
+    return $this->belongsTo(Message::class, 'ParentMessageID');
+}
+
+public function replies()
+{
+    return $this->hasMany(Message::class, 'ParentMessageID');
+}
 }

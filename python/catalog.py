@@ -54,6 +54,9 @@ def _build_catalog() -> list[dict[str, str]]:
 
 
 def _rank_against_catalog(query_text: str, catalog: list[dict[str, str]]) -> list[tuple[dict[str, str], float]]:
+    # Cosine-similarity-score query_text against every catalog entry,
+    # returning (entry, score) pairs in the catalog's original order -
+    # unsorted, callers pick the best match themselves.
     corpus = [item["Text"] for item in catalog] + [query_text]
     vectorizer = TfidfVectorizer(stop_words="english")
     matrix = vectorizer.fit_transform(corpus)
@@ -73,6 +76,8 @@ def _rank_texts(query_text: str, texts: list[str]) -> list[float]:
 
 
 def _classify_category(text: str) -> tuple[str, float]:
+    # Best-matching category for text, or DEFAULT_CATEGORY at score 0.0 if
+    # even the closest match is too weak (below SIMILARITY_FLOOR) to trust.
     catalog = _build_catalog()
     ranked = sorted(_rank_against_catalog(text, catalog), key=lambda pair: pair[1], reverse=True)
     best_item, best_score = ranked[0]

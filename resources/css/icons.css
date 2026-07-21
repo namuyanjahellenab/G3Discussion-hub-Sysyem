@@ -3,3 +3,14 @@
    extending layouts.app, so pulling in Tailwind's reset here would fight
    their existing styling. See app.css for the full-layout equivalent. */
 @import '@fortawesome/fontawesome-free/css/all.min.css';
+
+/* Sora/Inter, bundled locally instead of fonts.googleapis.com/fonts.bunny.net
+   - same 1.7-7s external-CDN-latency issue as app.css's Bootstrap/Figtree
+   bundling, same fix. Every page that imports this file used one or both
+   of these families via its own separate CDN <link>. */
+@import '@fontsource/sora/600.css';
+@import '@fontsource/sora/700.css';
+@import '@fontsource/inter/400.css';
+@import '@fontsource/inter/500.css';
+@import '@fontsource/inter/600.css';
+@import '@fontsource/inter/700.css';

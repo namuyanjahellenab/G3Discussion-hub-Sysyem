@@ -25,7 +25,7 @@
                     type="email" 
                     id="email" 
                     name="email" 
-                    placeholder="user@example.com"
+                    placeholder="nakatov@mak.ug"
                     value="{{ old('email') }}"
                     required
                 >

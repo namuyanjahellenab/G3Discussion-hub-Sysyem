@@ -249,6 +249,7 @@ Route::post('/warning', [\App\Http\Controllers\Admin\AdminWarningController::cla
     Route::post('/flagged-content/{post}/dismiss', [\App\Http\Controllers\Admin\AdminFlaggedContentController::class, 'dismiss'])->name('flagged-content.dismiss');
     Route::delete('/flagged-content/{post}', [\App\Http\Controllers\Admin\AdminFlaggedContentController::class, 'destroy'])->name('flagged-content.destroy');
     Route::post('/flagged-content/messages/{message}/dismiss', [\App\Http\Controllers\Admin\AdminFlaggedContentController::class, 'dismissMessage'])->name('flagged-content.messages.dismiss');
+    Route::delete('/flagged-content/messages/{message}', [\App\Http\Controllers\Admin\AdminFlaggedContentController::class, 'destroyMessage'])->name('flagged-content.messages.destroy');
     Route::post('/flagged-content/replies/{reply}/dismiss', [\App\Http\Controllers\Admin\AdminFlaggedContentController::class, 'dismissReply'])->name('flagged-content.replies.dismiss');
     Route::delete('/flagged-content/replies/{reply}', [\App\Http\Controllers\Admin\AdminFlaggedContentController::class, 'destroyReply'])->name('flagged-content.replies.destroy');
 
@@ -265,4 +266,7 @@ Route::patch('/notifications/read-all', [DiscussionHubPageController::class, 'ma
     Route::middleware('auth')->group(function () {
     Route::get('/groups/{groupId}/messages/{conversationId?}', [GroupChatController::class, 'index'])->name('student.messages');
     Route::post('/groups/{groupId}/messages', [GroupChatController::class, 'store'])->middleware('blacklist')->name('student.messages.store');
+    Route::get('/group-messages/{message}/attachment', [AttachmentController::class, 'downloadMessage'])->name('student.messages.attachment');
+    Route::patch('/group-messages/{message}', [GroupChatController::class, 'update'])->middleware('blacklist')->name('student.messages.update');
+    Route::delete('/group-messages/{message}', [GroupChatController::class, 'destroy'])->name('student.messages.destroy');
 });

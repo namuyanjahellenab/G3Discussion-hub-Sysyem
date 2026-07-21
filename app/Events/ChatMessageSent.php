@@ -3,6 +3,7 @@
 namespace App\Events;
 
 use App\Models\Message;
+use App\Services\AttachmentUploader;
 use Illuminate\Broadcasting\PrivateChannel;
 use Illuminate\Contracts\Broadcasting\ShouldBroadcastNow;
 use Illuminate\Queue\SerializesModels;
@@ -39,6 +40,12 @@ class ChatMessageSent implements ShouldBroadcastNow
             'user_id' => $this->message->user_id,
             'author_name' => $this->message->user->UserName ?? 'Unknown',
             'body' => $this->message->body,
+            'attachment_url' => $this->message->Attachment
+                ? route('student.messages.attachment', $this->message->MessageID)
+                : null,
+            'attachment_name' => $this->message->Attachment
+                ? AttachmentUploader::displayName($this->message->Attachment)
+                : null,
             // Human-friendly for immediate display (matches the sender's own
             // optimistically-appended bubble, which already uses
             // diffForHumans() via chat-bubble.blade.php) - a raw

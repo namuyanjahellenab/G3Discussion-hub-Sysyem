@@ -4,6 +4,21 @@
    rendered as blank buttons) with nothing in the app itself indicating why. */
 @import '@fortawesome/fontawesome-free/css/all.min.css';
 
+/* Bootstrap + Bootstrap Icons + the Figtree font were loaded from
+   cdn.jsdelivr.net/fonts.bunny.net on every single page (layouts/app.blade.php
+   is the shared layout for virtually every sidebar destination) - on this
+   network, those external requests measured 1.7-7 seconds EACH, dwarfing
+   every server-side optimization made elsewhere, since they're render-
+   blocking and reloaded on every full-page navigation. Bundled locally so
+   every page's CSS/JS ships from the same origin as everything else,
+   same versions as before (bootstrap@5.3.2, bootstrap-icons@1.10.5,
+   Figtree 400/500/600) so nothing visually changes. */
+@import 'bootstrap/dist/css/bootstrap.min.css';
+@import 'bootstrap-icons/font/bootstrap-icons.min.css';
+@import '@fontsource/figtree/400.css';
+@import '@fontsource/figtree/500.css';
+@import '@fontsource/figtree/600.css';
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
