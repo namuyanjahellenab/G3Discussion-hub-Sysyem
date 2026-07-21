@@ -8,8 +8,10 @@ use App\Models\ConversationExclusion;
 use App\Models\ConversationMember;
 use App\Models\GroupStudent;
 use App\Models\Message;
+use App\Services\AttachmentUploader;
 use App\Services\GroupChatService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 
 // JSON equivalent of the web's Group Chat (GroupChatController) - full
 // parity, including restricted/selective threads (a conversation that
@@ -99,6 +101,15 @@ class GroupChatApiController extends Controller
                 'created_at' => optional($m->CreatedAt)->diffForHumans(),
                 'created_at_iso' => $m->CreatedAt,
                 'is_spam' => (bool) $m->is_spam,
+                // Was missing entirely - a message sent with an attachment
+                // (web supports this; see GroupChatController::store()) came
+                // through to the desktop with no way to know it had one,
+                // rendering as an empty bubble whenever body was blank.
+                // Same field names/shape as TopicApiController's reply
+                // attachments, so the desktop can reuse the same rendering.
+                'attachment_url' => $m->Attachment ? Storage::url($m->Attachment) : null,
+                'attachment_type' => $m->AttachmentType,
+                'attachment_name' => $m->Attachment ? AttachmentUploader::displayName($m->Attachment) : null,
             ]),
         ]);
     }
@@ -129,6 +140,9 @@ class GroupChatApiController extends Controller
             'created_at_iso' => $message->CreatedAt,
             'conversation_id' => $message->ConversationID,
             'is_spam' => (bool) $message->is_spam,
+            'attachment_url' => $message->Attachment ? Storage::url($message->Attachment) : null,
+            'attachment_type' => $message->AttachmentType,
+            'attachment_name' => $message->Attachment ? AttachmentUploader::displayName($message->Attachment) : null,
         ], 201);
     }
 }

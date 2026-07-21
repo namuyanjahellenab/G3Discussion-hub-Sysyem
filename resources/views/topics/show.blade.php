@@ -81,7 +81,7 @@
         background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160' viewBox='0 0 160 160'%3E%3Cg fill='%2326658C' fill-opacity='0.07'%3E%3Ccircle cx='18' cy='22' r='3'/%3E%3Ccircle cx='96' cy='14' r='2'/%3E%3Ccircle cx='134' cy='70' r='2.6'/%3E%3Ccircle cx='30' cy='120' r='2.2'/%3E%3Crect x='60' y='96' width='9' height='9' rx='2.5'/%3E%3Crect x='118' y='128' width='7' height='7' rx='2'/%3E%3Ccircle cx='108' cy='48' r='2'/%3E%3Ccircle cx='6' cy='70' r='2'/%3E%3Crect x='140' y='96' width='6' height='6' rx='1.5'/%3E%3Ccircle cx='70' cy='150' r='2'/%3E%3C/g%3E%3C/svg%3E");
         background-size: 160px 160px;
         border: 1px solid var(--surface-border); border-radius: var(--radius-lg);
-        padding: 14px 12px;
+        padding: 14px 12px 28px;
         overflow-y: auto; scrollbar-width: thin;
     }
     /* Thin scrollbar, matching the desktop client's native ScrollPane look
@@ -328,9 +328,10 @@
                             <div class="unread-divider"><span>NEW MESSAGES</span></div>
                         @endif
                         @php($canFlag = !$isOwnReply)
+                        @php($hasFlagged = $reply->flags->contains('FlaggedByUserID', auth()->id()))
                         @php($canDelete = $isOwnReply || in_array(auth()->user()->Role, ['Lecturer', 'Administrator'], true))
                         @php($canAccept = !$reply->IsAccepted && (auth()->id() === $mainPost->UserID || auth()->user()->Role === 'Lecturer'))
-                        @php($replySignature = $reply->ReplyContent . '|' . ($reply->IsAccepted ? 'true' : 'false') . '|' . ($reply->IsFlagged ? 'true' : 'false') . '|' . ($canFlag ? 'true' : 'false') . '|' . ($canAccept ? 'true' : 'false') . '|' . ($canDelete ? 'true' : 'false'))
+                        @php($replySignature = $reply->ReplyContent . '|' . ($reply->IsAccepted ? 'true' : 'false') . '|' . ($reply->IsFlagged ? 'true' : 'false') . '|' . ($canFlag ? 'true' : 'false') . '|' . ($hasFlagged ? 'true' : 'false') . '|' . ($canAccept ? 'true' : 'false') . '|' . ($canDelete ? 'true' : 'false'))
                         <div class="reply-row {{ $isOwnReply ? 'own' : 'other' }} {{ $reply->IsAccepted ? 'answer' : '' }} {{ $reply->IsFlagged ? 'flagged' : '' }}" data-reply-id="{{ $reply->ReplyID }}" data-reply-author="{{ $reply->author?->UserName ?? $reply->author?->name ?? 'a member' }}" data-signature="{{ $replySignature }}">
                             <div class="post-avatar {{ $reply->author?->Role === 'Lecturer' ? 'lecturer' : '' }}">
                                 {{ Str::initials($reply->author?->UserName ?? $reply->author?->name ?? '?') }}
@@ -383,7 +384,11 @@
                                     <i class="fa-solid fa-reply"></i>
                                 </button>
                                 @if($canFlag)
-                                    <button type="button" title="Report" onclick="ajaxReplyAction({{ $reply->ReplyID }}, 'flag')"><i class="fa-solid fa-flag"></i></button>
+                                    @if($hasFlagged)
+                                        <button type="button" title="Withdraw report" onclick="ajaxReplyAction({{ $reply->ReplyID }}, 'unflag')"><i class="fa-solid fa-flag" style="color: var(--accent-danger);"></i></button>
+                                    @else
+                                        <button type="button" title="Report" onclick="ajaxReplyAction({{ $reply->ReplyID }}, 'flag')"><i class="fa-solid fa-flag"></i></button>
+                                    @endif
                                 @endif
                                 @if($canDelete)
                                     <div class="sep"></div>
@@ -539,14 +544,54 @@ function sizeChatPanel() {
     const panel = document.querySelector('.chat-panel');
     const form = document.querySelector('.reply-form');
     if (!panel) return;
-    const top = panel.getBoundingClientRect().top;
-    const formHeight = form ? form.getBoundingClientRect().height : 0;
+    // Measuring the gap directly between the panel's top and the form's
+    // top (both real rendered positions) instead of computing
+    // "viewport height minus form height" - the old approach used
+    // form.getBoundingClientRect().height, which does NOT include the
+    // form's own margin-top: 20px (getBoundingClientRect().height never
+    // includes margin, by definition). That 20px was silently missing
+    // from the calculation, so the panel was sized ~20px taller than the
+    // space actually available above the form - exactly the sliver of
+    // the last message that ended up hidden behind the composer.
+    // Measuring top-to-top sidesteps the whole margin/height distinction
+    // entirely, since position naturally reflects margin already.
+    const panelTop = panel.getBoundingClientRect().top;
     const bottomGap = 12;
-    const available = window.innerHeight - top - formHeight - bottomGap;
+    const available = form
+        ? form.getBoundingClientRect().top - panelTop - bottomGap
+        : window.innerHeight - panelTop - bottomGap;
     panel.style.height = Math.max(240, available) + 'px';
 }
 window.addEventListener('resize', sizeChatPanel);
 sizeChatPanel();
+
+// Setting scrollTop = scrollHeight immediately after appending a new row
+// reads scrollHeight before the browser has actually finished laying that
+// row out - the reflow from a freshly-inserted block element isn't
+// guaranteed to have completed by the very next synchronous line, so the
+// scroll landed short and the last message stayed cut off behind the
+// composer (confirmed: it was reachable by scrolling, so the box's real
+// height was correct, only the auto-scroll's target position was stale).
+// Two nested requestAnimationFrame calls wait for the NEXT paint after
+// this one, by which point layout for the new content is guaranteed
+// settled - a well-established fix for exactly this race, more reliable
+// than a fixed setTimeout delay guess.
+window.scrollChatPanelToBottom = function scrollChatPanelToBottom() {
+    const panel = document.querySelector('.chat-panel');
+    if (!panel) return;
+    requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+            panel.scrollTop = panel.scrollHeight;
+        });
+    });
+};
+
+// Replies render oldest-first, so a thread with more replies than fit in
+// the box left you looking at the OLDEST ones on load, with the most
+// recent (including the last one you sent, if that's what brought you
+// back to this page) hidden below the fold until you scrolled down
+// yourself. WhatsApp-style: land on the newest message by default.
+scrollChatPanelToBottom();
 
 // Same containment for the right sidebar (profile/topic info/participants/
 // related topics): it scrolls in its own bounded box, independent of both
@@ -619,13 +664,15 @@ sizeRightPanel();
     // path in applyUpdate() below instead, so the relative time still ticks
     // without touching anything else about an otherwise untouched row.
     function replySignature(r) {
-        return [r.content, r.is_accepted, r.is_flagged, r.can_flag, r.can_accept, r.can_delete].join('|');
+        return [r.content, r.is_accepted, r.is_flagged, r.can_flag, r.has_flagged, r.can_accept, r.can_delete].join('|');
     }
 
     function actionsHtmlFor(r) {
         let html = `<button type="button" title="Reply" onclick="startThreadedReply(${r.id}, '${escapeHtml(r.author_name).replace(/'/g, "\\'")}')"><i class="fa-solid fa-reply"></i></button>`;
         if (r.can_flag) {
-            html += `<button type="button" title="Report" onclick="ajaxReplyAction(${r.id}, 'flag')"><i class="fa-solid fa-flag"></i></button>`;
+            html += r.has_flagged
+                ? `<button type="button" title="Withdraw report" onclick="ajaxReplyAction(${r.id}, 'unflag')"><i class="fa-solid fa-flag" style="color: var(--accent-danger);"></i></button>`
+                : `<button type="button" title="Report" onclick="ajaxReplyAction(${r.id}, 'flag')"><i class="fa-solid fa-flag"></i></button>`;
         }
         if (r.can_delete) {
             html += `<div class="sep"></div><button type="button" class="danger" title="Delete" onclick="ajaxReplyAction(${r.id}, 'delete')"><i class="fa-solid fa-trash"></i></button>`;
@@ -688,6 +735,13 @@ sizeRightPanel();
         const replies = json.replies || [];
         const incomingIds = new Set(replies.map(r => String(r.id)));
 
+        // Captured BEFORE mutating the DOM below - appending rows changes
+        // scrollHeight immediately, which would make "was already at the
+        // bottom" always true if checked afterward instead of before.
+        const nearBottomThreshold = 80;
+        const wasNearBottom = chatPanel.scrollHeight - chatPanel.scrollTop - chatPanel.clientHeight <= nearBottomThreshold;
+        let rowsAdded = false;
+
         chatPanel.querySelectorAll('.reply-row[data-reply-id]').forEach(row => {
             if (!incomingIds.has(row.dataset.replyId)) row.remove();
         });
@@ -717,8 +771,19 @@ sizeRightPanel();
                 existing.replaceWith(newRow);
             } else {
                 chatPanel.appendChild(newRow);
+                rowsAdded = true;
             }
         });
+
+        // A brand new row landing below the fold used to just sit there
+        // invisible until the user manually scrolled - most noticeable
+        // right after posting your own reply, which always lands at the
+        // bottom. Only auto-scrolls if you were already near the bottom
+        // (or this is your own send), so it never yanks someone away from
+        // reading further up in a long thread.
+        if (rowsAdded && wasNearBottom) {
+            scrollChatPanelToBottom();
+        }
 
         if (!replies.length && !chatPanel.querySelector('.reply-row') && !chatPanel.querySelector(':scope > .empty-state')) {
             const p = document.createElement('p');
@@ -730,10 +795,14 @@ sizeRightPanel();
     }
 
     function poll() {
+        // Always returns a promise (even on the early-out/error paths) so
+        // callers - like the reply-form submit handler below - can reliably
+        // chain onto "the DOM has actually been updated by now" instead of
+        // firing a scroll-to-bottom before the new row even exists.
         if (replyTextarea && document.activeElement === replyTextarea && replyTextarea.value.trim() !== '') {
-            return;
+            return Promise.resolve();
         }
-        fetch(`/api/topics/${topicId}`, { headers: { 'Accept': 'application/json' }, credentials: 'same-origin' })
+        return fetch(`/api/topics/${topicId}`, { headers: { 'Accept': 'application/json' }, credentials: 'same-origin' })
             .then(res => (res.ok ? res.json() : null))
             .then(json => { if (json) applyUpdate(json); })
             .catch(() => {});
@@ -741,15 +810,48 @@ sizeRightPanel();
 
     window.ajaxReplyAction = function (replyId, action) {
         if (action === 'delete' && !confirm('Delete this reply?')) return;
-        const url = action === 'flag' ? `/replies/${replyId}/flag`
+
+        // Reason is optional server-side (Reply::flagBy accepts null), but
+        // the field exists specifically so a moderator reviewing the queue
+        // has some context beyond "someone flagged this" - worth actually
+        // asking for it instead of always sending null.
+        let reason = null;
+        if (action === 'flag') {
+            reason = prompt('Why are you reporting this reply? (optional)') || null;
+        }
+
+        const url = (action === 'flag' || action === 'unflag') ? `/replies/${replyId}/flag`
             : action === 'accept' ? `/replies/${replyId}/accept`
             : `/replies/${replyId}`;
-        const method = action === 'delete' ? 'DELETE' : 'POST';
-        fetch(url, {
+        const method = (action === 'delete' || action === 'unflag') ? 'DELETE' : 'POST';
+
+        const options = {
             method,
             headers: { 'X-CSRF-TOKEN': csrfToken, 'Accept': 'application/json' },
             credentials: 'same-origin',
-        }).then(poll).catch(() => {});
+        };
+        if (action === 'flag') {
+            options.headers['Content-Type'] = 'application/json';
+            options.body = JSON.stringify({ Reason: reason });
+        }
+
+        fetch(url, options).then(res => {
+            // Flag/unflag need their own explicit confirmation - unlike
+            // delete (row disappears) or accept (the "Marked as answer" tag
+            // appears immediately), a single flag/unflag usually changes
+            // nothing else visible: IsFlagged only flips once a SECOND,
+            // different person has also flagged it (see Reply::flagBy's
+            // escalation threshold). Without this, clicking Report/Withdraw
+            // looked like it did nothing, because for a lone flagger it
+            // genuinely didn't - visibly - even though it was recorded
+            // correctly server-side.
+            if (action === 'flag' && res.ok) {
+                alert('Reply reported. A moderator will review it.');
+            } else if (action === 'unflag' && res.ok) {
+                alert('Report withdrawn.');
+            }
+            return poll();
+        }).catch(() => {});
     };
 
     if (replyForm) {
@@ -773,7 +875,11 @@ sizeRightPanel();
                 document.getElementById('replyAttachment').value = '';
                 document.getElementById('replyAttachFilename').textContent = '';
                 sizeChatPanel();
-                return poll();
+                // Unconditional (unlike the smart near-bottom check in
+                // applyUpdate()) - after YOUR OWN send, you should always
+                // land on what you just posted, even if you'd scrolled up
+                // to read older replies first.
+                return poll().then(scrollChatPanelToBottom);
             }).catch(err => alert(err.message));
         });
     }

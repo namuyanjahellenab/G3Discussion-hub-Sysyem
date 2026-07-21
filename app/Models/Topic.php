@@ -23,6 +23,16 @@ class Topic extends Model
         return $this->hasMany(Post::class, 'TopicID', 'TopicID');
     }
 
+    /**
+     * The topic's opening post - the actual question text the asker typed,
+     * as opposed to Title (see topics/my-questions.blade.php, which shows
+     * this instead of the title).
+     */
+    public function mainPost()
+    {
+        return $this->hasOne(Post::class, 'TopicID', 'TopicID')->oldest('CreatedAt');
+    }
+
     public function group()
     {
         return $this->belongsTo(Group::class, 'GroupID', 'GroupID');

@@ -339,7 +339,7 @@ public class TopicController {
                 HBox replyRow = buildReplyBubble(
                     r.getReplyId(), r.getContent(), resolveAuthorName(r.getUserId(), r.getAuthorName()), isOwn,
                     TextUtil.timeAgo(r.getCreatedAt()), false, false, false,
-                    false, false, false, false,
+                    false, false, false, false, false,
                     null, null,
                     r.getAttachmentUrl(), r.getAttachmentType(), r.getAttachmentName(),
                     r.isPending(), null
@@ -598,7 +598,8 @@ public class TopicController {
 
     private String replySignature(JSONObject reply) {
         return reply.getString("content") + "|" + reply.getBoolean("is_accepted") + "|" + reply.getBoolean("is_flagged")
-            + "|" + reply.getBoolean("can_flag") + "|" + reply.getBoolean("can_accept") + "|" + reply.getBoolean("can_delete");
+            + "|" + reply.getBoolean("can_flag") + "|" + reply.optBoolean("has_flagged", false)
+            + "|" + reply.getBoolean("can_accept") + "|" + reply.getBoolean("can_delete");
     }
 
     /**
@@ -612,8 +613,8 @@ public class TopicController {
         return buildReplyBubble(
             id, reply.getString("content"), reply.getString("author_name"), reply.getBoolean("is_own"),
             reply.getString("created_at"), reply.getBoolean("is_accepted"), reply.getBoolean("is_flagged"),
-            reply.getBoolean("is_lecturer"), reply.getBoolean("can_flag"), reply.getBoolean("can_accept"),
-            reply.getBoolean("can_delete"), true,
+            reply.getBoolean("is_lecturer"), reply.getBoolean("can_flag"), reply.optBoolean("has_flagged", false),
+            reply.getBoolean("can_accept"), reply.getBoolean("can_delete"), true,
             (!reply.isNull("parent_reply_author")) ? reply.getString("parent_reply_author") : null,
             reply.optString("parent_reply_snippet", ""),
             reply.isNull("attachment_url") ? null : reply.getString("attachment_url"),
@@ -633,7 +634,7 @@ public class TopicController {
      *  offline render. */
     private HBox buildReplyBubble(int replyId, String content, String authorName, boolean isOwn,
                                    String timestampText, boolean isAccepted, boolean isFlagged, boolean isLecturer,
-                                   boolean canFlag, boolean canAccept, boolean canDelete, boolean canReply,
+                                   boolean canFlag, boolean hasFlagged, boolean canAccept, boolean canDelete, boolean canReply,
                                    String parentReplyAuthor, String parentReplySnippet,
                                    String attachmentUrl, String attachmentType, String attachmentName,
                                    boolean pending, java.util.function.Consumer<Label> timeLabelConsumer) {
@@ -657,7 +658,17 @@ public class TopicController {
         time.setStyle("-fx-font-size: 10.5;");
         if (timeLabelConsumer != null) timeLabelConsumer.accept(time);
         top.getChildren().addAll(author, time);
-        if (canFlag) top.getChildren().add(actionButton("🚩", () -> flagReply(replyId)));
+        if (canFlag) {
+            // Same icon either way (matches the web's single flag glyph,
+            // just re-colored) - the action and tooltip are what actually
+            // change between "report" and "withdraw my report".
+            Button flagBtn = hasFlagged
+                ? actionButton("🚩", () -> unflagReply(replyId))
+                : actionButton("🚩", () -> flagReply(replyId));
+            flagBtn.setTooltip(new Tooltip(hasFlagged ? "Withdraw report" : "Report"));
+            if (hasFlagged) flagBtn.setStyle(flagBtn.getStyle() + " -fx-text-fill: -accent-danger;");
+            top.getChildren().add(flagBtn);
+        }
         if (canReply) top.getChildren().add(actionButton("↩", () -> startReplyTo(replyId, authorName)));
         if (canAccept) top.getChildren().add(actionButton("✔", () -> acceptAnswer(replyId)));
         if (canDelete) top.getChildren().add(actionButton("🗑", () -> deleteReply(replyId)));
@@ -947,9 +958,52 @@ public class TopicController {
     }
 
     private void flagReply(int replyId) {
+        // Reason is optional server-side (Reply::flagBy accepts null), but
+        // the field exists specifically so a moderator reviewing the queue
+        // has some context beyond "someone flagged this" - worth actually
+        // asking for it instead of always sending null. showAndWait() is
+        // safe to call synchronously here since this runs on the FX
+        // Application Thread already (invoked from a button's onAction).
+        TextInputDialog reasonDialog = new TextInputDialog();
+        reasonDialog.setHeaderText("Why are you reporting this reply?");
+        reasonDialog.setContentText("Reason (optional):");
+        String reason = reasonDialog.showAndWait().map(String::trim).filter(s -> !s.isEmpty()).orElse(null);
+
         new Thread(() -> {
-            postJson("/api/replies/" + replyId + "/flag", "Reason", null);
-            Platform.runLater(this::refresh);
+            String error = postJson("/api/replies/" + replyId + "/flag", "Reason", reason);
+            Platform.runLater(() -> {
+                // Flagging needs its own explicit confirmation - unlike
+                // delete (row disappears) or accept (the "Marked as answer"
+                // tag appears immediately), a single flag usually changes
+                // nothing visible at all: IsFlagged only flips once a
+                // SECOND, different person also flags it (see the web's
+                // Reply::flagBy escalation threshold). Without this, the
+                // Report button looked broken - it wasn't, there was just
+                // no feedback that the click had registered, success or
+                // failure (the error return value was previously discarded
+                // outright).
+                if (error == null) {
+                    new Alert(Alert.AlertType.INFORMATION, "Reply reported. A moderator will review it.").showAndWait();
+                } else {
+                    new Alert(Alert.AlertType.ERROR, error).showAndWait();
+                }
+                refresh();
+            });
+        }).start();
+    }
+
+    /** Counterpart to flagReply() - "I reported that by mistake". */
+    private void unflagReply(int replyId) {
+        new Thread(() -> {
+            String error = deleteWithResult("/api/replies/" + replyId + "/flag");
+            Platform.runLater(() -> {
+                if (error == null) {
+                    new Alert(Alert.AlertType.INFORMATION, "Report withdrawn.").showAndWait();
+                } else {
+                    new Alert(Alert.AlertType.ERROR, error).showAndWait();
+                }
+                refresh();
+            });
         }).start();
     }
 
@@ -1106,6 +1160,26 @@ public class TopicController {
             conn.getResponseCode();
         } catch (Exception e) {
             System.err.println("[Topic] DELETE error: " + e.getMessage());
+        }
+    }
+
+    /** Same null-on-success/error-message-on-failure contract as postJson(),
+     *  for DELETE requests that need to know whether they actually
+     *  succeeded (unlike the fire-and-forget delete() above). */
+    private String deleteWithResult(String path) {
+        try {
+            HttpURLConnection conn = openConnection(path, "DELETE");
+            int code = conn.getResponseCode();
+            if (code == 200 || code == 201) return null;
+
+            String body = readBody(conn.getErrorStream());
+            try {
+                return new JSONObject(body).optString("message", "The server rejected that request.");
+            } catch (Exception e) {
+                return "The server rejected that request.";
+            }
+        } catch (Exception e) {
+            return "Couldn't reach the server — check your connection.";
         }
     }
 

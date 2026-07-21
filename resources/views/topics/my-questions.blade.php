@@ -28,7 +28,7 @@
     @forelse($myTopics as $topic)
         <a href="{{ route('topics.show', $topic) }}" class="mod-row {{ $topic->hasUnreadAnswer ? 'answered-new' : '' }}">
             <div style="flex: 1;">
-                <div class="title">{{ $topic->Title }}</div>
+                <div class="title">{{ Str::limit($topic->mainPost?->Content ?: $topic->Title, 120) }}</div>
                 <div class="sub">
                     {{ $topic->group?->GroupName ?? '—' }} &bull;
                     @if($topic->acceptedReply)

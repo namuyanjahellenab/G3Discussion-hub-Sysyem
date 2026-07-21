@@ -1154,6 +1154,24 @@ public function flagReply(Request $request, Reply $reply)
 }
 
 /**
+ * Withdraw your own report - "I flagged that by mistake". Counterpart to
+ * flagReply(); anyone can only remove their own flag, not anyone else's
+ * (Reply::unflagBy is scoped to the given UserID regardless of who calls it,
+ * but the route itself has no separate ownership check to bypass here -
+ * withdrawing a flag you never placed is simply a no-op).
+ */
+public function unflagReply(Request $request, Reply $reply)
+{
+    $reply->unflagBy(Auth::id());
+
+    if ($request->wantsJson()) {
+        return response()->json(['success' => true]);
+    }
+
+    return back()->with('status', 'Report withdrawn.');
+}
+
+/**
  * The reply's own author, or a Lecturer/Administrator, can delete it. This
  * is deliberately separate from AdminFlaggedContentController::destroyReply
  * — that one is the moderation-queue action (admin-only middleware); this
@@ -1203,7 +1221,7 @@ public function myQuestions()
     // topic in the map() below. Paginated so a prolific asker's history
     // doesn't load unbounded.
     $myTopics = Topic::where('CreatedBy', $userId)
-        ->with(['group', 'replies' => fn ($q) => $q->where('IsAccepted', true)->with('author')])
+        ->with(['group', 'mainPost', 'replies' => fn ($q) => $q->where('IsAccepted', true)->with('author')])
         ->withCount('replies')
         ->latest('CreatedAt')
         ->paginate(20)

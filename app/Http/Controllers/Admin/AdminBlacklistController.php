@@ -74,7 +74,7 @@ class AdminBlacklistController extends Controller
 
         Blacklist::create([
             'UserID' => $validated['UserID'],
-            'Reason' => 'Manual - ' . $validated['Reason'],
+            'Reason' => $validated['Reason'],
             'StartDate' => $validated['StartDate'],
             'EndDate' => $validated['EndDate'],
             'Type' => 'Manual',

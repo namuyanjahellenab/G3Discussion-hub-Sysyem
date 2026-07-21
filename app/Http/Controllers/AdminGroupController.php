@@ -52,4 +52,17 @@ class AdminGroupController extends Controller
         return redirect()->route('admin.groups.index')
             ->with('success', 'Group updated successfully.');
     }
+
+    public function destroy(Group $group)
+    {
+        // Related rows (GroupStudent, Conversation + its messages/members,
+        // Announcements) are removed via each table's ON DELETE CASCADE
+        // foreign key; Topic/Quiz rows are kept but have GroupID set to null
+        // (see their migrations), so past discussion/quiz history isn't lost.
+        $group->delete();
+
+        return redirect()->route('admin.groups.index')
+            ->with('success', 'Group deleted successfully.');
+    }
+
 }

@@ -144,6 +144,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/topics/{topic}/share-links', [App\Http\Controllers\Api\TopicApiController::class, 'shareLinks']);
     Route::post('/posts/{post}/replies', [App\Http\Controllers\Api\TopicApiController::class, 'storeReply']);
     Route::post('/replies/{reply}/flag', [App\Http\Controllers\Api\TopicApiController::class, 'flagReply']);
+    Route::delete('/replies/{reply}/flag', [App\Http\Controllers\Api\TopicApiController::class, 'unflagReply']);
     Route::delete('/replies/{reply}', [App\Http\Controllers\Api\TopicApiController::class, 'deleteReply']);
     Route::post('/replies/{reply}/accept', [App\Http\Controllers\Api\TopicApiController::class, 'acceptAnswer']);
     Route::get('/my-questions', [App\Http\Controllers\Api\StudentDataApiController::class, 'myQuestions']);
