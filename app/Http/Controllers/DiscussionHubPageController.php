@@ -144,7 +144,15 @@ class DiscussionHubPageController extends Controller
         $groupIds = $joinedGroups->pluck('GroupID');
         $memberIds = GroupStudent::whereIn('GroupID', $groupIds)->pluck('UserID')->unique();
 
+        // Spam-flagged posts are held out of every OTHER member's view until
+        // an admin clears them (AdminFlaggedContentController::dismiss) -
+        // flagging exists to stop them flooding the group. The sender still
+        // sees their own pending post (marked "under review" below) so it
+        // doesn't look like it silently vanished.
         $query = Post::with(['author', 'topic', 'parent.author', 'replies.author'])
+            ->where(function ($q) use ($user) {
+                $q->where('IsFlagged', false)->orWhere('UserID', $user->UserID);
+            })
             ->whereHas('topic', function ($topicQuery) use ($groupIds) {
                 $topicQuery->whereIn('GroupID', $groupIds);
             })
@@ -340,8 +348,10 @@ class DiscussionHubPageController extends Controller
             'IsFlagged' => $isSpam,
             'FlaggedReason' => $isSpam ? 'Auto-flagged by spam detection' : null,
         ]);
-// Requirement #2: notify the original post's author when someone replies
-if ($request->filled('parent_post_id')) {
+// Requirement #2: notify the original post's author when someone replies.
+// Skipped for a spam-flagged reply - the reply itself is hidden pending
+// admin review, so "X replied to your post" would point at nothing visible.
+if (!$isSpam && $request->filled('parent_post_id')) {
     $parentPost = Post::find($request->input('parent_post_id'));
 
     if ($parentPost && $parentPost->UserID !== Auth::id()) {
@@ -381,7 +391,7 @@ if ($request->filled('parent_post_id')) {
             $attachmentHtml = !empty($post->Attachment)
                 ? "<div style=\"margin-top: 8px; padding: 6px 10px; background: rgba(0,0,0,0.04); border-radius: 6px; display: flex; align-items: center; gap: 8px; font-size: 0.8rem;\">"
                     . "<i class=\"fa-solid fa-paperclip\" style=\"color: var(--text-muted);\"></i>"
-                    . "<a href=\"" . route('messages.attachment', $post->PostID) . "\" target=\"_blank\" style=\"color: var(--primary-color); text-decoration: none; font-weight: 500;\">View Attached Document</a>"
+                    . "<a href=\"" . route('messages.attachment', $post->PostID) . "\" target=\"_blank\" style=\"color: var(--primary-color); text-decoration: none; font-weight: 500;\">" . e(AttachmentUploader::displayName($post->Attachment)) . "</a>"
                     . "</div>"
                 : '';
 
@@ -413,12 +423,21 @@ if ($request->filled('parent_post_id')) {
 
             $html .= $parentReplyTextHtml;
 
+            // Only ever seen by the sender - other members never receive a
+            // flagged post at all (see messages()/pollMessages() above).
+            if ($isSpam) {
+                $html .= "<div style=\"display:flex; align-items:center; gap:6px; margin-bottom:8px; padding:6px 10px; background: var(--accent-amber-bg); color: var(--accent-amber); border-radius: 6px; font-size: 0.76rem; font-weight: 600;\">"
+                    . "<i class=\"fa-solid fa-triangle-exclamation\"></i> Under review — suspected spam. Only you can see this until an admin approves it."
+                    . "</div>";
+            }
+
             $html .= "<div class=\"message-actual-body\" style=\"color: #344054; line-height: 1.4; font-size: 0.92rem; word-break: break-word; white-space: pre-wrap;\">{$content}</div>";
             $html .= $attachmentHtml;
             $html .= "</div></div>";
 
             return response()->json([
                 'success' => true,
+                'pending' => (bool) $isSpam,
                 'html' => $html,
             ]);
         }
@@ -432,7 +451,9 @@ if ($request->filled('parent_post_id')) {
         }
 
         return redirect()->route('messages.index', $redirectParams)
-            ->with('status', 'Message sent successfully.');
+            ->with('status', $isSpam
+                ? 'Your message was flagged for review - only you can see it until an admin approves it.'
+                : 'Message sent successfully.');
 
     }
 
@@ -473,9 +494,14 @@ if ($request->filled('parent_post_id')) {
 
         $effectiveGroupId = !empty($derivedGroupId) ? $derivedGroupId : $groupId;
 
-        // newer_than is PostID
+        // newer_than is PostID. Same rule as the main messages() query - a
+        // spam post must not appear for other members via the live poll
+        // either, but the polling user still sees their own pending post.
         $posts = Post::with(['author'])
             ->where('TopicID', $request->topic_id)
+            ->where(function ($q) {
+                $q->where('IsFlagged', false)->orWhere('UserID', Auth::id());
+            })
             ->when(!empty($effectiveGroupId), function ($q) use ($effectiveGroupId) {
                 $q->whereHas('topic', function ($t) use ($effectiveGroupId) {
                     $t->where('GroupID', $effectiveGroupId);
@@ -503,7 +529,7 @@ if ($request->filled('parent_post_id')) {
                 : '';
 
             $attachmentHtml = !empty($post->Attachment)
-                ? "<div style=\"margin-top: 8px; padding: 6px 10px; background: rgba(0,0,0,0.04); border-radius: 6px; display: flex; align-items: center; gap: 8px; font-size: 0.8rem;\"><i class=\"fa-solid fa-paperclip\" style=\"color: var(--text-muted);\"></i><a href=\"" . route('messages.attachment', $post->PostID) . "\" target=\"_blank\" style=\"color: var(--primary-color); text-decoration: none; font-weight: 500;\">View Attached Document</a></div>"
+                ? "<div style=\"margin-top: 8px; padding: 6px 10px; background: rgba(0,0,0,0.04); border-radius: 6px; display: flex; align-items: center; gap: 8px; font-size: 0.8rem;\"><i class=\"fa-solid fa-paperclip\" style=\"color: var(--text-muted);\"></i><a href=\"" . route('messages.attachment', $post->PostID) . "\" target=\"_blank\" style=\"color: var(--primary-color); text-decoration: none; font-weight: 500;\">" . e(AttachmentUploader::displayName($post->Attachment)) . "</a></div>"
                 : '';
 
             $wrapperClass = $isMine ? 'mine-wrapper' : 'theirs-wrapper';
@@ -531,6 +557,15 @@ if ($request->filled('parent_post_id')) {
             $html .= "</div>";
 
             $html .= $parentReplyTextHtml;
+
+            // The query above only ever returns another member's flagged
+            // post as never - this branch only fires for the polling
+            // user's own pending post.
+            if ($post->IsFlagged) {
+                $html .= "<div style=\"display:flex; align-items:center; gap:6px; margin-bottom:8px; padding:6px 10px; background: var(--accent-amber-bg); color: var(--accent-amber); border-radius: 6px; font-size: 0.76rem; font-weight: 600;\">"
+                    . "<i class=\"fa-solid fa-triangle-exclamation\"></i> Under review — suspected spam. Only you can see this until an admin approves it."
+                    . "</div>";
+            }
 
             $html .= "<div class=\"message-actual-body\" style=\"color: #344054; line-height: 1.4; font-size: 0.92rem; word-break: break-word; white-space: pre-wrap;\">{$content}</div>";
             $html .= $attachmentHtml;

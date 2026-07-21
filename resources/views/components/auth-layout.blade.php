@@ -7,13 +7,8 @@
 
     <title>{{ config('app.name', 'Discussion Hub') }}</title>
 
-    <!-- Fonts -->
-    <link rel="preconnect" href="https://fonts.bunny.net">
-    <link href="https://fonts.bunny.net/css?family=figtree:400,500,600&display=swap" rel="stylesheet" />
-
-    <!-- Styles -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-L+3pC0XhEIkQd5xNA6LrK+ZaQO7CK5w5KkxBfDIsE8IhttFTP0RB5BR4g8F8Q9cL" crossorigin="anonymous">
-    {{-- Font Awesome is bundled via app.css/Vite below, not a CDN link. --}}
+    {{-- Fonts, Bootstrap, and Font Awesome are all bundled via app.css/Vite
+         below, not CDN links. --}}
     @vite(['resources/css/app.css', 'resources/js/app.js'])
     <link rel="stylesheet" href="{{ asset('css/style.css') }}">
 

@@ -12,7 +12,7 @@ class Message extends Model
    protected $table = 'message';
 protected $primaryKey = 'MessageID';
 
-protected $fillable = ['TopicID', 'user_id', 'ConversationID', 'body', 'is_spam'];
+protected $fillable = ['TopicID', 'user_id', 'ConversationID', 'body', 'is_spam', 'Attachment', 'AttachmentType'];
 
     public function user()
     {

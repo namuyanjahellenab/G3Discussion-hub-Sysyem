@@ -18,7 +18,7 @@ class MlGatewayClient
             'MessageText' => $text,
             'MessageID' => $referenceId,
             'Context' => $context,
-        ]);
+        ], (float) config('services.ml_gateway.classify_timeout', 1.5));
 
         return $response;
     }
@@ -109,8 +109,17 @@ class MlGatewayClient
         }
 
         try {
+            // connectTimeout is deliberately the short shared budget, not
+            // pdf_timeout - reaching the gateway at all is either fast or
+            // instantly refused (same as every other call), so there's no
+            // reason to wait longer just to find out it's unreachable.
+            // pdf_timeout only extends the budget for actual PDF rendering
+            // once a connection is established - see ->timeout() below,
+            // and the class-level note on why ->timeout() alone wasn't
+            // enough to bound a refused connection on this environment.
             $response = Http::withToken($token)
-                ->timeout((int) config('services.ml_gateway.timeout', 3))
+                ->connectTimeout((float) config('services.ml_gateway.timeout', 0.5))
+                ->timeout((float) config('services.ml_gateway.pdf_timeout', 8))
                 ->post(rtrim($baseUrl, '/') . '/export-topic-pdf', [
                     'TopicID' => $topicId,
                 ]);
@@ -139,7 +148,7 @@ class MlGatewayClient
         ]);
     }
 
-    private function post(string $path, array $payload): ?array
+    private function post(string $path, array $payload, ?float $timeoutOverride = null): ?array
     {
         $baseUrl = config('services.ml_gateway.url');
         $token = config('services.ml_gateway.token');
@@ -149,8 +158,17 @@ class MlGatewayClient
         }
 
         try {
+            // ->timeout() alone bounds total transfer time, not the TCP
+            // connect phase - on this environment, an unreachable gateway's
+            // connection attempt itself was the ~2s+ cost (confirmed by
+            // timing a raw curl call: only CURLOPT_CONNECTTIMEOUT_MS
+            // actually cut it off; the overall timeout option didn't).
+            // ->connectTimeout() is what maps to that curl option, so it's
+            // required here, not just ->timeout(), to actually fail fast.
+            $budget = $timeoutOverride ?? (float) config('services.ml_gateway.timeout', 0.5);
             $response = Http::withToken($token)
-                ->timeout((int) config('services.ml_gateway.timeout', 3))
+                ->connectTimeout($budget)
+                ->timeout($budget)
                 ->post(rtrim($baseUrl, '/') . $path, $payload);
 
             if ($response->failed()) {

@@ -143,6 +143,9 @@ EDUCATIONAL_TRAINING_DATA = [
 
 
 def _train_classifier(training_data: list[tuple[str, int]]) -> Pipeline:
+    # Fits a TF-IDF + Naive Bayes pipeline on (text, label) pairs. Called
+    # once at import time for each of the two classifiers below - training
+    # is fast enough on this small dataset to not need caching to disk.
     texts = [text for text, _ in training_data]
     labels = [label for _, label in training_data]
     pipeline = Pipeline([
@@ -158,6 +161,8 @@ _educational_classifier = _train_classifier(EDUCATIONAL_TRAINING_DATA)
 
 
 def _is_spam(text: str) -> bool:
+    # Empty text is never spam - only classify once there's something to
+    # score, and require SPAM_CONFIDENCE_THRESHOLD before calling it spam.
     if not text or not text.strip():
         return False
     spam_probability = _spam_classifier.predict_proba([text])[0][1]
@@ -165,6 +170,9 @@ def _is_spam(text: str) -> bool:
 
 
 def _is_generically_educational(text: str) -> bool:
+    # Used when there's no specific thread to compare against (see
+    # _classify_content). Empty text defaults to "educational" so a blank
+    # message isn't blocked on a moderation technicality.
     if not text or not text.strip():
         return True
     not_educational_probability = _educational_classifier.predict_proba([text])[0][0]

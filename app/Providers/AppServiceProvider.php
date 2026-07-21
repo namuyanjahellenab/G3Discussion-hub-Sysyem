@@ -3,6 +3,7 @@
 namespace App\Providers;
 
 use Illuminate\Support\ServiceProvider;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\View;
 use Illuminate\Support\Str;
 use App\Models\GroupStudent;
@@ -66,17 +67,37 @@ class AppServiceProvider extends ServiceProvider
             $currentGroupId = is_object($routeTopic) ? $routeTopic->GroupID : Topic::find($routeTopic)?->GroupID;
         }
 
-        if (!$currentGroupId) {
-            $currentGroupId = $userId
-                ? GroupStudent::where('UserID', $userId)->where('Status', 'active')->value('GroupID')
-                : null;
+        // This composer runs on EVERY page for every student/lecturer/admin
+        // (the sidebar is in the shared layout), so a page whose route
+        // doesn't already resolve a group - most of them - fell through to
+        // a fresh GroupStudent query every single navigation. That's the
+        // one thing this composer computes that isn't already free from the
+        // route, so it's the one thing worth caching. A short TTL keeps a
+        // just-joined group showing up in the sidebar promptly rather than
+        // trading this speedup for a stale "Group Chat" link.
+        if (!$currentGroupId && $userId) {
+            $currentGroupId = Cache::remember(
+                "sidebar_current_group:{$userId}",
+                60,
+                fn () => GroupStudent::where('UserID', $userId)->where('Status', 'active')->value('GroupID')
+            );
         }
 
         $view->with('currentGroupId', $currentGroupId);
     });
 
         View::composer('layouts.sidebar-admin', function ($view) {
-            $view->with('pendingFlagCount', Post::where('IsFlagged', true)->count() + Reply::where('IsFlagged', true)->count());
+            // Same reasoning - every admin page recomputed this from two
+            // full-table-ish COUNT queries on every navigation. The count
+            // only needs to be "recent enough" for a sidebar badge, not
+            // live-accurate to the second.
+            $pendingFlagCount = Cache::remember(
+                'sidebar_pending_flag_count',
+                60,
+                fn () => Post::where('IsFlagged', true)->count() + Reply::where('IsFlagged', true)->count()
+            );
+
+            $view->with('pendingFlagCount', $pendingFlagCount);
         });
 
         RateLimiter::for('forum-posts', function (Request $request) {

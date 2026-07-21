@@ -6,7 +6,6 @@
     $initials = Str::initials(auth()->user()->name ?? auth()->user()->UserName ?? '');
 @endphp
 
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght=400;500;600;700&display=swap" rel="stylesheet">
 @vite(['resources/css/icons.css'])
 
 <style>
@@ -604,10 +603,17 @@
                         return;
                     }
 
+                    // Spam or not, the sender always sees their own bubble -
+                    // the server renders an "under review" badge on it when
+                    // data.pending is true (DiscussionHubPageController::
+                    // storeMessage). Other members simply never receive it.
                     messagesContainer.insertAdjacentHTML('beforeend', data.html);
-
                     updateTimestamps();
                     messagesContainer.scrollTop = messagesContainer.scrollHeight;
+
+                    if (data.pending) {
+                        showComposerError(data.message || 'Your message was flagged for review - only you can see it until an admin approves it.');
+                    }
 
                     chatTextArea.value = '';
                     clearReplyContext();

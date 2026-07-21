@@ -190,10 +190,17 @@
                                 <td>{{ $message->user?->UserName ?? 'Unknown User' }}</td>
                                 <td>{{ $message->CreatedAt->format('d M Y') }}</td>
                                 <td class="flagged-content-action-col">
-                                    <form method="POST" action="{{ route('admin.flagged-content.messages.dismiss', $message->MessageID) }}">
-                                        @csrf
-                                        <button type="submit" class="btn btn-outline-secondary btn-sm">Dismiss</button>
-                                    </form>
+                                    <div class="d-flex gap-2">
+                                        <form method="POST" action="{{ route('admin.flagged-content.messages.dismiss', $message->MessageID) }}">
+                                            @csrf
+                                            <button type="submit" class="btn btn-outline-secondary btn-sm">Dismiss</button>
+                                        </form>
+                                        <form method="POST" action="{{ route('admin.flagged-content.messages.destroy', $message->MessageID) }}" onsubmit="return confirm('Delete this message permanently?');">
+                                            @csrf
+                                            @method('DELETE')
+                                            <button type="submit" class="btn btn-outline-danger btn-sm">Delete</button>
+                                        </form>
+                                    </div>
                                 </td>
                             </tr>
                         @empty

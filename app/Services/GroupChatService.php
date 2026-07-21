@@ -17,8 +17,15 @@ use Illuminate\Support\Collection;
 // broadcast - rather than a fourth copy of this logic).
 class GroupChatService
 {
-    public function send(int $groupId, int $userId, string $body, array $excludeIds = [], ?int $conversationId = null): Message
-    {
+    public function send(
+        int $groupId,
+        int $userId,
+        string $body,
+        array $excludeIds = [],
+        ?int $conversationId = null,
+        ?string $attachmentPath = null,
+        ?string $attachmentType = null
+    ): Message {
         abort_unless(
             GroupStudent::where('GroupID', $groupId)->where('UserID', $userId)->exists(),
             403,
@@ -52,6 +59,8 @@ class GroupChatService
             'user_id' => $userId,
             'body' => $body,
             'is_spam' => $isSpam,
+            'Attachment' => $attachmentPath,
+            'AttachmentType' => $attachmentType,
         ]);
 
         $message->load('user');
@@ -63,10 +72,17 @@ class GroupChatService
         // through to the controller, so the client sees an error and the
         // sender's own message never appears until they refresh the page,
         // even though it was already in the database the whole time.
-        try {
-            broadcast(new ChatMessageSent($message));
-        } catch (\Throwable $e) {
-            report($e);
+        // Spam is stored (so the admin moderation queue has something to
+        // review) but never broadcast live - other members currently
+        // viewing this conversation must not see it appear at all, or the
+        // whole point of holding it back until an admin clears it is
+        // defeated the instant it's sent.
+        if (!$isSpam) {
+            try {
+                broadcast(new ChatMessageSent($message));
+            } catch (\Throwable $e) {
+                report($e);
+            }
         }
 
         return $message;
