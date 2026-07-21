@@ -56,6 +56,18 @@
     .announcement-banner .tag { display: flex; align-items: center; gap: 8px; text-transform: uppercase; font-size: 0.72rem; font-weight: 700; letter-spacing: 0.5px; opacity: 0.9; margin-bottom: 8px; }
     .announcement-banner .body { font-size: 0.85rem; font-weight: 500; line-height: 1.4; }
 
+    .blacklist-banner { background: var(--accent-danger-bg); border: 1px solid var(--accent-danger); border-radius: var(--radius-lg); padding: 18px 20px; margin-bottom: 24px; display: flex; gap: 14px; align-items: flex-start; }
+    .blacklist-banner .icon { width: 36px; height: 36px; border-radius: 10px; background: var(--accent-danger); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 15px; flex-shrink: 0; }
+    .blacklist-banner .title { font-weight: 800; color: var(--accent-danger); font-size: 14.5px; margin-bottom: 4px; }
+    .blacklist-banner .body { color: var(--text-body); font-size: 13.5px; line-height: 1.5; }
+    .blacklist-banner .body strong { color: var(--text-heading); }
+
+    .warning-card { border-left: 4px solid var(--accent-amber); background: var(--accent-amber-bg); border-radius: var(--radius-md); padding: 12px 16px; margin-bottom: 10px; }
+    .warning-card:last-child { margin-bottom: 0; }
+    .warning-card .title { font-weight: 700; color: var(--text-heading); font-size: 13.5px; margin-bottom: 3px; }
+    .warning-card .reason { color: var(--text-body); font-size: 13px; line-height: 1.4; }
+    .warning-card .meta { color: var(--text-muted); font-size: 11.5px; margin-top: 4px; }
+
     @media (max-width: 1024px) {
         .panels-grid { grid-template-columns: 1fr; }
         .stats-grid { grid-template-columns: repeat(2, 1fr); }
@@ -63,6 +75,21 @@
 </style>
 
 <div class="content-workspace">
+    @if($activeBlacklist)
+        <div class="blacklist-banner">
+            <div class="icon"><i class="fa-solid fa-ban"></i></div>
+            <div>
+                <div class="title">Account Restricted</div>
+                <div class="body">
+                    Your account is restricted until <strong>{{ $activeBlacklist->EndDate->format('d M Y') }}</strong>.
+                    You won't be able to post topics, replies, or chat messages until then.<br>
+                    <strong>Reason:</strong> {{ $activeBlacklist->Reason }}<br>
+                    <strong>Issued by:</strong> {{ $activeBlacklist->Type === 'Auto' ? 'System (automatic)' : 'Administrator' }}
+                </div>
+            </div>
+        </div>
+    @endif
+
     <div class="page-header">
         <div>
             <p class="eyebrow">Overview</p>
@@ -111,6 +138,24 @@
                     @endforelse
                 </div>
             </section>
+
+            @if($activeWarnings->isNotEmpty())
+                <section class="panel">
+                    <div class="panel-header"><h2>Warnings</h2></div>
+                    <div style="padding: 16px 20px;">
+                        @foreach($activeWarnings as $warning)
+                            <div class="warning-card">
+                                <div class="title">Warning #{{ $warning->WarningNo }}</div>
+                                <div class="reason">{{ $warning->Reason ?? 'No reason provided.' }}</div>
+                                <div class="meta">
+                                    Issued by Administrator on {{ $warning->CreatedAt->format('d M Y') }}
+                                    &middot; stays on record until {{ $warning->ExpiryDate->format('d M Y') }}
+                                </div>
+                            </div>
+                        @endforeach
+                    </div>
+                </section>
+            @endif
 
             <section class="panel">
                 <div class="panel-header"><h2>Notifications</h2></div>
