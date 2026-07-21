@@ -128,11 +128,12 @@
         <div class="card-body p-0">
             <ul class="list-group list-group-flush">
                 @forelse($recentTopics as $topic)
-                    <li class="list-group-item">
-                        <span class="text-muted small">{{ $topic->CreatedAt->format('H:i:s') }}</span>
-                        &mdash;
-                        <strong>{{ $topic->creator->UserName ?? 'Unknown' }}</strong>
-                        posted a new topic: <em>"{{ $topic->Title }}"</em>
+                    <li class="list-group-item d-flex align-items-center gap-2">
+                        <span class="badge bg-secondary-subtle fw-semibold" title="{{ $topic->CreatedAt->format('M j, Y g:i A') }}" style="font-size: 0.72rem;">{{ $topic->CreatedAt->diffForHumans() }}</span>
+                        <span>
+                            <strong>{{ $topic->creator->UserName ?? 'Unknown' }}</strong>
+                            posted a new topic: <em>"{{ $topic->Title }}"</em>
+                        </span>
                     </li>
                 @empty
                     <li class="list-group-item text-muted text-center py-4">No recent activity yet.</li>

@@ -13,7 +13,7 @@ class Group extends Model
 {
     protected $table = 'Group';
     protected $primaryKey = 'GroupID';
-     protected $fillable = ['GroupName', 'Description', 'CreatedBy'];
+     protected $fillable = ['GroupName', 'Description', 'CreatedBy', 'CourseCode'];
     const CREATED_AT = 'CreatedAt';
     const UPDATED_AT = 'UpdatedAt';
 

@@ -313,6 +313,7 @@ public class DashboardController {
         type.setStyle("-fx-font-size: 13;");
         Label message = new Label(n.optString("message", ""));
         message.setWrapText(true);
+        message.setMaxWidth(Double.MAX_VALUE);
         message.getStyleClass().add("muted-text");
         Label time = new Label(n.optString("time", ""));
         time.getStyleClass().add("muted-text");

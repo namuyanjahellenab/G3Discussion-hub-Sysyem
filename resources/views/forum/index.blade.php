@@ -17,8 +17,8 @@
     .stat-card .label { font-size: 12px; color: var(--text-muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.4px; }
     .stat-card .value { font-size: 26px; font-weight: 800; color: var(--text-heading); margin-top: 6px; }
 
-    .groups-grid { display: grid; grid-template-columns: repeat(auto-fill, 220px); gap: 16px; margin-bottom: 24px; }
-    .group-card { width: 220px; height: 220px; box-sizing: border-box; background: var(--surface-bg); border: 1px solid var(--surface-border); border-radius: var(--radius-md); padding: 20px; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; }
+    .groups-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 24px; }
+    .group-card { width: 100%; aspect-ratio: 1 / 1; box-sizing: border-box; background: var(--surface-bg); border: 1px solid var(--surface-border); border-radius: var(--radius-md); padding: 20px; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; }
     .group-card-icon { width: 40px; height: 40px; background: var(--luna-lightest); color: var(--luna-dark); border-radius: 10px; display: flex; align-items: center; justify-content: center; margin-bottom: 12px; }
     .group-card h5 { color: var(--text-heading); font-size: 1rem; font-weight: 700; margin: 0 0 2px 0; }
     .group-card p { color: var(--text-muted); font-size: 0.8rem; margin: 0 0 16px 0; }

@@ -41,6 +41,16 @@
   /* --- Type --- */
   --font-display: 'Sora', 'Figtree', sans-serif;
   --font-body: 'Inter', 'Figtree', sans-serif;
+
+  /* Retints Bootstrap's own primary (stock #0d6efd blue) to the active LUNA
+     mid tone, so every bg-primary/text-primary/bg-opacity-*/progress-bar
+     utility across the app - not just the hand-picked spots we've patched
+     one page at a time - automatically matches the theme instead of
+     standing out as leftover default blue. --bs-primary-rgb has to be
+     restated per body[data-theme] below since CSS can't derive rgb() from
+     a hex custom property. */
+  --bs-primary: var(--luna-mid);
+  --bs-primary-rgb: 38, 101, 140;
 }
 
 /* ============================================================
@@ -55,6 +65,7 @@ body[data-theme="black"] {
   --luna-mid:      #2B2B2B;
   --luna-dark:     #171717;
   --luna-subtle-bg:#E9E9E9;
+  --bs-primary-rgb: 43, 43, 43;
 }
 
 body[data-theme="brown"] {
@@ -62,6 +73,7 @@ body[data-theme="brown"] {
   --luna-mid:      #8C5A2B;
   --luna-dark:     #5C3A1A;
   --luna-subtle-bg:#F3E9DC;
+  --bs-primary-rgb: 140, 90, 43;
 }
 
 body[data-theme="green"] {
@@ -69,6 +81,7 @@ body[data-theme="green"] {
   --luna-mid:      #2F7D5E;
   --luna-dark:     #1B4D33;
   --luna-subtle-bg:#E1F0E8;
+  --bs-primary-rgb: 47, 125, 94;
 }
 
 /* ============================================================
@@ -79,6 +92,28 @@ body {
   background-color: var(--surface-bg) !important;
   font-family: var(--font-body);
   color: var(--text-body);
+}
+
+/* Cards/buttons/links flash the browser's default translucent blue
+   tap-highlight the instant you press them (mobile Chrome/webviews show it
+   for the full duration of the touch, well after our luna-mid styling has
+   already painted underneath) - same root cause on every role's screens
+   since it's a browser default, not something any page's CSS was setting.
+   Bootstrap's own default focus glow is likewise baked into its CDN build
+   as literal blue, not our --bs-primary override, so it shows the same
+   flash on keyboard/click focus too; both are neutralized here instead of
+   patched per page. */
+a, button, .btn, .card, .list-group-item {
+  -webkit-tap-highlight-color: transparent;
+}
+
+.btn-primary:focus,
+.btn-primary.focus,
+.btn-primary:focus-visible,
+.btn-outline-primary:focus,
+.btn-outline-primary.focus,
+.btn-outline-primary:focus-visible {
+  box-shadow: 0 0 0 0.25rem rgba(var(--bs-primary-rgb), 0.25);
 }
 
 h1, h2, h3, h4, h5, h6,

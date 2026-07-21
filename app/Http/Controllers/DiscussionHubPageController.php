@@ -817,6 +817,7 @@ if ($request->filled('parent_post_id')) {
         $user = Auth::user();
 
         DB::table('sessions')->where('user_id', $user->UserID)->delete();
+        $user->tokens()->delete();
 
         Auth::logout();
         $request->session()->invalidate();

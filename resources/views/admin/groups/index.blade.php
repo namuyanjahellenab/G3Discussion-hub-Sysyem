@@ -22,6 +22,7 @@
                 <thead>
                     <tr>
                         <th class="ps-4">Group Name</th>
+                        <th>Description</th>
                         <th>Members</th>
                         <th>Actions</th>
                     </tr>
@@ -31,8 +32,9 @@
                         <tr>
                             <td class="ps-4">
                                 <div class="fw-semibold">{{ $group->GroupName }}</div>
-                                <div class="text-muted small">{{ $group->Description }}</div>
+                                <div class="text-muted small">{{ $group->CourseCode }}</div>
                             </td>
+                            <td>{{ $group->Description }}</td>
                             <td>{{ $group->member_count }} members</td>
                             <td>
                                 <button type="button" class="btn btn-sm btn-outline-secondary"
@@ -44,7 +46,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="3" class="text-center text-muted py-4">No groups yet. Create one to get started.</td>
+                            <td colspan="4" class="text-center text-muted py-4">No groups yet. Create one to get started.</td>
                         </tr>
                     @endforelse
                 </tbody>

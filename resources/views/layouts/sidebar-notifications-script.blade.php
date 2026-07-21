@@ -40,8 +40,28 @@
                 closeDropdown();
             } else {
                 openDropdown();
+                markAllSeen();
             }
         });
+
+        // Opening the dropdown means the user has seen the notifications,
+        // so the unread badge should clear immediately rather than waiting
+        // for the user to click "mark all read" or individual items.
+        async function markAllSeen() {
+            badge.style.display = 'none';
+            try {
+                await fetch('/notifications/read-all', {
+                    method: 'PATCH',
+                    headers: {
+                        'X-CSRF-TOKEN': csrfToken,
+                        'Accept': 'application/json',
+                    },
+                });
+                pollNotifications();
+            } catch (err) {
+                console.error('Mark all seen error', err);
+            }
+        }
 
         document.addEventListener('click', function (e) {
             if (!e.target.closest('#notification-bell-wrapper') && !e.target.closest('#notification-dropdown')) {

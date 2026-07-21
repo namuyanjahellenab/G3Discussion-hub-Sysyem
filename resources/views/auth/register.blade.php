@@ -70,7 +70,7 @@
             type="text"
             id="student_id_number"
             name="student_id_number"
-            placeholder="e.g. STU-2024-118"
+            placeholder="e.g. A-1"
             value="{{ old('student_id_number') }}"
             required
         >
@@ -87,7 +87,7 @@
                         type="email" 
                         id="email" 
                         name="email" 
-                        placeholder="nakatov@gmail.com"
+                        placeholder="{{ isset($role) && $role === 'student' ? 'nakatov@mak.ug' : 'nakatov@gmail.com' }}"
                         value="{{ old('email') }}"
                         required
                     >

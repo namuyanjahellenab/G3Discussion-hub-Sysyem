@@ -65,17 +65,26 @@ class GroupBrowseService
             $group->userJoined = GroupStudent::where('GroupID', $group->GroupID)
                 ->where('UserID', $userId)
                 ->exists();
-            $group->CourseCode = $this->deriveGroupCode($group);
+
+            // CourseCode is a persisted column now (see the
+            // add_course_code_to_groups_table migration) - only fall back to
+            // deriving one on the fly for a group that somehow still has
+            // none stored, instead of always recomputing it.
+            if (empty($group->CourseCode)) {
+                $group->CourseCode = $this->deriveGroupCode($group);
+            }
 
             return $group;
         });
     }
 
     /**
-     * The Group table has no real course-code column, so this derives a
-     * short, distinct-looking code from the group's name (initials for
-     * multi-word names, first letters for single-word names) plus a number
-     * from the group's ID. Cosmetic only - not tied to any real course.
+     * Formula used to auto-assign a group's CourseCode at creation time
+     * (see AdminGroupController::store) and to backfill any row that
+     * predates the CourseCode column: initials of the group's name (or its
+     * first three letters for a single-word name) plus a number derived
+     * from the group's ID. Cosmetic - not tied to any real institutional
+     * course catalog.
      */
     public function deriveGroupCode(Group $group): string
     {

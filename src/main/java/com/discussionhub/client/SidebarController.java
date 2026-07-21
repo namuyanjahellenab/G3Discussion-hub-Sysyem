@@ -245,6 +245,12 @@ public class SidebarController {
             return;
         }
         showNotificationPopup();
+        // Mirrors sidebar-notifications-script.blade.php: opening the
+        // dropdown means the user has seen the notifications, so the
+        // unread badge clears immediately instead of waiting for
+        // "Mark all read" or an individual click.
+        updateBadge(0);
+        onMarkAllRead();
     }
 
     private void showNotificationPopup() {

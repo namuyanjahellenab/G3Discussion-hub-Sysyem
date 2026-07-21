@@ -24,8 +24,8 @@
     .panel-header h2 { font-size: 15px; font-weight: 700; margin: 0; }
     .panel-header a { font-size: 12.5px; color: var(--luna-mid); text-decoration: none; font-weight: 600; }
 
-    .groups-grid { display: grid; grid-template-columns: repeat(auto-fill, 220px); gap: 16px; padding: 20px; }
-    .group-card { width: 220px; height: 220px; box-sizing: border-box; background: var(--surface-bg); border: 1px solid var(--surface-border); border-radius: var(--radius-md); padding: 20px; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; }
+    .groups-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; padding: 20px; }
+    .group-card { width: 100%; aspect-ratio: 1 / 1; box-sizing: border-box; background: var(--surface-bg); border: 1px solid var(--surface-border); border-radius: var(--radius-md); padding: 20px; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; }
     .group-card-icon { width: 40px; height: 40px; background: var(--luna-lightest); color: var(--luna-dark); border-radius: 10px; display: flex; align-items: center; justify-content: center; margin-bottom: 12px; }
     .group-card h5 { font-size: 1rem; font-weight: 700; margin: 0 0 2px 0; color: var(--text-heading); }
     .group-card p { color: var(--text-muted); font-size: 0.8rem; margin: 0 0 16px 0; }
@@ -33,7 +33,9 @@
     .notif-row { display: flex; align-items: flex-start; gap: 10px; padding: 13px 20px; border-bottom: 1px solid var(--surface-border); font-size: 13.5px; }
     .notif-row:last-child { border-bottom: none; }
     .activity-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--luna-mid); margin-top: 6px; flex-shrink: 0; }
-    .notif-row .meta { color: var(--text-muted); font-size: 12px; margin-top: 2px; }
+    .notif-row .notif-content { flex: 1; min-width: 0; }
+    .notif-row .notif-type { font-weight: 700; color: var(--text-heading); white-space: normal; overflow-wrap: break-word; word-break: break-word; }
+    .notif-row .meta { color: var(--text-muted); font-size: 12px; margin-top: 2px; white-space: normal; overflow-wrap: break-word; word-break: break-word; }
 
     .upcoming-quiz-card { padding: 20px; }
     .upcoming-quiz-card .title { font-weight: 700; color: var(--text-heading); font-size: 14px; }
@@ -118,8 +120,8 @@
                     @forelse($notifications->take(6) as $notification)
                         <div class="notif-row">
                             <span class="activity-dot"></span>
-                            <div>
-                                <div style="font-weight: 700; color: var(--text-heading);">{{ $notification->Type }}</div>
+                            <div class="notif-content">
+                                <div class="notif-type">{{ $notification->Type }}</div>
                                 <div class="meta">{{ $notification->Message }}</div>
                                 <div class="meta">{{ $notification->CreatedAt->diffForHumans() }}</div>
                             </div>

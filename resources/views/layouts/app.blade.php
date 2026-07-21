@@ -7,11 +7,56 @@
 
         <title>{{ config('app.name', 'Discussion Hub') }}</title>
 
+        {{-- Inlined ahead of every stylesheet link so the LUNA custom
+             properties (and the Bootstrap --bs-primary/--bs-primary-rgb
+             retint) exist the instant the browser starts computing styles -
+             admin-theme.css declares the same variables, but as an external
+             file it's requested last and can visibly arrive after the
+             Bootstrap CDN link already painted stock blue on bg-primary/
+             text-primary/bg-opacity-* elements (cards' icon chips, badges,
+             progress bars). Inlining removes that race instead of hoping
+             the external file wins it. Keep this in sync with the :root /
+             body[data-theme=...] blocks at the top of admin-theme.css. --}}
+        <style>
+            :root {
+                --luna-lightest: #A7EBF2;
+                --luna-light:    #54ACBF;
+                --luna-mid:      #26658C;
+                --luna-dark:     #023859;
+                --luna-darkest:  #011C40;
+                --luna-subtle-bg:#EAF1F4;
+                --bs-primary: var(--luna-mid);
+                --bs-primary-rgb: 38, 101, 140;
+            }
+            body[data-theme="black"] {
+                --luna-lightest: #D8D8D8;
+                --luna-mid:      #2B2B2B;
+                --luna-dark:     #171717;
+                --luna-subtle-bg:#E9E9E9;
+                --bs-primary-rgb: 43, 43, 43;
+            }
+            body[data-theme="brown"] {
+                --luna-lightest: #EAD9C4;
+                --luna-mid:      #8C5A2B;
+                --luna-dark:     #5C3A1A;
+                --luna-subtle-bg:#F3E9DC;
+                --bs-primary-rgb: 140, 90, 43;
+            }
+            body[data-theme="green"] {
+                --luna-lightest: #CFE8DC;
+                --luna-mid:      #2F7D5E;
+                --luna-dark:     #1B4D33;
+                --luna-subtle-bg:#E1F0E8;
+                --bs-primary-rgb: 47, 125, 94;
+            }
+        </style>
+
         <!-- Fonts -->
         <link rel="preconnect" href="https://fonts.bunny.net">
         <link href="https://fonts.bunny.net/css?family=figtree:400,500,600&display=swap" rel="stylesheet" />
 
         <!-- Styles -->
+        <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
         <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-T3c6CoIi6uLrA9TneNEoa7RxnatzjcDSCmG1MXxSR1GAsXEV/Dwwykc2MPK8M2HN" crossorigin="anonymous">
         <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
         {{-- Font Awesome is bundled via app.css/Vite below, not the cdnjs CDN

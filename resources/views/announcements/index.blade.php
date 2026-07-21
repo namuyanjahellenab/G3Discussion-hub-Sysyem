@@ -14,7 +14,7 @@
     .announcement-card { background: var(--surface-card); border: 1px solid var(--surface-border); border-radius: var(--radius-lg); padding: 18px 20px; margin-bottom: 14px; box-shadow: var(--shadow-soft); }
     .announcement-meta { display: flex; align-items: center; gap: 8px; font-size: 0.78rem; color: var(--text-muted); margin-bottom: 8px; flex-wrap: wrap; }
     .announcement-meta .badge { background: var(--luna-lightest); color: var(--luna-dark); font-weight: 600; padding: 3px 10px; border-radius: 999px; }
-    .announcement-body { font-size: 0.92rem; color: var(--text-body); line-height: 1.5; white-space: pre-wrap; }
+    .announcement-body { font-size: 0.92rem; color: var(--text-body); line-height: 1.5; white-space: pre-wrap; overflow-wrap: anywhere; word-break: break-word; }
 
     .empty-state { padding: 40px; text-align: center; color: var(--text-muted); font-size: 13.5px; }
 </style>

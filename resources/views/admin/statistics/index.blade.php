@@ -219,7 +219,7 @@
         font-size: 0.75rem;
     }
     .bar-fill {
-        background-color: #2451e0;
+        background-color: var(--luna-mid);
         border-radius: 4px 4px 0 0;
         min-height: 4px;
     }
@@ -228,7 +228,7 @@
         width: 8px;
         height: 8px;
         border-radius: 50%;
-        background-color: #2451e0;
+        background-color: var(--luna-mid);
         margin-right: 4px;
     }
 </style>
