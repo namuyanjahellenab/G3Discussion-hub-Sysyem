@@ -58,15 +58,36 @@
                         <VBox spacing="12" style="-fx-padding: 18 20;">
                             <VBox spacing="4">
                                 <Label text="Current password" styleClass="muted-text"/>
-                                <PasswordField fx:id="currentPasswordField"/>
+                                <HBox spacing="6" alignment="CENTER">
+                                    <StackPane HBox.hgrow="ALWAYS">
+                                        <PasswordField fx:id="currentPasswordField" maxWidth="Infinity"/>
+                                        <TextField fx:id="currentPasswordVisibleField" maxWidth="Infinity" visible="false" managed="false"/>
+                                    </StackPane>
+                                    <Button fx:id="currentPasswordToggle" text="👁" onAction="#onToggleCurrentPasswordVisibility"
+                                            style="-fx-background-color: transparent; -fx-font-size: 13; -fx-cursor: hand; -fx-padding: 4 8;"/>
+                                </HBox>
                             </VBox>
                             <VBox spacing="4">
                                 <Label text="New password" styleClass="muted-text"/>
-                                <PasswordField fx:id="newPasswordField"/>
+                                <HBox spacing="6" alignment="CENTER">
+                                    <StackPane HBox.hgrow="ALWAYS">
+                                        <PasswordField fx:id="newPasswordField" maxWidth="Infinity"/>
+                                        <TextField fx:id="newPasswordVisibleField" maxWidth="Infinity" visible="false" managed="false"/>
+                                    </StackPane>
+                                    <Button fx:id="newPasswordToggle" text="👁" onAction="#onToggleNewPasswordVisibility"
+                                            style="-fx-background-color: transparent; -fx-font-size: 13; -fx-cursor: hand; -fx-padding: 4 8;"/>
+                                </HBox>
                             </VBox>
                             <VBox spacing="4">
                                 <Label text="Confirm new password" styleClass="muted-text"/>
-                                <PasswordField fx:id="confirmPasswordField"/>
+                                <HBox spacing="6" alignment="CENTER">
+                                    <StackPane HBox.hgrow="ALWAYS">
+                                        <PasswordField fx:id="confirmPasswordField" maxWidth="Infinity"/>
+                                        <TextField fx:id="confirmPasswordVisibleField" maxWidth="Infinity" visible="false" managed="false"/>
+                                    </StackPane>
+                                    <Button fx:id="confirmPasswordToggle" text="👁" onAction="#onToggleConfirmPasswordVisibility"
+                                            style="-fx-background-color: transparent; -fx-font-size: 13; -fx-cursor: hand; -fx-padding: 4 8;"/>
+                                </HBox>
                             </VBox>
                         </VBox>
                     </VBox>

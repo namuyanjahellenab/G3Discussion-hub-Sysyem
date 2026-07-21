@@ -117,18 +117,37 @@ class GroupChatApiController extends Controller
     public function store(Request $request, int $groupId)
     {
         $request->validate([
-            'body' => 'required|string|max:2000',
+            'body' => 'nullable|string|max:2000',
             'exclude' => 'array',
             'exclude.*' => 'exists:User,UserID',
             'conversation_id' => 'nullable|exists:conversation,ConversationID',
+            'attachment' => ['nullable', 'file', 'mimes:pdf,doc,docx,ppt,pptx,png,jpg,jpeg,zip', 'max:20480'],
         ]);
+
+        if (blank($request->input('body')) && !$request->hasFile('attachment')) {
+            return response()->json([
+                'message' => 'Please enter a message or attach a file.',
+                'errors' => ['body' => ['Please enter a message or attach a file.']],
+            ], 422);
+        }
+
+        $attachmentPath = null;
+        $attachmentType = null;
+
+        if ($request->hasFile('attachment')) {
+            $stored = AttachmentUploader::store($request->file('attachment'));
+            $attachmentPath = $stored['path'];
+            $attachmentType = $stored['type'];
+        }
 
         $message = app(GroupChatService::class)->send(
             $groupId,
             $request->user()->UserID,
-            $request->input('body'),
+            (string) $request->input('body', ''),
             $request->input('exclude', []),
-            $request->input('conversation_id')
+            $request->input('conversation_id'),
+            $attachmentPath,
+            $attachmentType
         );
 
         return response()->json([

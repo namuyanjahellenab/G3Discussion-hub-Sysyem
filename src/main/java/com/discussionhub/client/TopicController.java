@@ -764,7 +764,18 @@ public class TopicController {
             // visible replies area on its own. preserveRatio keeps it from
             // distorting; clicking still opens the untouched full-size
             // original via openAttachment().
-            String imageSource = isCached ? cachedFile.toURI().toString() : fullUrl;
+            String imageSource;
+            if (isCached) {
+                imageSource = cachedFile.toURI().toString();
+            } else {
+                String encoded;
+                try {
+                    encoded = com.discussionhub.client.utils.AttachmentCache.toSafeUri(fullUrl).toString();
+                } catch (Exception e) {
+                    encoded = fullUrl;
+                }
+                imageSource = encoded;
+            }
             ImageView imageView = new ImageView(new Image(imageSource, 260, 220, true, true, true));
             imageView.setPreserveRatio(true);
             imageView.setFitWidth(260);
@@ -811,7 +822,7 @@ public class TopicController {
             }
             if (bytes == null) {
                 try {
-                    HttpURLConnection conn = (HttpURLConnection) URI.create(fullUrl).toURL().openConnection();
+                    HttpURLConnection conn = (HttpURLConnection) com.discussionhub.client.utils.AttachmentCache.toSafeUri(fullUrl).toURL().openConnection();
                     conn.setRequestMethod("GET");
                     if (conn.getResponseCode() == 200) {
                         bytes = conn.getInputStream().readAllBytes();
@@ -846,7 +857,7 @@ public class TopicController {
             if (cachedFile.isFile()) {
                 java.awt.Desktop.getDesktop().open(cachedFile);
             } else {
-                java.awt.Desktop.getDesktop().browse(URI.create(fullUrl));
+                java.awt.Desktop.getDesktop().browse(com.discussionhub.client.utils.AttachmentCache.toSafeUri(fullUrl));
             }
         } catch (Exception e) {
             System.err.println("[Topic] Couldn't open attachment: " + e.getMessage());

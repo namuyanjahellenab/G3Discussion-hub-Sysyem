@@ -3,14 +3,18 @@ package com.discussionhub.client;
 import com.discussionhub.client.database.DatabaseManager;
 import com.discussionhub.client.utils.DeltaSyncService;
 import com.discussionhub.client.utils.TextUtil;
+import com.discussionhub.client.utils.WindowUtil;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
+import javafx.fxml.FXMLLoader;
 import javafx.geometry.Pos;
+import javafx.scene.Scene;
 import javafx.scene.control.Label;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
+import javafx.stage.Stage;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
@@ -230,6 +234,21 @@ public class MarksController {
         empty.setWrapText(true);
         empty.setStyle("-fx-padding: 16 4;");
         groupsBox.getChildren().setAll(empty);
+    }
+
+    @FXML
+    protected void onBack() {
+        try {
+            FXMLLoader loader = new FXMLLoader(getClass().getResource("dashboard-view.fxml"));
+            Scene scene = new Scene(loader.load());
+            DashboardController controller = loader.getController();
+            controller.setServices(dbManager, syncService);
+
+            Stage stage = (Stage) syncStatusLabel.getScene().getWindow();
+            WindowUtil.applyScene(stage, scene, "DiscussionHub — Desktop Client");
+        } catch (Exception e) {
+            System.err.println("[Marks] Error going back: " + e.getMessage());
+        }
     }
 
     private String get(String path) {

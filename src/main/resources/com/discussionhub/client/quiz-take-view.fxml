@@ -13,6 +13,9 @@
 
     <!-- Top bar -->
     <HBox alignment="CENTER_LEFT" spacing="18" styleClass="sidebar-panel" style="-fx-padding: 16 28;">
+        <Button text="← Exit" onAction="#onExit"
+                style="-fx-background-color: transparent; -fx-border-color: -luna-mid; -fx-text-fill: -luna-mid;
+                       -fx-border-radius: 6; -fx-background-radius: 6; -fx-font-weight: bold; -fx-padding: 7 16; -fx-cursor: hand;"/>
         <VBox HBox.hgrow="ALWAYS">
             <Label fx:id="quizTitleLabel" text="Quiz" styleClass="heading-text" style="-fx-font-size: 19;"/>
             <Label fx:id="quizSubtitleLabel" text="" styleClass="muted-text" style="-fx-font-size: 12;"/>

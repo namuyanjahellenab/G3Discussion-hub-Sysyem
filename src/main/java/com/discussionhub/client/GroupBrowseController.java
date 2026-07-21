@@ -2,15 +2,19 @@ package com.discussionhub.client;
 
 import com.discussionhub.client.database.DatabaseManager;
 import com.discussionhub.client.utils.DeltaSyncService;
+import com.discussionhub.client.utils.WindowUtil;
 import javafx.application.Platform;
 import javafx.geometry.Pos;
 import javafx.fxml.FXML;
+import javafx.fxml.FXMLLoader;
+import javafx.scene.Scene;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.control.TextField;
 import javafx.scene.layout.FlowPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
+import javafx.stage.Stage;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
@@ -204,6 +208,21 @@ public class GroupBrowseController {
         statusLabel.setText(msg);
         statusLabel.setVisible(true);
         statusLabel.setManaged(true);
+    }
+
+    @FXML
+    protected void onBack() {
+        try {
+            FXMLLoader loader = new FXMLLoader(getClass().getResource("dashboard-view.fxml"));
+            Scene scene = new Scene(loader.load());
+            DashboardController controller = loader.getController();
+            controller.setServices(dbManager, syncService);
+
+            Stage stage = (Stage) statusLabel.getScene().getWindow();
+            WindowUtil.applyScene(stage, scene, "DiscussionHub — Desktop Client");
+        } catch (Exception e) {
+            System.err.println("[GroupBrowse] Error going back: " + e.getMessage());
+        }
     }
 
     private String get(String path) {

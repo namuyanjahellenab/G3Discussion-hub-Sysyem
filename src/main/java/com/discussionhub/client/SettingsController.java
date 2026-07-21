@@ -10,6 +10,7 @@ import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
+import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.control.PasswordField;
 import javafx.scene.control.TextField;
@@ -46,6 +47,16 @@ public class SettingsController {
     @FXML private PasswordField currentPasswordField;
     @FXML private PasswordField newPasswordField;
     @FXML private PasswordField confirmPasswordField;
+    // Plain-text twins shown in place of the masked field while its "eye"
+    // toggle is on - JavaFX's PasswordField has no built-in reveal option,
+    // so this is the standard workaround: two stacked controls sharing one
+    // bound text value, with only one visible at a time.
+    @FXML private TextField currentPasswordVisibleField;
+    @FXML private TextField newPasswordVisibleField;
+    @FXML private TextField confirmPasswordVisibleField;
+    @FXML private Button currentPasswordToggle;
+    @FXML private Button newPasswordToggle;
+    @FXML private Button confirmPasswordToggle;
     @FXML private Label statusLabel;
     @FXML private Label errorLabel;
     @FXML private Label userInitialsLabel;
@@ -57,6 +68,16 @@ public class SettingsController {
     private DatabaseManager dbManager;
     private DeltaSyncService syncService;
     private String selectedTheme = SessionManager.currentTheme;
+
+    // Called automatically by FXMLLoader once @FXML fields are injected -
+    // binding here (rather than in setServices()) keeps the reveal-toggle
+    // wiring independent of the async services/session setup below it.
+    @FXML
+    private void initialize() {
+        currentPasswordVisibleField.textProperty().bindBidirectional(currentPasswordField.textProperty());
+        newPasswordVisibleField.textProperty().bindBidirectional(newPasswordField.textProperty());
+        confirmPasswordVisibleField.textProperty().bindBidirectional(confirmPasswordField.textProperty());
+    }
 
     public void setServices(DatabaseManager dbManager, DeltaSyncService syncService) {
         this.dbManager = dbManager;
@@ -108,6 +129,30 @@ public class SettingsController {
             case "green" -> "Green";
             default -> key;
         };
+    }
+
+    @FXML
+    protected void onToggleCurrentPasswordVisibility() {
+        togglePasswordVisibility(currentPasswordField, currentPasswordVisibleField, currentPasswordToggle);
+    }
+
+    @FXML
+    protected void onToggleNewPasswordVisibility() {
+        togglePasswordVisibility(newPasswordField, newPasswordVisibleField, newPasswordToggle);
+    }
+
+    @FXML
+    protected void onToggleConfirmPasswordVisibility() {
+        togglePasswordVisibility(confirmPasswordField, confirmPasswordVisibleField, confirmPasswordToggle);
+    }
+
+    private void togglePasswordVisibility(PasswordField masked, TextField plain, Button toggle) {
+        boolean nowPlain = !plain.isVisible();
+        masked.setVisible(!nowPlain);
+        masked.setManaged(!nowPlain);
+        plain.setVisible(nowPlain);
+        plain.setManaged(nowPlain);
+        toggle.setText(nowPlain ? "🙈" : "👁");
     }
 
     @FXML

@@ -10,13 +10,17 @@ import com.pusher.client.PusherOptions;
 import com.pusher.client.channel.PrivateChannelEventListener;
 import com.pusher.client.channel.PusherEvent;
 import com.pusher.client.util.HttpChannelAuthorizer;
+import com.discussionhub.client.utils.WindowUtil;
 import javafx.animation.Animation;
 import javafx.animation.KeyFrame;
 import javafx.animation.Timeline;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
+import javafx.fxml.FXMLLoader;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
+import javafx.scene.Scene;
+import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.Label;
@@ -25,17 +29,23 @@ import javafx.scene.control.TextField;
 import javafx.scene.layout.FlowPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
+import javafx.stage.FileChooser;
+import javafx.stage.Stage;
 import javafx.util.Duration;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
 import java.io.BufferedReader;
+import java.io.File;
+import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.URI;
 import java.net.URL;
+import java.net.URLConnection;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -73,6 +83,8 @@ public class GroupChatController {
     @FXML private VBox excludePanel;
     @FXML private FlowPane excludeCheckboxesBox;
     @FXML private Label excludeHintLabel;
+    @FXML private Label attachedFileLabel;
+    @FXML private Button removeAttachmentButton;
     @FXML private SidebarController sidebarController;
 
     private DatabaseManager dbManager;
@@ -82,6 +94,14 @@ public class GroupChatController {
     private int activeConversationId;
     private boolean isRestricted;
     private final List<CheckBox> excludeCheckboxes = new ArrayList<>();
+    private File selectedAttachment;
+
+    // Same whitelist as TopicController's reply composer and
+    // AttachmentUploader/GroupChatApiController's server-side validation.
+    private static final String[] ATTACHMENT_EXTENSIONS = {
+        "*.pdf", "*.doc", "*.docx", "*.ppt", "*.pptx", "*.png", "*.jpg", "*.jpeg", "*.zip"
+    };
+    private static final long MAX_ATTACHMENT_BYTES = 20L * 1024 * 1024;
 
     // Local "unread" tracking (see DatabaseManager's ReadState table),
     // mirroring TopicController's - unreadThresholdMessageId is frozen the
@@ -457,8 +477,13 @@ public class GroupChatController {
         // Forget what's tracked as "already rendered" - this is a genuinely
         // different conversation, so renderMessages() must treat every
         // incoming message as new instead of diffing against the previous
-        // thread's rows.
+        // thread's rows. The actual bubbles must be wiped here too, not just
+        // the tracking map: renderMessages()'s diff can only remove rows it
+        // still has a record of, and that record was just cleared above, so
+        // without this an empty (or different) conversation kept showing
+        // whatever the previously-viewed one had on screen.
         renderedMessageRows.clear();
+        messagesBox.getChildren().clear();
         liveUnreadBannerInserted = false;
     }
 
@@ -760,7 +785,7 @@ public class GroupChatController {
             + "-fx-cursor: hand; -fx-underline: true;");
         fileLink.setOnMouseClicked(e -> {
             try {
-                java.awt.Desktop.getDesktop().browse(URI.create(fullUrl));
+                java.awt.Desktop.getDesktop().browse(com.discussionhub.client.utils.AttachmentCache.toSafeUri(fullUrl));
             } catch (Exception ex) {
                 System.err.println("[GroupChat] Couldn't open attachment: " + ex.getMessage());
             }
@@ -781,9 +806,43 @@ public class GroupChatController {
     }
 
     @FXML
+    protected void onAttachFile() {
+        FileChooser chooser = new FileChooser();
+        chooser.setTitle("Attach a file");
+        chooser.getExtensionFilters().add(new FileChooser.ExtensionFilter(
+            "Supported files", ATTACHMENT_EXTENSIONS));
+        File file = chooser.showOpenDialog(messageField.getScene().getWindow());
+        if (file == null) return;
+
+        if (file.length() > MAX_ATTACHMENT_BYTES) {
+            Alert alert = new Alert(Alert.AlertType.WARNING, "That file is larger than 20 MB — pick a smaller one.");
+            alert.setHeaderText(null);
+            alert.showAndWait();
+            return;
+        }
+
+        selectedAttachment = file;
+        attachedFileLabel.setText("📎 " + file.getName());
+        attachedFileLabel.setVisible(true);
+        attachedFileLabel.setManaged(true);
+        removeAttachmentButton.setVisible(true);
+        removeAttachmentButton.setManaged(true);
+    }
+
+    @FXML
+    protected void onRemoveAttachment() {
+        selectedAttachment = null;
+        attachedFileLabel.setVisible(false);
+        attachedFileLabel.setManaged(false);
+        removeAttachmentButton.setVisible(false);
+        removeAttachmentButton.setManaged(false);
+    }
+
+    @FXML
     protected void onSend() {
         String text = messageField.getText().trim();
-        if (text.isEmpty()) return;
+        File attachment = selectedAttachment;
+        if (text.isEmpty() && attachment == null) return;
 
         List<Integer> excludeIds = new ArrayList<>();
         if (!isRestricted) {
@@ -797,15 +856,33 @@ public class GroupChatController {
 
         new Thread(() -> {
             if (!NetworkUtil.isNetworkAvailable()) {
+                if (attachment != null) {
+                    // Unlike a plain text message, an attachment can't be
+                    // queued for later - there's no offline upload path, so
+                    // failing loudly here beats silently dropping the file
+                    // the user just picked.
+                    Platform.runLater(() -> {
+                        messageField.setDisable(false);
+                        messageField.setText(text);
+                        Alert alert = new Alert(Alert.AlertType.WARNING,
+                            "Attachments can't be sent while offline — connect and try again.");
+                        alert.setHeaderText(null);
+                        alert.showAndWait();
+                    });
+                    return;
+                }
                 queueOfflineSend(text, excludeIds);
                 return;
             }
 
-            Integer resultConversationId = post(text, excludeIds);
+            Integer resultConversationId = attachment != null
+                ? postMultipart(text, excludeIds, attachment)
+                : post(text, excludeIds);
             Platform.runLater(() -> {
                 messageField.setDisable(false);
                 messageField.requestFocus();
                 if (resultConversationId != null) {
+                    onRemoveAttachment();
                     // If this message spawned/landed in a different
                     // conversation (a new or reused restricted thread),
                     // switch straight to it so the sender sees where their
@@ -814,7 +891,7 @@ public class GroupChatController {
                 } else if (!NetworkUtil.isNetworkAvailable()) {
                     // Connectivity dropped between the check above and the
                     // request actually landing - still don't lose the draft.
-                    queueOfflineSend(text, excludeIds);
+                    if (attachment == null) queueOfflineSend(text, excludeIds);
                 } else {
                     System.err.println("[GroupChat] Failed to send message");
                 }
@@ -892,6 +969,58 @@ public class GroupChatController {
         }
     }
 
+    /** Multipart counterpart to post() - used whenever an attachment is
+     *  selected, since a JSON body can't carry file bytes. Mirrors
+     *  TopicController's postReplyMultipart() field-by-field. */
+    private Integer postMultipart(String messageBody, List<Integer> excludeIds, File attachment) {
+        String boundary = "----DiscussionHubBoundary" + System.currentTimeMillis();
+        try {
+            URL url = URI.create(BASE_URL + "/api/groups/" + groupId + "/chat-messages").toURL();
+            HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+            conn.setRequestMethod("POST");
+            conn.setRequestProperty("Authorization", "Bearer " + SessionManager.token);
+            conn.setRequestProperty("Accept", "application/json");
+            conn.setRequestProperty("Content-Type", "multipart/form-data; boundary=" + boundary);
+            conn.setDoOutput(true);
+
+            try (OutputStream os = conn.getOutputStream()) {
+                writeMultipartField(os, boundary, "body", messageBody);
+                if (isRestricted) {
+                    writeMultipartField(os, boundary, "conversation_id", String.valueOf(activeConversationId));
+                } else {
+                    for (Integer id : excludeIds) {
+                        writeMultipartField(os, boundary, "exclude[]", String.valueOf(id));
+                    }
+                }
+
+                String mimeType = URLConnection.guessContentTypeFromName(attachment.getName());
+                if (mimeType == null) mimeType = "application/octet-stream";
+                os.write(("--" + boundary + "\r\n").getBytes(StandardCharsets.UTF_8));
+                os.write(("Content-Disposition: form-data; name=\"attachment\"; filename=\""
+                    + attachment.getName() + "\"\r\n").getBytes(StandardCharsets.UTF_8));
+                os.write(("Content-Type: " + mimeType + "\r\n\r\n").getBytes(StandardCharsets.UTF_8));
+                Files.copy(attachment.toPath(), os);
+                os.write("\r\n".getBytes(StandardCharsets.UTF_8));
+
+                os.write(("--" + boundary + "--\r\n").getBytes(StandardCharsets.UTF_8));
+            }
+
+            int code = conn.getResponseCode();
+            if (code != 200 && code != 201) return null;
+            JSONObject response = new JSONObject(readBody(conn));
+            return response.getInt("conversation_id");
+        } catch (Exception e) {
+            System.err.println("[GroupChat] Multipart POST error: " + e.getMessage());
+            return null;
+        }
+    }
+
+    private void writeMultipartField(OutputStream os, String boundary, String name, String value) throws IOException {
+        os.write(("--" + boundary + "\r\n").getBytes(StandardCharsets.UTF_8));
+        os.write(("Content-Disposition: form-data; name=\"" + name + "\"\r\n\r\n").getBytes(StandardCharsets.UTF_8));
+        os.write((value + "\r\n").getBytes(StandardCharsets.UTF_8));
+    }
+
     private String readBody(HttpURLConnection conn) throws Exception {
         BufferedReader in = new BufferedReader(new InputStreamReader(conn.getInputStream(), StandardCharsets.UTF_8));
         StringBuilder response = new StringBuilder();
@@ -899,6 +1028,24 @@ public class GroupChatController {
         while ((line = in.readLine()) != null) response.append(line);
         in.close();
         return response.toString();
+    }
+
+    @FXML
+    protected void onBack() {
+        stopAutoRefresh();
+        markCurrentConversationRead();
+        if (pusher != null) pusher.disconnect();
+        try {
+            FXMLLoader loader = new FXMLLoader(getClass().getResource("dashboard-view.fxml"));
+            Scene scene = new Scene(loader.load());
+            DashboardController controller = loader.getController();
+            controller.setServices(dbManager, syncService);
+
+            Stage stage = (Stage) titleLabel.getScene().getWindow();
+            WindowUtil.applyScene(stage, scene, "DiscussionHub — Desktop Client");
+        } catch (Exception e) {
+            System.err.println("[GroupChat] Error going back: " + e.getMessage());
+        }
     }
 
 }
