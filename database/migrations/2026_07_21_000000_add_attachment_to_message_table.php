@@ -1,9 +1,8 @@
+cat > database/migrations/2026_07_21_000000_add_attachment_to_message_table.php << 'EOF'
 <?php
-
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
-
 return new class extends Migration
 {
     /**
@@ -16,7 +15,6 @@ return new class extends Migration
             $table->string('AttachmentType')->nullable()->after('Attachment');
         });
     }
-
     /**
      * Reverse the migrations.
      */

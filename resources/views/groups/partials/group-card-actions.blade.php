@@ -1,6 +1,6 @@
 {{-- Shared by both the trending and main grids on groups/index.blade.php so
      the join/leave/view-forum logic can't drift between the two lists. --}}
-@if(auth()->user()->Role === 'Lecturer' || auth()->user()->Role === 'Administrator')
+@if(auth()->user()->Role === 'Administrator')
     <a href="{{ route('groups.forum', $group->GroupID) }}" class="btn btn-primary" style="width: 100%; justify-content: center;">
         View Forum <i class="fa-solid fa-arrow-right" style="font-size: 0.75rem;"></i>
     </a>
