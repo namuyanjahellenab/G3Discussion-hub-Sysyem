@@ -228,6 +228,7 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
     Route::get('/groups', [AdminGroupController::class, 'index'])->name('groups.index');
     Route::post('/groups', [AdminGroupController::class, 'store'])->name('groups.store');
     Route::put('/groups/{group}', [AdminGroupController::class, 'update'])->name('groups.update');
+    Route::delete('/groups/{group}', [AdminGroupController::class, 'destroy'])->name('groups.destroy');
     Route::get('/statistics', [\App\Http\Controllers\Admin\AdminStatisticsController::class, 'index'])->name('statistics');
     Route::get('/statistics/export', [\App\Http\Controllers\Admin\AdminStatisticsController::class, 'export'])->name('statistics.export');
 
@@ -263,6 +264,6 @@ Route::patch('/notifications/{notification}/read', [DiscussionHubPageController:
 Route::patch('/notifications/read-all', [DiscussionHubPageController::class, 'markAllNotificationsRead'])
     ->middleware('verified')->name('notifications.read.all');
     Route::middleware('auth')->group(function () {
-    Route::get('/groups/{groupId}/messages/{conversationId?}', [GroupChatController::class, 'index'])->name('student.messages');
+    Route::get('/groups/{groupId}/messages/{conversationId?}', [GroupChatController::class, 'index'])->middleware('blacklist')->name('student.messages');
     Route::post('/groups/{groupId}/messages', [GroupChatController::class, 'store'])->middleware('blacklist')->name('student.messages.store');
 });

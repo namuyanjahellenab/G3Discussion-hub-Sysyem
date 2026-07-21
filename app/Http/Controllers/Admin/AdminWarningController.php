@@ -12,7 +12,7 @@ use Illuminate\Support\Facades\DB;
 
 class AdminWarningController extends Controller
 {
-    const WARNING_EXPIRY_DAYS = 90;
+    const WARNING_EXPIRY_DAYS = 1;
     const WARNING_THRESHOLD   = 2;
     const AUTO_BLACKLIST_DAYS = 7;
 
@@ -79,7 +79,7 @@ class AdminWarningController extends Controller
             'UserID'    => $userId,
             'StartDate' => now(),
             'EndDate'   => $endDate,
-            'Reason'    => 'Auto-blacklisted: reached ' . self::WARNING_THRESHOLD . ' active warnings',
+            'Reason'    => 'reached ' . self::WARNING_THRESHOLD . ' active warnings',
             'Type'      => 'Auto',
             'IssuedBy'  => null, // system-issued, no admin
         ]);
