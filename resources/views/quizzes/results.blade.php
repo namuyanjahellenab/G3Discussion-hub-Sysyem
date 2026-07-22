@@ -210,7 +210,10 @@
                     <td class="score-text">${score} / ${total}</td>
                     <td>${badge}</td>
                     <td>${dateStr}</td>
-                    <td><a href="/quiz/${quizID}/results/${r.ResultID}/review" class="btn-export" style="padding:6px 14px;font-size:12.5px;">Review</a></td>
+                    <td style="display:flex; gap:8px;">
+                        <a href="/quiz/${quizID}/results/${r.ResultID}/review" class="btn-export" style="padding:6px 14px;font-size:12.5px;">Review</a>
+                        <a href="/quiz/result/${r.ResultID}/grade" class="btn-export" style="padding:6px 14px;font-size:12.5px;">Grade</a>
+                    </td>
                 </tr>`;
             }).join('');
 
@@ -223,7 +226,7 @@
                             <th>Score</th>
                             <th>Submission Type</th>
                             <th>Submitted At</th>
-                            <th></th>
+                            <th>Actions</th>
                         </tr>
                     </thead>
                     <tbody>${rows}</tbody>

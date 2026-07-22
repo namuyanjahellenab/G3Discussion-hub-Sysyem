@@ -10,4 +10,9 @@ class Answer extends Model {
     protected $fillable = [
         'QuestionID', 'ResultID', 'UserID', 'ResponseText', 'IsCorrect', 'MarksAwarded'
     ];
+
+    public function question()
+    {
+        return $this->belongsTo(Question::class, 'QuestionID', 'QuestionID');
+    }
 }

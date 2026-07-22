@@ -20,6 +20,9 @@
             <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addBlacklistModal">
                 <i class="bi bi-plus-lg"></i> Add Manual Blacklist
             </button>
+            <a href="{{ route('admin.blacklist.settings') }}" class="btn btn-outline-secondary">
+                <i class="bi bi-gear"></i> Blacklist Settings
+            </a>
         </div>
     </div>
 

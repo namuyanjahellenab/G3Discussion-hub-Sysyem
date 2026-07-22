@@ -30,7 +30,10 @@ class UserFactory extends Factory
             'email_verified_at' => now(),
             'PasswordHash' => static::$password ??= Hash::make('password'),
             'Role' => 'Student',
-            'Status' => 'Active',
+            // No LastActive is set here, so 'Active' would be a lie - matches
+            // the DB default and the same real-data rule students:process-
+            // inactivity applies (no LastActive = Inactive).
+            'Status' => 'Inactive',
             'remember_token' => Str::random(10),
         ];
     }

@@ -82,6 +82,27 @@ class User extends Authenticatable
         return $this->PasswordHash;
     }
 
+    /**
+     * Called whenever a user posts/replies/messages. Refreshes LastActive,
+     * flips a stale 'Inactive' Status back to 'Active' immediately rather
+     * than waiting for the next scheduled sweep, and clears any in-progress
+     * inactivity warning stage since they've now responded.
+     */
+    public static function recordActivity(int $userId): void
+    {
+        $user = self::find($userId);
+
+        if (!$user) {
+            return;
+        }
+
+        $user->update([
+            'LastActive' => now(),
+            'Status' => $user->Status === 'Inactive' ? 'Active' : $user->Status,
+        ]);
+
+        UserInactivityWarning::where('UserID', $userId)->delete();
+    }    
     // CanResetPassword (pulled in via the base Authenticatable class) hardcodes
     // $this->email for both of these - lowercase, since stock Laravel expects a
     // snake_case column. This table's real column is Email, so without this

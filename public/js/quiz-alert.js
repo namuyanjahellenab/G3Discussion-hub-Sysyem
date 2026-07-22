@@ -82,6 +82,15 @@
                    onmouseout="this.style.background='#26658C'">
                     Start Quiz Now
                 </a>
+                <button type="button" id="quizDismissBtn" style="
+                    display: block; width: 100%; background: transparent;
+                    color: #6B8094; border: none; margin-top: 12px;
+                    padding: 8px; font-size: 13px; font-weight: 600;
+                    cursor: pointer;
+                " onmouseover="this.style.color='#011C40'"
+                   onmouseout="this.style.color='#6B8094'">
+                    Not now
+                </button>
                 <p style="font-size:11px;color:#6B8094;margin-top:16px;">
                     This quiz will auto-submit when time runs out
                 </p>
@@ -89,6 +98,14 @@
         `;
 
         document.body.appendChild(overlay);
+
+        // Dismissing only closes the popup - the quiz is still reachable
+        // (and still counting down) from the student's own Quizzes sidebar
+        // section, this just stops it from blocking the current page.
+        document.getElementById('quizDismissBtn').addEventListener('click', function () {
+            overlay.remove();
+            blurDiv.remove();
+        });
     }
 
     // Poll every 15 seconds
