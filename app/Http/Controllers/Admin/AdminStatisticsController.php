@@ -229,31 +229,42 @@ class AdminStatisticsController extends Controller
             ->groupBy('Topic.GroupID')
             ->pluck('total', 'GroupID');
 
-        $enrolledByGroup = DB::table('groupstudent')
-            ->whereIn('GroupID', $groupIds)
-            ->selectRaw('GroupID, COUNT(*) as total')
-            ->groupBy('GroupID')
-            ->pluck('total', 'GroupID');
-
-        // Total Students column - deliberately re-counted with a Role filter
-        // rather than reusing $enrolledByGroup above, so it only ever
-        // reflects real Role=Student accounts even if groupstudent ever
-        // gained a non-student row.
-        $studentsByGroup = DB::table('groupstudent')
+        // Total Students column, and the actual per-group student ID lists
+        // QuizCompletion below intersects against - only ever real Role=
+        // Student accounts, even if groupstudent ever gained a non-student
+        // row.
+        $studentIdsByGroup = DB::table('groupstudent')
             ->join('User', 'User.UserID', '=', 'groupstudent.UserID')
             ->where('User.Role', 'Student')
             ->whereIn('groupstudent.GroupID', $groupIds)
-            ->selectRaw('groupstudent.GroupID as GroupID, COUNT(*) as total')
-            ->groupBy('groupstudent.GroupID')
-            ->pluck('total', 'GroupID');
+            ->select('groupstudent.GroupID as GroupID', 'groupstudent.UserID as UserID')
+            ->get()
+            ->groupBy('GroupID')
+            ->map(fn ($rows) => $rows->pluck('UserID'));
 
         $scheduledQuizzes = Quiz::whereIn('GroupID', $groupIds)->where('Status', 'scheduled')->get(['QuizID', 'GroupID']);
         $quizIdsByGroup = $scheduledQuizzes->groupBy('GroupID')->map(fn ($rows) => $rows->pluck('QuizID'));
 
-        $submissionsByQuiz = QuizResult::whereIn('QuizID', $scheduledQuizzes->pluck('QuizID'))
-            ->selectRaw('QuizID, COUNT(*) as total')
+        // Which students attempted each quiz - QuizCompletion below counts
+        // DISTINCT students (Role=Student only, so a lecturer test-submitting
+        // their own quiz doesn't inflate it) who attempted at least one of
+        // the group's quizzes, not total submissions (a student who took 3
+        // quizzes used to count as 3 "submissions" against a denominator
+        // sized for 1 attempt each, which is how completion could exceed
+        // 100%). Not intersected against groupstudent enrollment below -
+        // QuizEngineController::join()/submit() never actually check group
+        // membership before accepting a submission, so a real student
+        // attempt for this group's quiz that the groupstudent table doesn't
+        // (yet/anymore) reflect must still count, or completion reads as a
+        // false 0%/"not calculated" despite a genuine attempt existing.
+        $attemptedUsersByQuiz = QuizResult::join('User', 'User.UserID', '=', 'QuizResult.UserID')
+            ->where('User.Role', 'Student')
+            ->whereIn('QuizResult.QuizID', $scheduledQuizzes->pluck('QuizID'))
+            ->select('QuizResult.QuizID as QuizID', 'QuizResult.UserID as UserID')
+            ->distinct()
+            ->get()
             ->groupBy('QuizID')
-            ->pluck('total', 'QuizID');
+            ->map(fn ($rows) => $rows->pluck('UserID'));
 
         // Average Score column - each student's own total score across every
         // quiz they've taken for this group (same Score column Top Students
@@ -268,42 +279,45 @@ class AdminStatisticsController extends Controller
             ->groupBy('Quiz.GroupID')
             ->pluck('total', 'GroupID');
 
-        $postUsersByGroup = DB::table('Post')
-            ->join('Topic', 'Post.TopicID', '=', 'Topic.TopicID')
-            ->whereIn('Topic.GroupID', $groupIds)
-            ->select('Topic.GroupID', 'Post.UserID')
-            ->distinct()
-            ->get()
-            ->groupBy('GroupID')
-            ->map(fn ($rows) => $rows->pluck('UserID'));
-
-        $replyUsersByGroup = DB::table('Reply')
-            ->join('Post', 'Reply.PostID', '=', 'Post.PostID')
-            ->join('Topic', 'Post.TopicID', '=', 'Topic.TopicID')
-            ->whereIn('Topic.GroupID', $groupIds)
-            ->select('Topic.GroupID', 'Reply.UserID')
-            ->distinct()
-            ->get()
-            ->groupBy('GroupID')
-            ->map(fn ($rows) => $rows->pluck('UserID'));
+        // Active Users column - was "ever posted or replied in this group,
+        // all-time", a completely different (and effectively static, since it
+        // only grows) definition of "active" than the Active Students /
+        // Inactive Students cards above, which read the live User.Status kept
+        // in sync by students:process-inactivity/User::recordActivity. Using
+        // that same Status field here instead keeps this table's numbers from
+        // ever contradicting the cards.
+        $activeUsersByGroup = DB::table('groupstudent')
+            ->join('User', 'User.UserID', '=', 'groupstudent.UserID')
+            ->where('User.Role', 'Student')
+            ->where('User.Status', 'Active')
+            ->whereIn('groupstudent.GroupID', $groupIds)
+            ->selectRaw('groupstudent.GroupID as GroupID, COUNT(*) as total')
+            ->groupBy('groupstudent.GroupID')
+            ->pluck('total', 'GroupID');
 
         $stats = [];
         foreach ($groups as $group) {
             $gid = $group->GroupID;
-            $enrolledCount = $enrolledByGroup[$gid] ?? 0;
-            $quizIds = $quizIdsByGroup[$gid] ?? collect();
-            $expectedSubmissions = $quizIds->count() * max($enrolledCount, 1);
-            $actualSubmissions = $quizIds->sum(fn ($qid) => $submissionsByQuiz[$qid] ?? 0);
-            $quizCompletion = $expectedSubmissions > 0
-                ? round(($actualSubmissions / $expectedSubmissions) * 100, 1)
-                : 0;
+            $enrolledStudentIds = $studentIdsByGroup[$gid] ?? collect();
+            $totalStudents = $enrolledStudentIds->count();
 
-            $activeUsers = collect($postUsersByGroup[$gid] ?? [])
-                ->merge($replyUsersByGroup[$gid] ?? [])
+            // Distinct students who attempted at least one of this group's
+            // quizzes, out of the group's own student count. A group with 0
+            // students is always 0% regardless of any stray attempts
+            // recorded against its quizzes - "this group's completion" isn't
+            // meaningful without students to complete it. Still capped at
+            // 100 as a hard safety net for groups that do have students.
+            $quizIds = $quizIdsByGroup[$gid] ?? collect();
+            $attemptedCount = $quizIds
+                ->flatMap(fn ($qid) => $attemptedUsersByQuiz[$qid] ?? collect())
                 ->unique()
                 ->count();
+            $quizCompletion = $totalStudents > 0
+                ? min(100, round(($attemptedCount / max($totalStudents, $attemptedCount)) * 100, 1))
+                : 0;
 
-            $totalStudents = $studentsByGroup[$gid] ?? 0;
+            $activeUsers = $activeUsersByGroup[$gid] ?? 0;
+
             $averageScore = $totalStudents > 0
                 ? round(($studentScoreTotalsByGroup[$gid] ?? 0) / $totalStudents, 2)
                 : 0;
