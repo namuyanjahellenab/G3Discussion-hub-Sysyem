@@ -1,4 +1,5 @@
-# Social-share URL/text construction for a topic - Flask owns this so Laravel/Blade never builds share URLs itself.
+# Builds social-share URLs and text for a topic.
+# Flask owns this so Laravel/Blade never has to construct share URLs itself.
 
 from typing import Any
 from urllib.parse import quote

@@ -64,9 +64,9 @@ def classify() -> ResponseReturnValue:
 @app.route("/recommend-topics", methods=["POST"])
 def recommend_topics() -> ResponseReturnValue:
     # Rank specific candidate topics for a user by relevance, scoring each
-    # topic's own
-    # title text against the user's interests/activity, so topics sharing a
-    # category no longer collapse onto one identical, duplicated score.
+    # topic's own title text against the user's interests/activity, so
+    # topics sharing a category no longer collapse onto one identical,
+    # duplicated score.
     if not _is_authorized(request):
         return jsonify({"error": "unauthorized"}), 401
 
@@ -85,15 +85,13 @@ def recommend_topics() -> ResponseReturnValue:
         topic_scores = [{"TopicID": topic.get("TopicID"), "RelevanceScore": 0.0} for topic in topics]
         return jsonify({"UserID": user_id, "TopicScores": topic_scores})
 
-    # Title repeated to outweigh Category, not Category dropped outright:
-    # most topics in a group share the same category, so weighting it
-    # equally with the title let that one repeated, generic token dominate
-    # the TF-IDF vector whenever titles were short - collapsing many
-    # unrelated topics in the same category onto the same near-identical
-    # score. Category alone still gives every topic *some* baseline signal
-    # (so an unrelated title doesn't score a flat 0 just because it shares
-    # no exact word with the query), but a title that actually overlaps the
-    # query's own vocabulary now dominates the ranking as it should.
+    # The title is repeated 3x rather than dropping Category entirely.
+    # Most topics in a group share the same category, so weighting it
+    # equally with a short title let that one repeated word dominate the
+    # score - collapsing unrelated topics in the same category onto nearly
+    # identical results. Category still gives every topic a baseline score
+    # (so an unrelated title doesn't score a flat 0), but a title that
+    # actually matches the query now outweighs it, as intended.
     texts = [
         ((topic.get("Title") or "") + " ") * 3 + (topic.get("Category") or "")
         for topic in topics

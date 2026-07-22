@@ -1,9 +1,9 @@
 # Content moderation using local machine learning - no external API needed.
-# Two TF-IDF + Naive Bayes classifiers (same technique as catalog.py) are
-# trained at import time on a small bundled dataset: one spots spam, one
-# spots generic off-topic/casual text. Replies also get a cosine-similarity
-# check against the thread they're replying to, so a reply can be flagged
-# as irrelevant even if it reads as generically "educational" on its own.
+# Two TF-IDF + Naive Bayes classifiers are trained at import time on a small
+# bundled dataset: one detects spam, the other detects generic off-topic or
+# casual text. Replies also get a cosine-similarity check against their own
+# thread, so a reply can still be flagged as irrelevant even if it reads as
+# educational on its own.
 
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
@@ -12,26 +12,29 @@ from sklearn.pipeline import Pipeline
 
 # Below this cosine similarity to the thread, a reply is considered off-topic.
 RELEVANCE_SIMILARITY_FLOOR = 0.05
+
 # Short replies ("thanks!", "makes sense") rarely share vocabulary with the
 # thread even when genuinely on-topic, so they skip the similarity check.
 SHORT_REPLY_WORD_LIMIT = 4
+
 # With a small training set, borderline predictions are closer to noise than
 # signal - require this much confidence before calling something spam, so
 # genuinely ambiguous text is allowed through rather than blocked.
 SPAM_CONFIDENCE_THRESHOLD = 0.6
-# Same reasoning in the other direction: only call text "not educational"
-# once the classifier is reasonably sure, so short/generic-but-legitimate
-# text (e.g. "question body") isn't blocked on a near-50/50 guess. Measured
-# separation after broadening EDUCATIONAL_TRAINING_DATA (84 educational /
-# 53 casual examples): casual chit-chat scores ~0.67-0.79 "not-educational"
-# probability, genuine questions - including subjects well outside the
-# original CS-heavy examples, like biology, physics, and accounting -
-# score ~0.16-0.22. 0.6 already sits cleanly in that gap, so the real fix
-# was broadening the training data itself, not this number.
+
+# Same idea as SPAM_CONFIDENCE_THRESHOLD, but in the other direction: only
+# call text "not educational" once the classifier is fairly confident, not
+# on a near-50/50 guess. Casual chit-chat reliably scores well above 0.6,
+# and genuine academic questions score well below it - but that gap only
+# holds because the training data below covers a wide range of legitimate
+# phrasing. Widening the gap means adding more training examples, not
+# changing this number.
 NOT_EDUCATIONAL_CONFIDENCE_THRESHOLD = 0.6
 
 # (text, is_spam) pairs used to train the spam classifier.
 SPAM_TRAINING_DATA = [
+    # Classic promotional/scam language: discounts, prizes, "click here",
+    # urgency, and requests to move the conversation off-platform.
     ("buy cheap laptops now, huge discount click here", 1),
     ("earn $5000 a week working from home, no experience needed", 1),
     ("claim your free prize now, limited time offer", 1),
@@ -57,6 +60,30 @@ SPAM_TRAINING_DATA = [
     ("cheap loans approved instantly, no credit check required", 1),
     ("buy followers and likes cheap, fast delivery, click here", 1),
     ("exclusive offer just for you, buy one get one free today only", 1),
+    # Scam variants using different platforms and hooks (scholarships,
+    # trading bots, fake internships, package/account phishing) - covering
+    # more phrasing than "buy/discount/click" alone keeps the classifier from
+    # missing scams that use different filler words to make the same pitch.
+    ("grab this amazing discount on essay writing services, message us on telegram", 1),
+    ("you've been selected for a free scholarship, click this link to claim it now", 1),
+    ("double your money in a week with this crypto trading bot, invest today", 1),
+    ("cheap loans available instantly, no paperwork, apply through this link", 1),
+    ("get thousands of tiktok followers overnight, dm for pricing", 1),
+    ("flash sale on branded shoes, hit this link before stock runs out", 1),
+    ("work only 2 hours a day and earn in dollars, join our whatsapp group", 1),
+    ("premium software licenses at 90 percent off, contact us to purchase", 1),
+    ("your account will be suspended, verify your details here immediately", 1),
+    ("hi dear, i'm interested in getting to know you better, message me", 1),
+    ("paid internship guaranteed no interview needed, apply through this link", 1),
+    ("urgent, you have unclaimed funds waiting, click to verify your identity", 1),
+    ("get a free credit score boost instantly, sign up with your bank details", 1),
+    ("earn passive income trading binary options, guaranteed daily payout", 1),
+    ("cheap assignment help, we write it for you, fast turnaround, whatsapp us", 1),
+    ("your package could not be delivered, click here to reschedule", 1),
+    ("this stock is about to explode, buy in now before it is too late", 1),
+    ("your subscription payment failed, update your card info here now", 1),
+    ("we noticed unusual activity, confirm your password here to secure your account", 1),
+    # Everyday academic and social messages that are not spam.
     ("how does merge sort work?", 0),
     ("can someone explain normalization in databases", 0),
     ("i'm getting a null pointer exception in my java code, any ideas?", 0),
@@ -100,18 +127,31 @@ SPAM_TRAINING_DATA = [
     ("can someone lend me a charger for my laptop", 0),
     ("what's the weather like for the field trip", 0),
     ("i missed the bus, will be a few minutes late", 0),
+    # Legitimate messages that mention sharing a link or an upcoming
+    # deadline - included so urgency and links alone are not treated as
+    # spam signals; the classifier needs real academic context to weigh
+    # against them.
+    ("here is the link, click it to access the assignment brief", 0),
+    ("act now if you want a spot in the limited practical lab slots", 0),
+    # Legitimate questions about price and budget for course materials -
+    # words like "cheap", "buy", and "discount" otherwise only appear on
+    # the spam side, which made genuine cost-related questions read as
+    # spam themselves.
+    ("where can i buy a cheap scientific calculator for the physics test", 0),
+    ("does anyone know a budget-friendly laptop good for coding assignments", 0),
+    ("is there a discount for students at the campus bookstore", 0),
+    ("can someone recommend an affordable edition of the textbook for this course", 0),
+    ("what's a good budget laptop for computer science students", 0),
 ]
 
-# (text, is_educational) pairs used to train the generic relevance classifier
-# - used when there's no specific thread to compare a reply against (e.g.
-# the opening post of a brand new topic - see storeTopic() on the Laravel
-# side). Deliberately spans many subjects and phrasings, not just CS/
-# algorithms - a set narrowly focused on one subject area leaves the
-# classifier with poor vocabulary overlap (and therefore an unreliable,
-# near-coin-flip verdict) for any legitimate question from a different
-# course, which is what caused real topic/question creation to be wrongly
-# blocked as "not educational" in the first place.
+# (text, is_educational) pairs used to train the generic relevance
+# classifier. Used whenever there's no specific thread to compare a reply
+# against - e.g. the opening post of a brand new topic (see storeTopic() on
+# the Laravel side). Deliberately spans many subjects, not just computer
+# science, since a set narrowly focused on one subject gives the classifier
+# an unreliable, near-coin-flip verdict on any question from another course.
 EDUCATIONAL_TRAINING_DATA = [
+    # Computer science and algorithms.
     ("how does merge sort work?", 1),
     ("can someone explain normalization in databases", 1),
     ("i'm getting a null pointer exception in my java code", 1),
@@ -132,7 +172,7 @@ EDUCATIONAL_TRAINING_DATA = [
     ("what's the difference between a stack and a queue", 1),
     ("our group project is about designing a relational database schema", 1),
     ("please review my pull request for the assignment", 1),
-    # Non-CS subjects - physics, chemistry, biology, math
+    # Physics, chemistry, biology, and mathematics.
     ("can someone explain the difference between mitosis and meiosis", 1),
     ("i don't understand how to balance this chemical equation", 1),
     ("what's the formula for calculating momentum in this problem set", 1),
@@ -141,7 +181,7 @@ EDUCATIONAL_TRAINING_DATA = [
     ("i'm confused about newton's third law in this practical report", 1),
     ("does anyone know which textbook chapter covers cell respiration", 1),
     ("what's the difference between a covalent and ionic bond", 1),
-    # Humanities/business/writing
+    # Humanities, business, and academic writing.
     ("how should i structure the argument for my history essay", 1),
     ("can someone give feedback on my thesis statement for the literature paper", 1),
     ("what's the citation format the lecturer wants for this assignment", 1),
@@ -149,9 +189,9 @@ EDUCATIONAL_TRAINING_DATA = [
     ("does anyone have the reading list for next week's economics seminar", 1),
     ("what's the difference between qualitative and quantitative research methods", 1),
     ("can someone explain supply and demand curves for the economics test", 1),
-    # Software Engineering course units specifically (design patterns, agile,
-    # testing, version control, requirements, architecture) - a named group
-    # in this app's own seeded course list, so worth its own dedicated
+    # Software Engineering course topics specifically (design patterns,
+    # agile, testing, version control, requirements, architecture) - a named
+    # group in this app's own seeded course list, so it warrants dedicated
     # coverage rather than relying on the general algorithms examples above.
     ("can someone explain the difference between the factory and singleton design patterns", 1),
     ("what's the difference between scrum and kanban for this agile assignment", 1),
@@ -167,10 +207,10 @@ EDUCATIONAL_TRAINING_DATA = [
     ("i'm confused about the difference between waterfall and agile methodology", 1),
     ("how do we set up continuous integration for our team's repository", 1),
     ("what should go in the test plan document for this software engineering assignment", 1),
-    # General programming concepts (fundamentals, OOP, web/mobile dev, APIs,
-    # debugging) - distinct from the algorithms-specific and software-
-    # engineering-process examples above, since a beginner's question about
-    # basic syntax/concepts shares little vocabulary with either of those.
+    # General programming concepts - fundamentals, OOP, web/mobile
+    # development, APIs, debugging. A beginner's question about basic
+    # syntax shares little vocabulary with the algorithms or software-
+    # engineering examples above, so it needs its own coverage.
     ("what's the difference between a class and an object in OOP", 1),
     ("can someone explain how inheritance and polymorphism work with an example", 1),
     ("why does my for loop keep running one extra time", 1),
@@ -191,27 +231,28 @@ EDUCATIONAL_TRAINING_DATA = [
     ("can someone explain how react state and props work", 1),
     ("what's the best way to structure the layout for this mobile app assignment", 1),
     ("i'm getting a syntax error on this line and can't figure out why", 1),
-    # Networks/security/systems (broader than the original algorithms slant)
+    # Networks, security, and systems - broader than the original
+    # algorithms-heavy examples above.
     ("what's the difference between tcp and udp in this networking module", 1),
     ("how does public key encryption actually work", 1),
     ("i'm stuck configuring the firewall rules for this systems assignment", 1),
     ("can someone explain how dns resolution works step by step", 1),
     ("what's causing this deadlock in my operating systems lab", 1),
-    # Formal/longer phrasing (not just short casual questions)
+    # Formal or longer phrasing, not just short casual questions.
     ("i would appreciate some clarification on how the grading rubric works for this course", 1),
     ("could someone please explain the requirements for the final project submission", 1),
     ("i have been struggling to understand this week's lecture material and would like some guidance", 1),
     ("is there a possibility of getting an extension given the technical issues with the portal", 1),
     ("i wanted to ask whether the practical exam covers material from the previous semester", 1),
-    # General study logistics across any subject
+    # General study logistics that apply across any subject.
     ("can we schedule a study session before the midterm", 1),
     ("does anyone have a copy of last year's past paper for this course", 1),
     ("what room is the tutorial being held in this week", 1),
     ("is the assignment submission through the portal or by email", 1),
     ("i think there might be an error in question 3 of the problem set", 1),
-    # Jokes/humor - clearly casual, but easy to confuse with "educational" if
-    # they happen to mention a course-y word (e.g. a programming pun),
-    # which is exactly why they need their own explicit examples here.
+    # Jokes and humor - clearly casual, but easy to mistake for educational
+    # content when they mention a course-related word (e.g. a programming
+    # pun), which is why they need explicit examples of their own.
     ("why do programmers prefer dark mode? because light attracts bugs", 0),
     ("why was six afraid of seven? because seven eight nine", 0),
     ("i told a joke about udp but i'm not sure if it landed", 0),
@@ -247,10 +288,9 @@ EDUCATIONAL_TRAINING_DATA = [
     ("i can't believe how expensive concert tickets are these days", 0),
     ("anyone else stuck in this traffic right now", 0),
     ("what's your favorite way to relax after a long week", 0),
-    # More campus/social chatter - keeps examples like "restaurant near
-    # campus" clearly anchored on the casual side instead of drifting toward
-    # "educational" just because they share campus-adjacent vocabulary with
-    # legitimate study-logistics questions elsewhere in this dataset.
+    # More campus/social chatter, so "campus" stays anchored as a casual
+    # word here and doesn't drift toward "educational" just because it also
+    # appears in legitimate study-logistics questions elsewhere.
     ("any good spots near campus to hang out this evening", 0),
     ("what's the cheapest place to eat around campus", 0),
     ("is the campus wifi down for anyone else right now", 0),
@@ -269,6 +309,54 @@ EDUCATIONAL_TRAINING_DATA = [
     ("what's a good playlist for relaxing after a long week", 0),
     ("looking forward to the holidays, just want to rest", 0),
     ("anyone want to share a taxi into town later", 0),
+    # Additional casual chatter with more varied wording, so the classifier
+    # recognizes social phrasing beyond the specific examples above.
+    ("who's up for suya and drinks after work today", 0),
+    ("anyone down for grilled meat and drinks after work today", 0),
+    ("just binged the whole new season, no spoilers please", 0),
+    ("my dog just learned a new trick, so proud", 0),
+    ("anyone got tickets for the concert this friday", 0),
+    ("what's the vibe like at that new lounge downtown", 0),
+    ("i can't stop laughing at this tiktok trend", 0),
+    ("does anyone know a good place to get a haircut nearby", 0),
+    ("just got back from the gym, absolutely drained", 0),
+    ("what's your go to comfort food after a rough day", 0),
+    ("anyone else obsessed with this new phone release", 0),
+    ("planning a road trip this long weekend, any tips", 0),
+    ("what's the best way to unwind after a stressful week", 0),
+    ("found this hilarious meme, had to share it", 0),
+    ("anyone free for a game night this saturday", 0),
+    ("just adopted a kitten, need name suggestions", 0),
+    ("what's everyone's plans for new year's eve", 0),
+    ("the traffic today was absolutely brutal", 0),
+    ("who's got recommendations for a good skincare routine", 0),
+    ("what's the funniest thing that happened to you this week", 0),
+    ("anyone binge watching anything good right now", 0),
+    ("just got my nails done, feeling fancy", 0),
+    ("what's a good podcast to listen to on the commute", 0),
+    ("anyone else's phone battery dying way too fast lately", 0),
+    ("just tried bubble tea for the first time, obsessed", 0),
+    # Legitimate academic logistics that happen to use "weekend", "campus",
+    # or "budget" - these words otherwise only appear in the casual/social
+    # examples above, so genuine questions using them (e.g. "is the library
+    # open this weekend for revision") shared more vocabulary with chit-chat
+    # than with any educational example.
+    ("is the library open this weekend so i can revise for the exam", 1),
+    ("what time does the campus lab close before the weekend deadline", 1),
+    ("is attendance required for the tutorial happening this weekend", 1),
+    ("will the assignment portal be open over the weekend for submissions", 1),
+    ("does the campus workshop run into the weekend for final year students", 1),
+    ("what room on campus is the revision session held in this week", 1),
+    ("is the campus computer lab open on weekends before exams", 1),
+    ("what's a good budget laptop for running programming assignments", 1),
+    ("any recommendation for a budget textbook edition for this course", 1),
+    ("is there a cheaper edition of the recommended textbook available", 1),
+    ("what documents do i need for the internship application through the department", 1),
+    # These two match the exact phrasing of casual examples above ("cheapest
+    # place... campus" and "campus event... weekend") closely enough that a
+    # direct academic version of each was needed to break the tie.
+    ("what's the cheapest place to buy textbooks near campus", 1),
+    ("is attendance mandatory for the campus event this weekend", 1),
 ]
 
 
@@ -323,9 +411,9 @@ def _is_relevant_to_thread(text: str, context: str) -> bool:
 
 def _classify_content(text: str, context: str | None = None) -> dict:
     # context, if given, is the thread the text is replying to - relevance
-    # is then judged against that thread instead of generic educational-ness -
-    # otherwise any academic-sounding reply would pass regardless of whether
-    # it actually relates to this thread.
+    # is then judged against that thread instead of generic educational-ness,
+    # so a reply must actually relate to the thread rather than merely
+    # sounding academic on its own.
     if not text or not text.strip():
         return {"is_spam": False, "is_educational": True}
 
