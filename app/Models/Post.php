@@ -23,6 +23,11 @@ class Post extends Model
 
     protected $casts = ['IsFlagged' => 'boolean'];
 
+    protected static function booted()
+    {
+        static::created(fn (Post $post) => User::recordActivity($post->UserID));
+    }
+
     public function author()
     {
         return $this->belongsTo(User::class, 'UserID', 'UserID');

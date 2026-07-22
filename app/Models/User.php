@@ -81,5 +81,27 @@ class User extends Authenticatable
     {
         return $this->PasswordHash;
     }
-    
+
+    /**
+     * Called whenever a user posts/replies/messages. Refreshes LastActive,
+     * flips a stale 'Inactive' Status back to 'Active' immediately rather
+     * than waiting for the next scheduled sweep, and clears any in-progress
+     * inactivity warning stage since they've now responded.
+     */
+    public static function recordActivity(int $userId): void
+    {
+        $user = self::find($userId);
+
+        if (!$user) {
+            return;
+        }
+
+        $user->update([
+            'LastActive' => now(),
+            'Status' => $user->Status === 'Inactive' ? 'Active' : $user->Status,
+        ]);
+
+        UserInactivityWarning::where('UserID', $userId)->delete();
+    }
+
 }

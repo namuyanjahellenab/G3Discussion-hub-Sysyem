@@ -36,6 +36,7 @@
                             <th>Author</th>
                             <th>Topic / Group</th>
                             <th>Flagged by</th>
+                            <th>Reason</th>
                             <th>Date</th>
                             <th class="flagged-content-action-col">Action</th>
                         </tr>
@@ -51,10 +52,8 @@
                                         <div class="text-muted small">{{ $post->topic->group->GroupName }}</div>
                                     @endif
                                 </td>
-                                <td>
-                                    {{ $post->flags->count() }} {{ Str::plural('member', $post->flags->count()) }}
-                                    <div class="text-muted small">{{ $post->FlaggedReason }}</div>
-                                </td>
+                                <td>{{ $post->flags->count() }} {{ Str::plural('member', $post->flags->count()) }}</td>
+                                <td>{{ $post->FlaggedReason ?: 'Not specified' }}</td>
                                 <td>{{ $post->CreatedAt->format('d M Y') }}</td>
                                 <td class="flagged-content-action-col">
                                     <div class="d-flex gap-2">
@@ -78,7 +77,7 @@
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="6" class="text-center py-5">
+                                <td colspan="7" class="text-center py-5">
                                     <div class="flagged-content-empty-state">
                                         <div class="flagged-content-empty-icon">
                                             <i class="fa-solid fa-shield-check"></i>
@@ -110,6 +109,7 @@
                             <th>Author</th>
                             <th>Topic / Group</th>
                             <th>Flagged by</th>
+                            <th>Reason</th>
                             <th>Date</th>
                             <th class="flagged-content-action-col">Action</th>
                         </tr>
@@ -126,6 +126,7 @@
                                     @endif
                                 </td>
                                 <td>{{ $reply->flags->count() }} {{ Str::plural('member', $reply->flags->count()) }}</td>
+                                <td>{{ $reply->flags->pluck('Reason')->filter()->first() ?: 'Not specified' }}</td>
                                 <td>{{ $reply->CreatedAt->format('d M Y') }}</td>
                                 <td class="flagged-content-action-col">
                                     <div class="d-flex gap-2">
@@ -149,7 +150,7 @@
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="6" class="text-center py-5">
+                                <td colspan="7" class="text-center py-5">
                                     <div class="flagged-content-empty-state">
                                         <div class="flagged-content-empty-icon">
                                             <i class="fa-solid fa-shield-check"></i>

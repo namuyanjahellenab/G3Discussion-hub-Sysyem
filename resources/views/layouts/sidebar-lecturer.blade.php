@@ -68,7 +68,7 @@
        <li class="{{ request()->routeIs('quiz.schedule') ? 'active' : '' }}">
     <a href="{{ route('quiz.schedule') }}"><i class="fa-solid fa-plus"></i> Schedule Quiz</a>
 </li>
-<li class="{{ request()->routeIs('quiz.results') || request()->routeIs('quiz.latest-results') ? 'active' : '' }}">
+<li class="{{ request()->routeIs('quiz.results') || request()->routeIs('quiz.latest-results') || request()->routeIs('quiz.grade') || request()->routeIs('quiz.grade.save') ? 'active' : '' }}">
     <a href="{{ route('quiz.latest-results') }}"><i class="fa-solid fa-chart-simple"></i> Quiz Results</a>
 </li>
 <li class="{{ request()->routeIs('groups.index') ? 'active' : '' }}">

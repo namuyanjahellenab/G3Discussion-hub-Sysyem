@@ -337,9 +337,81 @@ public function myReviewApi($quizID)
     ]);
 }
 
+// ─── Lecturer: view one student's submission for grading ────
+public function gradeView($resultId)
+{
+    $result = QuizResult::with('quiz')->findOrFail($resultId);
+
+    abort_unless($result->quiz->LecturerID === auth()->id(), 403);
+
+    $student = \App\Models\User::find($result->UserID);
+    $questions = Question::where('QuizID', $result->QuizID)->orderBy('QuestionID')->get();
+    $answers = Answer::where('ResultID', $resultId)->get()->keyBy('QuestionID');
+
+    return view('quizzes.grade', compact('result', 'student', 'questions', 'answers'));
+}
+
+// ─── Lecturer: save marks for this student's Open-ended answers ─
+// MCQ answers are already graded automatically at submission time
+// (gradeAnswers() above) - this only ever touches Open-type answers,
+// which are otherwise stuck at 0 marks forever with no other path to
+// award them.
+public function gradeSubmit(Request $request, $resultId)
+{
+    $result = QuizResult::with('quiz')->findOrFail($resultId);
+
+    abort_unless($result->quiz->LecturerID === auth()->id(), 403);
+
+    $request->validate([
+        'marks'   => 'array',
+        'marks.*' => 'nullable|numeric|min:0',
+    ]);
+
+    $marks   = $request->input('marks', []);
+    $answers = Answer::where('ResultID', $resultId)->with('question')->get();
+
+    foreach ($answers as $answer) {
+        if ($answer->question->QuestionType !== 'Open' || !array_key_exists($answer->AnswerID, $marks)) {
+            continue;
+        }
+
+        $awarded = $marks[$answer->AnswerID];
+        $awarded = ($awarded === null || $awarded === '')
+            ? null
+            : min((float) $awarded, (float) $answer->question->Marks);
+
+        $answer->update([
+            'MarksAwarded' => $awarded,
+            'IsCorrect'    => $awarded !== null && $awarded > 0,
+        ]);
+    }
+
+    // Recompute the total: MCQ contributes full marks only when IsCorrect
+    // (set automatically at submission), Open contributes whatever's been
+    // manually awarded so far (0 while still ungraded) - so Score always
+    // reflects exactly what's been marked instead of permanently excluding
+    // Open questions like it did before any manual grading existed.
+    $score = Answer::where('ResultID', $resultId)->with('question')->get()
+        ->sum(fn ($a) => $a->question->QuestionType === 'MCQ'
+            ? ($a->IsCorrect ? $a->question->Marks : 0)
+            : ($a->MarksAwarded ?? 0));
+
+    $result->update(['Score' => $score]);
+
+    return redirect()->route('quiz.grade', $resultId)->with('success', 'Marks saved.');
+}
+
 public function activeNow(Request $request)
 {
     $user = auth()->user();
+
+    // Only students take quizzes - without this, a lecturer/admin account
+    // also matches (they never have a QuizResult for any quiz either) and
+    // gets the same "Quiz Starting Now!" popup meant for their own students.
+    if ($user->Role !== 'Student') {
+        return response()->json(['quiz' => null]);
+    }
+
     $now  = now();
 
     $quiz = \App\Models\Quiz::where('StartTime', '<=', $now)

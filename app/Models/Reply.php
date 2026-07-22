@@ -13,6 +13,11 @@ class Reply extends Model
     protected $fillable = ['PostID', 'UserID', 'ReplyContent', 'IsAccepted', 'IsFlagged', 'ParentReplyID', 'Attachment', 'AttachmentType'];
     protected $casts = ['IsAccepted' => 'boolean', 'IsFlagged' => 'boolean'];
 
+    protected static function booted()
+    {
+        static::created(fn (Reply $reply) => User::recordActivity($reply->UserID));
+    }
+
     public function author()
     {
         return $this->belongsTo(User::class, 'UserID', 'UserID');

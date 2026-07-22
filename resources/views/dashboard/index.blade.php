@@ -190,12 +190,18 @@
             </section>
 
             <section class="panel upcoming-quiz-card">
-                <h2 style="font-size: 15px; font-weight: 700; margin: 0 0 4px 0;">Upcoming Quiz</h2>
-                @if($upcomingQuiz)
+                @if($ongoingQuiz)
+                    <h2 style="font-size: 15px; font-weight: 700; margin: 0 0 4px 0;">Quiz Available Now</h2>
+                    <div class="title">{{ $ongoingQuiz->Title }}</div>
+                    <div class="meta">Ends {{ $ongoingQuiz->StartTime->copy()->addMinutes($ongoingQuiz->Duration)->format('d M Y, h:i A') }}</div>
+                    <a href="{{ route('quiz.take', $ongoingQuiz->QuizID) }}" class="btn btn-primary">Take Quiz Now</a>
+                @elseif($upcomingQuiz)
+                    <h2 style="font-size: 15px; font-weight: 700; margin: 0 0 4px 0;">Upcoming Quiz</h2>
                     <div class="title">{{ $upcomingQuiz->Title }}</div>
                     <div class="meta">{{ $upcomingQuiz->StartTime->format('d M Y, h:i A') }} · {{ $upcomingQuiz->Duration }} min</div>
                     <a href="{{ url('/quizzes') }}" class="btn btn-primary">View Details</a>
                 @else
+                    <h2 style="font-size: 15px; font-weight: 700; margin: 0 0 4px 0;">Upcoming Quiz</h2>
                     <div class="meta" style="margin-top: 8px;">No upcoming quizzes scheduled.</div>
                 @endif
             </section>

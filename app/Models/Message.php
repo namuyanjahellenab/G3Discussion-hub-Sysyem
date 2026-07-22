@@ -14,6 +14,11 @@ protected $primaryKey = 'MessageID';
 
 protected $fillable = ['TopicID', 'user_id', 'ConversationID', 'body', 'is_spam', 'Attachment', 'AttachmentType'];
 
+    protected static function booted()
+    {
+        static::created(fn (Message $message) => User::recordActivity($message->user_id));
+    }
+
     public function user()
     {
         return $this->belongsTo(User::class, 'user_id', 'UserID');

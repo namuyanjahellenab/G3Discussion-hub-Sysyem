@@ -113,6 +113,23 @@ class DashboardController extends Controller
         ->orderBy('StartTime')
         ->first();
 
+    // A quiz already open right now (student hasn't submitted yet) takes
+    // priority over a future one in the panel below - same "active now"
+    // window QuizEngineController::activeNow() uses for the popup, so the
+    // dashboard's own "available" indicator gets a direct take-quiz link
+    // instead of only ever pointing at a still-upcoming quiz.
+    $ongoingQuiz = Quiz::whereIn('GroupID', $groupIds)
+        ->where('StartTime', '<=', now())
+        ->whereRaw('DATE_ADD(StartTime, INTERVAL Duration MINUTE) >= ?', [now()])
+        ->whereNotExists(function ($q) use ($user) {
+            $q->select(DB::raw(1))
+                ->from('QuizResult')
+                ->whereColumn('QuizResult.QuizID', 'Quiz.QuizID')
+                ->where('QuizResult.UserID', $user->UserID);
+        })
+        ->orderBy('StartTime')
+        ->first();
+
     // Most recent announcement for one of the student's groups, skipping
     // any this student was specifically excluded from.
     $latestAnnouncement = Announcement::whereIn('GroupID', $groupIds)
@@ -132,7 +149,7 @@ class DashboardController extends Controller
 
     return view('dashboard.index', compact(
         'joined_groups', 'notifications', 'recentActivity', 'notificationsCount',
-        'snapshot', 'upcomingQuiz', 'latestAnnouncement', 'activeBlacklist', 'activeWarnings'
+        'snapshot', 'upcomingQuiz', 'ongoingQuiz', 'latestAnnouncement', 'activeBlacklist', 'activeWarnings'
     ))
         ->with('showSidebar', true)
         ->with('showNavbar', true);

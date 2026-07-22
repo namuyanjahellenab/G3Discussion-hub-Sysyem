@@ -207,6 +207,8 @@ Route::post('/web/quiz/submit',      [QuizEngineController::class, 'submit'])->m
 Route::post('/web/quiz/auto-submit', [QuizEngineController::class, 'autoSubmit'])->middleware('auth');
 Route::get('/web/quiz/{id}/results', [QuizEngineController::class, 'results'])->middleware('auth');
 Route::get('/quiz/active-now', [QuizEngineController::class, 'activeNow'])->middleware('auth');
+Route::get('/quiz/result/{resultId}/grade', [QuizEngineController::class, 'gradeView'])->middleware('auth')->name('quiz.grade');
+Route::post('/quiz/result/{resultId}/grade', [QuizEngineController::class, 'gradeSubmit'])->middleware('auth')->name('quiz.grade.save');
 
 });
 
@@ -226,7 +228,7 @@ use App\Http\Controllers\AdminGroupController;
 use App\Http\Controllers\AdminDashboardController;
 
 
-Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(function () {
+Route::middleware(['auth', 'admin', \App\Http\Middleware\TriggerInactivitySweep::class])->prefix('admin')->name('admin.')->group(function () {
     Route::get('/dashboard', [AdminDashboardController::class, 'index'])->name('dashboard');
     Route::get('/groups', [AdminGroupController::class, 'index'])->name('groups.index');
     Route::post('/groups', [AdminGroupController::class, 'store'])->name('groups.store');
@@ -247,6 +249,8 @@ Route::post('/lecturer-staff/{user}/demote', [AdminLecturerStaffController::clas
     Route::delete('/student-ids/{studentId}', [\App\Http\Controllers\AdminStudentIdController::class, 'destroy'])->name('student-ids.destroy');
     Route::get('/blacklist', [\App\Http\Controllers\Admin\AdminBlacklistController::class, 'index'])->name('blacklist');
 Route::post('/blacklist', [\App\Http\Controllers\Admin\AdminBlacklistController::class, 'store'])->name('blacklist.store');
+Route::get('/blacklist/settings', [\App\Http\Controllers\Admin\AdminBlacklistSettingsController::class, 'edit'])->name('blacklist.settings');
+Route::post('/blacklist/settings', [\App\Http\Controllers\Admin\AdminBlacklistSettingsController::class, 'update'])->name('blacklist.settings.update');
 Route::delete('/blacklist/{blacklist}', [\App\Http\Controllers\Admin\AdminBlacklistController::class, 'destroy'])->name('blacklist.destroy');
 Route::post('/warning', [\App\Http\Controllers\Admin\AdminWarningController::class, 'store'])->name('warning.store');
 

@@ -212,6 +212,7 @@
                     <td class="score-text">${score} / ${total}</td>
                     <td>${badge}</td>
                     <td>${dateStr}</td>
+                    <td><a href="/quiz/result/${r.ResultID}/grade" class="btn-export" style="padding: 6px 14px; font-size: 13px;">Grade</a></td>
                 </tr>`;
             }).join('');
 
@@ -224,6 +225,7 @@
                             <th>Score</th>
                             <th>Submission Type</th>
                             <th>Submitted At</th>
+                            <th>Answers</th>
                         </tr>
                     </thead>
                     <tbody>${rows}</tbody>
