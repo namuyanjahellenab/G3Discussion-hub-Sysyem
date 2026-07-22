@@ -160,15 +160,13 @@
             document.getElementById('quizTitle').textContent      = data.Title ?? 'Quiz Results';
             document.getElementById('totalMarksLabel').textContent = `Total Marks: ${parseFloat(data.TotalMarks).toFixed(2)}`;
             document.getElementById('quizIdLabel').textContent     = `· Quiz ID: ${data.QuizID}`;
-            // No PDF export endpoint exists for quiz results yet (unlike
-            // topic export) — disable with an explanation instead of
-            // pointing at a route that 404s.
+
             const exportBtn = document.getElementById('exportBtn');
-            exportBtn.removeAttribute('href');
-            exportBtn.setAttribute('aria-disabled', 'true');
-            exportBtn.title = 'Exporting quiz results to PDF is not available yet';
-            exportBtn.style.pointerEvents = 'none';
-            exportBtn.style.opacity = '0.5';
+            exportBtn.href = `/quiz/${quizID}/results/export-pdf`;
+            exportBtn.removeAttribute('aria-disabled');
+            exportBtn.title = 'Export these results to PDF';
+            exportBtn.style.pointerEvents = '';
+            exportBtn.style.opacity = '';
 
             const results = data.Results ?? [];
 
@@ -212,6 +210,7 @@
                     <td class="score-text">${score} / ${total}</td>
                     <td>${badge}</td>
                     <td>${dateStr}</td>
+                    <td><a href="/quiz/${quizID}/results/${r.ResultID}/review" class="btn-export" style="padding:6px 14px;font-size:12.5px;">Review</a></td>
                 </tr>`;
             }).join('');
 
@@ -224,6 +223,7 @@
                             <th>Score</th>
                             <th>Submission Type</th>
                             <th>Submitted At</th>
+                            <th></th>
                         </tr>
                     </thead>
                     <tbody>${rows}</tbody>

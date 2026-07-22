@@ -148,8 +148,22 @@
     .status-active   { background: var(--accent-success-bg); color: var(--accent-success); }
     .status-closed   { background: var(--surface-bg); color: var(--text-muted); }
 
-    .result-row .user { font-weight: 600; }
-    .result-row .score { color: var(--luna-mid); font-weight: 700; }
+    .result-row .user { font-weight: 600; display: flex; align-items: center; gap: 10px; }
+    .result-row .score { color: var(--luna-mid); font-weight: 700; text-align: right; }
+    .result-row .quiz-name { color: var(--text-muted); font-size: 12px; font-weight: 500; margin-top: 2px; font-family: var(--font-body); }
+
+    .result-avatar {
+        width: 30px; height: 30px; min-width: 30px; border-radius: 50%;
+        background: var(--luna-mid); color: #fff; font-size: 12px; font-weight: 700;
+        display: flex; align-items: center; justify-content: center;
+    }
+
+    .submit-badge {
+        font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 999px;
+        text-transform: uppercase; letter-spacing: 0.3px; margin-top: 4px; display: inline-block;
+    }
+    .submit-manual { background: var(--accent-success-bg); color: var(--accent-success); }
+    .submit-auto   { background: var(--accent-danger-bg); color: var(--accent-danger); }
 
     .empty-state {
         padding: 40px 20px;
@@ -165,6 +179,23 @@
         text-decoration: none;
         font-weight: 600;
     }
+
+    .results-card-link {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        background: var(--luna-mid);
+        color: #fff;
+        text-decoration: none;
+        font-size: 12px;
+        font-weight: 700;
+        padding: 7px 14px;
+        border-radius: var(--radius-md);
+        box-shadow: var(--shadow-soft);
+        transition: background 0.15s;
+    }
+    .results-card-link:hover { background: var(--luna-dark); }
+    .results-card-link svg { width: 13px; height: 13px; }
 
     @media (max-width: 1024px) {
         .panels-grid { grid-template-columns: 1fr; }
@@ -235,8 +266,10 @@
                         </div>
                         <div style="display:flex; align-items:center; gap:14px;">
                             <span class="status-pill status-{{ $status }}">{{ $status }}</span>
-                            <a href="{{ route('quiz.results', $quiz->QuizID) }}" class="quiz-edit-link">Results</a>
-                            <a href="{{ url('/quizzes/'.$quiz->QuizID.'/edit') }}" class="quiz-edit-link">Edit</a>
+                            <a href="{{ route('quiz.results', $quiz->QuizID) }}" class="results-card-link">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 17V9m6 8V5M5 21h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg>
+                                Results
+                            </a>
                         </div>
                     </div>
                 @empty
@@ -253,14 +286,24 @@
             </div>
             <div class="panel-body">
                 @forelse ($recentResults as $result)
+                    @php($totalMarks = $totalMarksByQuiz[$result->QuizID] ?? null)
                     <div class="result-row">
-                        <div>
-                            <div class="user">Student #{{ $result->UserID }}</div>
-                            <div class="meta" style="color:var(--text-muted); font-size:12px; margin-top:2px; font-family:var(--font-body);">
-                                {{ \Carbon\Carbon::parse($result->SubmissionTime)->diffForHumans() }}
+                        <div class="user">
+                            <div class="result-avatar">{{ Str::substr($result->StudentName ?? '?', 0, 1) }}</div>
+                            <div>
+                                <div>{{ $result->StudentName ?? 'Unknown student' }}</div>
+                                <div class="quiz-name">{{ $result->QuizTitle }}</div>
                             </div>
                         </div>
-                        <div class="score">{{ $result->Score }} pts</div>
+                        <div>
+                            <div class="score">{{ rtrim(rtrim(number_format($result->Score, 2), '0'), '.') }}{{ $totalMarks !== null ? ' / '.rtrim(rtrim(number_format($totalMarks, 2), '0'), '.') : '' }}</div>
+                            <div class="meta" style="color:var(--text-muted); font-size:11.5px; margin-top:2px; font-family:var(--font-body); text-align:right;">
+                                {{ \Carbon\Carbon::parse($result->SubmissionTime)->diffForHumans() }}
+                            </div>
+                            <span class="submit-badge {{ $result->IsAutoSubmit ? 'submit-auto' : 'submit-manual' }}">
+                                {{ $result->IsAutoSubmit ? 'Auto' : 'Manual' }}
+                            </span>
+                        </div>
                     </div>
                 @empty
                     <div class="empty-state">

@@ -8,6 +8,6 @@ class Answer extends Model {
     public $timestamps    = false;
 
     protected $fillable = [
-        'QuestionID', 'ResultID', 'UserID', 'ResponseText', 'IsCorrect'
+        'QuestionID', 'ResultID', 'UserID', 'ResponseText', 'IsCorrect', 'MarksAwarded'
     ];
 }

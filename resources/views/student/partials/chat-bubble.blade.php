@@ -9,6 +9,11 @@
             <strong>{{ $msg->user->UserName ?? 'Unknown' }}</strong>
             <span>{{ \Carbon\Carbon::parse($msg->CreatedAt)->diffForHumans() }}</span>
         </div>
+        @if($msg->parentMessage)
+            <div class="quote-strip">
+                <i class="fa-solid fa-reply"></i> Replying to <strong>{{ $msg->parentMessage->user->UserName ?? 'Unknown' }}</strong>: {{ Str::limit($msg->parentMessage->body, 40) }}
+            </div>
+        @endif
         @if($msg->is_spam)
             {{-- Only ever rendered for the sender's own message - other
                  members never receive a spam-flagged bubble at all (see
@@ -40,11 +45,11 @@
                 </button>
             @endif
             @if($msg->user_id === auth()->id())
-                @if($msg->body)
-                    <button type="button" class="chat-bubble__menu-item" data-action="edit">
-                        <i class="fa-solid fa-pen"></i> Edit
-                    </button>
-                @endif
+                {{-- Always available, even on an attachment-only message
+                     with no text yet - editing it there just adds a caption. --}}
+                <button type="button" class="chat-bubble__menu-item" data-action="edit">
+                    <i class="fa-solid fa-pen"></i> Edit
+                </button>
                 <button type="button" class="chat-bubble__menu-item" data-action="delete">
                     <i class="fa-solid fa-trash"></i> Delete
                 </button>

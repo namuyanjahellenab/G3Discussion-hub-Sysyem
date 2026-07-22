@@ -61,7 +61,9 @@ public class TopicController {
     @FXML private Label threadMetaLabel;
     @FXML private VBox mainPostCard;
     @FXML private VBox repliesBox;
+    @FXML private HBox replyContextRow;
     @FXML private Label replyContextLabel;
+    @FXML private Button cancelReplyButton;
     @FXML private TextArea replyInput;
     @FXML private Label attachedFileLabel;
     @FXML private Button removeAttachmentButton;
@@ -873,15 +875,17 @@ public class TopicController {
 
     private void startReplyTo(int replyId, String authorName) {
         replyToId = replyId;
-        replyContextLabel.setText("Replying to " + authorName + "  (✕ to cancel)");
-        replyContextLabel.setVisible(true);
-        replyContextLabel.setManaged(true);
-        replyContextLabel.setOnMouseClicked(e -> {
-            replyToId = null;
-            replyContextLabel.setVisible(false);
-            replyContextLabel.setManaged(false);
-        });
+        replyContextLabel.setText("↩ Replying to " + authorName);
+        replyContextRow.setVisible(true);
+        replyContextRow.setManaged(true);
         replyInput.requestFocus();
+    }
+
+    @FXML
+    protected void onCancelReply() {
+        replyToId = null;
+        replyContextRow.setVisible(false);
+        replyContextRow.setManaged(false);
     }
 
     @FXML
@@ -940,9 +944,7 @@ public class TopicController {
                 Platform.runLater(() -> {
                     replyInput.setDisable(false);
                     replyInput.clear();
-                    replyToId = null;
-                    replyContextLabel.setVisible(false);
-                    replyContextLabel.setManaged(false);
+                    onCancelReply();
                     onRemoveAttachment();
                     refresh();
                 });
@@ -958,9 +960,7 @@ public class TopicController {
                     alert.showAndWait();
                 } else {
                     replyInput.clear();
-                    replyToId = null;
-                    replyContextLabel.setVisible(false);
-                    replyContextLabel.setManaged(false);
+                    onCancelReply();
                     onRemoveAttachment();
                     refresh();
                 }

@@ -65,6 +65,10 @@ class ChatMessageSent implements ShouldBroadcastNow
             // next time it's rendered offline).
             'created_at_iso' => $this->message->CreatedAt,
             'is_spam' => (bool) $this->message->is_spam,
+            'parent_message_author' => $this->message->parentMessage?->user?->UserName,
+            'parent_message_snippet' => $this->message->parentMessage
+                ? \Illuminate\Support\Str::limit($this->message->parentMessage->body, 40)
+                : null,
         ];
     }
 }

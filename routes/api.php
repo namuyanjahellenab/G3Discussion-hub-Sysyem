@@ -156,6 +156,8 @@ Route::middleware('auth:sanctum')->group(function () {
     // Desktop-client equivalent of the web's Group Chat (main conversation only).
     Route::get('/groups/{groupId}/chat-messages', [App\Http\Controllers\Api\GroupChatApiController::class, 'index']);
     Route::post('/groups/{groupId}/chat-messages', [App\Http\Controllers\Api\GroupChatApiController::class, 'store']);
+    Route::patch('/group-messages/{message}', [App\Http\Controllers\Api\GroupChatApiController::class, 'update']);
+    Route::delete('/group-messages/{message}', [App\Http\Controllers\Api\GroupChatApiController::class, 'destroy']);
 });
 
 // Route::middleware('auth')->group(function () {

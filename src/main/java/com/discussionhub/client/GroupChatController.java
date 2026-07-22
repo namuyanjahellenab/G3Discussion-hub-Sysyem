@@ -24,10 +24,15 @@ import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.Label;
+import javafx.scene.control.ContextMenu;
+import javafx.scene.control.MenuItem;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.control.TextField;
+import javafx.scene.control.TextInputDialog;
+import javafx.scene.control.Tooltip;
 import javafx.scene.layout.FlowPane;
 import javafx.scene.layout.HBox;
+import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
 import javafx.stage.FileChooser;
 import javafx.stage.Stage;
@@ -85,6 +90,8 @@ public class GroupChatController {
     @FXML private Label excludeHintLabel;
     @FXML private Label attachedFileLabel;
     @FXML private Button removeAttachmentButton;
+    @FXML private Label replyContextLabel;
+    @FXML private Button cancelReplyButton;
     @FXML private SidebarController sidebarController;
 
     private DatabaseManager dbManager;
@@ -95,6 +102,10 @@ public class GroupChatController {
     private boolean isRestricted;
     private final List<CheckBox> excludeCheckboxes = new ArrayList<>();
     private File selectedAttachment;
+    // WhatsApp-style tagging: which message (if any) is being replied to -
+    // rides along as parent_message_id on the next send, then clears itself,
+    // same lifecycle as selectedAttachment above.
+    private Integer replyToId;
 
     // Same whitelist as TopicController's reply composer and
     // AttachmentUploader/GroupChatApiController's server-side validation.
@@ -119,7 +130,7 @@ public class GroupChatController {
     // renderMessages()) - mirrors TopicController's renderedReplyRows, which
     // was the fix for this exact "screen blinks every 10 seconds" symptom
     // there.
-    private final Map<Integer, VBox> renderedMessageRows = new LinkedHashMap<>();
+    private final Map<Integer, Region> renderedMessageRows = new LinkedHashMap<>();
 
     // Messages sent from elsewhere (the web, another device) have no way to
     // reach an already-open desktop chat window - same gap as TopicController -
@@ -286,7 +297,7 @@ public class GroupChatController {
                 if (messagesBox.getChildren().size() == 1 && messagesBox.getChildren().get(0) instanceof Label) {
                     messagesBox.getChildren().clear(); // was showing "No messages yet."
                 }
-                VBox row = bubble(m);
+                Region row = bubble(m);
                 messagesBox.getChildren().add(row);
                 // Registered here too (not just in renderMessages()'s poll
                 // diff) - otherwise the next 10s poll would see this id as
@@ -612,9 +623,9 @@ public class GroupChatController {
             incomingIds.add(messages.getJSONObject(i).getInt("id"));
         }
 
-        Iterator<Map.Entry<Integer, VBox>> it = renderedMessageRows.entrySet().iterator();
+        Iterator<Map.Entry<Integer, Region>> it = renderedMessageRows.entrySet().iterator();
         while (it.hasNext()) {
-            Map.Entry<Integer, VBox> entry = it.next();
+            Map.Entry<Integer, Region> entry = it.next();
             if (!incomingIds.contains(entry.getKey())) {
                 messagesBox.getChildren().remove(entry.getValue());
                 it.remove();
@@ -642,7 +653,7 @@ public class GroupChatController {
                 liveUnreadBannerInserted = true;
             }
 
-            VBox row = bubble(m);
+            Region row = bubble(m);
             messagesBox.getChildren().add(row);
             renderedMessageRows.put(id, row);
         }
@@ -698,10 +709,10 @@ public class GroupChatController {
      *  shown once above the first RECEIVED message (never the viewer's own)
      *  newer than the frozen read marker. */
     private HBox buildUnreadBanner() {
-        javafx.scene.layout.Region leftLine = new javafx.scene.layout.Region();
+        Region leftLine = new Region();
         leftLine.setStyle("-fx-background-color: #3F9C6B; -fx-pref-height: 1;");
         HBox.setHgrow(leftLine, javafx.scene.layout.Priority.ALWAYS);
-        javafx.scene.layout.Region rightLine = new javafx.scene.layout.Region();
+        Region rightLine = new Region();
         rightLine.setStyle("-fx-background-color: #3F9C6B; -fx-pref-height: 1;");
         HBox.setHgrow(rightLine, javafx.scene.layout.Priority.ALWAYS);
 
@@ -715,26 +726,33 @@ public class GroupChatController {
         return banner;
     }
 
-    private VBox bubble(JSONObject m) {
-        return bubble(m.getInt("user_id"), m.getString("author_name"), m.getString("body"),
+    private Region bubble(JSONObject m) {
+        return bubble(m.getInt("id"), m.getInt("user_id"), m.getString("author_name"), m.getString("body"),
             m.optString("created_at_iso", m.optString("created_at", "")), false,
             m.isNull("attachment_url") ? null : m.optString("attachment_url", null),
             m.optString("attachment_type", null),
-            m.optString("attachment_name", null));
+            m.optString("attachment_name", null),
+            true,
+            m.isNull("parent_message_author") ? null : m.optString("parent_message_author", null),
+            m.optString("parent_message_snippet", null));
     }
 
-    private VBox bubble(int userId, String authorName, String body, String createdAt, boolean pending) {
-        return bubble(userId, authorName, body, createdAt, pending, null, null, null);
+    private Region bubble(int userId, String authorName, String body, String createdAt, boolean pending) {
+        return bubble(-1, userId, authorName, body, createdAt, pending, null, null, null, false, null, null);
     }
 
     /**
      * attachmentUrl null means "no attachment" - was previously the only
      * overload, which is why a message sent with a file but no text (see
      * GroupChatApiController::index()) rendered as an empty bubble: there
-     * was nothing here that could show one at all.
+     * was nothing here that could show one at all. canReply is false for
+     * cached/offline/pending bubbles (messageId is -1 or not yet real for
+     * those), same as TopicController disabling all moderation actions on
+     * cached replies.
      */
-    private VBox bubble(int userId, String authorName, String body, String createdAt, boolean pending,
-                         String attachmentUrl, String attachmentType, String attachmentName) {
+    private Region bubble(int messageId, int userId, String authorName, String body, String createdAt, boolean pending,
+                         String attachmentUrl, String attachmentType, String attachmentName,
+                         boolean canReply, String parentAuthor, String parentSnippet) {
         boolean isOwn = userId == SessionManager.userId;
 
         VBox bubble = new VBox(3);
@@ -750,6 +768,15 @@ public class GroupChatController {
             + (isOwn ? "#cfe0ea" : "#6B8094") + ";");
         bubble.getChildren().add(author);
 
+        if (parentAuthor != null) {
+            Label quote = new Label("↩ Replying to " + parentAuthor + ": " + (parentSnippet == null ? "" : parentSnippet));
+            quote.setWrapText(true);
+            quote.setStyle("-fx-background-color: " + (isOwn ? "rgba(255,255,255,0.2)" : "-luna-lightest")
+                + "; -fx-text-fill: " + (isOwn ? "white" : "-luna-dark")
+                + "; -fx-padding: 3 8; -fx-background-radius: 6; -fx-font-size: 11;");
+            bubble.getChildren().add(quote);
+        }
+
         if (body != null && !body.isBlank()) {
             Label bodyLabel = new Label(body);
             bodyLabel.setWrapText(true);
@@ -763,9 +790,23 @@ public class GroupChatController {
                 attachmentName != null ? attachmentName : "attachment", isOwn));
         }
 
-        VBox wrapper = new VBox(bubble);
-        wrapper.setAlignment(isOwn ? Pos.CENTER_RIGHT : Pos.CENTER_LEFT);
-        return wrapper;
+        // The "⋮" menu sits outside the colored bubble entirely, as its own
+        // element beside it - matches chat-bubble.blade.php's actual markup,
+        // where .chat-bubble__actions is a sibling of .chat-bubble__content,
+        // not something nested inside the message card itself.
+        HBox row = new HBox(4);
+        row.setAlignment(isOwn ? Pos.CENTER_RIGHT : Pos.CENTER_LEFT);
+        if (canReply) {
+            Button menu = buildActionsMenu(messageId, userId, authorName, body, isOwn);
+            if (isOwn) {
+                row.getChildren().addAll(menu, bubble);
+            } else {
+                row.getChildren().addAll(bubble, menu);
+            }
+        } else {
+            row.getChildren().add(bubble);
+        }
+        return row;
     }
 
     /**
@@ -794,6 +835,61 @@ public class GroupChatController {
         return fileLink;
     }
 
+    /** Mirrors chat-bubble.blade.php's "⋮" menu: one small toggle button
+     *  that opens a dropdown of Reply/Exclude sender/Edit/Delete. Built from
+     *  a plain Button + ContextMenu rather than JavaFX's MenuButton control -
+     *  MenuButton's default skin renders a label *and* its own built-in
+     *  dropdown arrow side by side, and squeezed into a small fixed-size
+     *  button the arrow was crowding out the "⋮" text entirely, leaving
+     *  only a faint caret visible instead. A plain Button showing the
+     *  ContextMenu itself has no such built-in arrow to fight. Exclude only
+     *  shows for someone else's message in the (excludable) main thread;
+     *  Edit/Delete only for your own. */
+    private Button buildActionsMenu(int messageId, int userId, String authorName, String body, boolean isOwn) {
+        ContextMenu menu = new ContextMenu();
+
+        String itemStyle = "-fx-font-size: 11;";
+
+        MenuItem reply = new MenuItem("↩ Reply");
+        reply.setStyle(itemStyle);
+        reply.setOnAction(e -> startReplyTo(messageId, authorName, body == null ? "" : body));
+        menu.getItems().add(reply);
+
+        if (!isOwn && !isRestricted) {
+            MenuItem exclude = new MenuItem("🚫 Exclude sender");
+            exclude.setStyle(itemStyle);
+            exclude.setOnAction(e -> excludeMember(userId));
+            menu.getItems().add(exclude);
+        }
+        if (isOwn) {
+            // Always available on your own messages, even an attachment-only
+            // one with no text yet - editing it there just adds a caption.
+            MenuItem edit = new MenuItem("✎ Edit");
+            edit.setStyle(itemStyle);
+            edit.setOnAction(e -> onEditMessage(messageId, body == null ? "" : body));
+            menu.getItems().add(edit);
+
+            MenuItem delete = new MenuItem("🗑 Delete");
+            delete.setStyle(itemStyle);
+            delete.setOnAction(e -> onDeleteMessage(messageId));
+            menu.getItems().add(delete);
+        }
+
+        Button toggle = new Button("⋮");
+        toggle.setStyle("-fx-background-color: transparent; -fx-text-fill: #33455A; -fx-font-size: 22; "
+            + "-fx-font-weight: bold; -fx-min-width: 40; -fx-min-height: 40; -fx-max-width: 40; -fx-max-height: 40; "
+            + "-fx-padding: 0; -fx-cursor: hand;");
+        toggle.setOnAction(e -> menu.show(toggle, javafx.geometry.Side.BOTTOM, 0, 0));
+        return toggle;
+    }
+
+    private Button actionButton(String icon, Runnable action) {
+        Button b = new Button(icon);
+        b.setStyle("-fx-background-color: transparent; -fx-padding: 0 0 0 2; -fx-font-size: 11;");
+        b.setOnAction(e -> action.run());
+        return b;
+    }
+
     private void showStatus(String text) {
         messagesBox.getChildren().clear();
         Label l = new Label(text);
@@ -803,6 +899,148 @@ public class GroupChatController {
 
     private void scrollToBottom() {
         Platform.runLater(() -> scrollPane.setVvalue(1.0));
+    }
+
+    /** Mirrors TopicController's startReplyTo() - shows a small "Replying
+     *  to X: snippet" strip above the composer and remembers the target
+     *  message id to send as parent_message_id on the next message. */
+    private void startReplyTo(int messageId, String authorName, String body) {
+        replyToId = messageId;
+        String snippet = body.length() > 40 ? body.substring(0, 40) + "…" : body;
+        replyContextLabel.setText("↩ Replying to " + authorName + ": " + snippet);
+        replyContextLabel.setVisible(true);
+        replyContextLabel.setManaged(true);
+        cancelReplyButton.setVisible(true);
+        cancelReplyButton.setManaged(true);
+        messageField.requestFocus();
+    }
+
+    @FXML
+    protected void onCancelReply() {
+        replyToId = null;
+        replyContextLabel.setVisible(false);
+        replyContextLabel.setManaged(false);
+        cancelReplyButton.setVisible(false);
+        cancelReplyButton.setManaged(false);
+    }
+
+    /** Matches chat-bubble.blade.php's "Exclude sender" action - opens the
+     *  panel and pre-checks that member, same as clicking their checkbox
+     *  by hand. */
+    private void excludeMember(int userId) {
+        excludePanel.setVisible(true);
+        excludePanel.setManaged(true);
+        for (CheckBox cb : excludeCheckboxes) {
+            if (cb.getUserData() instanceof Integer id && id == userId) {
+                cb.setSelected(true);
+                break;
+            }
+        }
+    }
+
+    /** Only the text can change here - an already-sent attachment can't be
+     *  swapped out, same limitation the web's Edit action has. */
+    private void onEditMessage(int messageId, String currentBody) {
+        TextInputDialog dialog = new TextInputDialog(currentBody);
+        dialog.setTitle("Edit Message");
+        dialog.setHeaderText(null);
+        dialog.setContentText("Message:");
+        dialog.showAndWait().ifPresent(newBody -> {
+            String trimmed = newBody.trim();
+            if (trimmed.isEmpty() || trimmed.equals(currentBody)) return;
+
+            new Thread(() -> {
+                String error = patchMessage(messageId, trimmed);
+                Platform.runLater(() -> {
+                    if (error != null) {
+                        Alert alert = new Alert(Alert.AlertType.WARNING, error);
+                        alert.setHeaderText(null);
+                        alert.showAndWait();
+                    } else {
+                        // The diff in renderMessages() skips any id it's
+                        // already rendered, so an in-place body change would
+                        // otherwise never show up on the next refresh -
+                        // forgetting this row here forces it to be rebuilt
+                        // with the freshly-edited text.
+                        Region oldRow = renderedMessageRows.remove(messageId);
+                        if (oldRow != null) messagesBox.getChildren().remove(oldRow);
+                        loadConversation(activeConversationId == mainConversationId ? -1 : activeConversationId);
+                    }
+                });
+            }).start();
+        });
+    }
+
+    private void onDeleteMessage(int messageId) {
+        Alert confirm = new Alert(Alert.AlertType.CONFIRMATION, "Delete this message?");
+        confirm.showAndWait().ifPresent(btn -> {
+            if (btn != javafx.scene.control.ButtonType.OK) return;
+            new Thread(() -> {
+                String error = deleteMessage(messageId);
+                Platform.runLater(() -> {
+                    if (error != null) {
+                        Alert alert = new Alert(Alert.AlertType.WARNING, error);
+                        alert.setHeaderText(null);
+                        alert.showAndWait();
+                    } else {
+                        Region row = renderedMessageRows.remove(messageId);
+                        if (row != null) messagesBox.getChildren().remove(row);
+                    }
+                });
+            }).start();
+        });
+    }
+
+    private String patchMessage(int messageId, String newBody) {
+        try {
+            // Java's HttpURLConnection has a hardcoded whitelist of methods
+            // and rejects "PATCH" outright (ProtocolException: Invalid HTTP
+            // method: PATCH) - this was the actual cause of Edit always
+            // failing. Sending it as POST with a "_method" override field
+            // instead is Laravel's own built-in spoofing mechanism (the same
+            // thing @method('PATCH') does for an HTML form), enabled by
+            // default via Request::enableHttpMethodParameterOverride().
+            HttpURLConnection conn = (HttpURLConnection) URI.create(BASE_URL + "/api/group-messages/" + messageId).toURL().openConnection();
+            conn.setRequestMethod("POST");
+            conn.setRequestProperty("Authorization", "Bearer " + SessionManager.token);
+            conn.setRequestProperty("Accept", "application/json");
+            conn.setRequestProperty("Content-Type", "application/json");
+            conn.setDoOutput(true);
+            try (OutputStream os = conn.getOutputStream()) {
+                JSONObject payload = new JSONObject().put("body", newBody).put("_method", "PATCH");
+                os.write(payload.toString().getBytes(StandardCharsets.UTF_8));
+            }
+            int code = conn.getResponseCode();
+            if (code == 200) return null;
+            return errorMessageFrom(conn);
+        } catch (Exception e) {
+            return "Couldn't reach the server — check your connection.";
+        }
+    }
+
+    private String deleteMessage(int messageId) {
+        try {
+            HttpURLConnection conn = (HttpURLConnection) URI.create(BASE_URL + "/api/group-messages/" + messageId).toURL().openConnection();
+            conn.setRequestMethod("DELETE");
+            conn.setRequestProperty("Authorization", "Bearer " + SessionManager.token);
+            conn.setRequestProperty("Accept", "application/json");
+            int code = conn.getResponseCode();
+            if (code == 200) return null;
+            return errorMessageFrom(conn);
+        } catch (Exception e) {
+            return "Couldn't reach the server — check your connection.";
+        }
+    }
+
+    private String errorMessageFrom(HttpURLConnection conn) {
+        try (BufferedReader in = new BufferedReader(new InputStreamReader(conn.getErrorStream(), StandardCharsets.UTF_8))) {
+            StringBuilder sb = new StringBuilder();
+            String line;
+            while ((line = in.readLine()) != null) sb.append(line);
+            return new JSONObject(sb.toString()).optString("message", "The server rejected that request.");
+        } catch (Exception e) {
+            return "The server rejected that request.";
+        }
     }
 
     @FXML
@@ -851,6 +1089,13 @@ public class GroupChatController {
             }
         }
 
+        // Captured and cleared immediately, same as messageField.clear()
+        // below - the offline queue has no column for it, so a reply typed
+        // while offline just sends as a plain message rather than blocking
+        // the whole send the way a missing attachment does.
+        Integer parentId = replyToId;
+        onCancelReply();
+
         messageField.clear();
         messageField.setDisable(true);
 
@@ -876,8 +1121,8 @@ public class GroupChatController {
             }
 
             Integer resultConversationId = attachment != null
-                ? postMultipart(text, excludeIds, attachment)
-                : post(text, excludeIds);
+                ? postMultipart(text, excludeIds, attachment, parentId)
+                : post(text, excludeIds, parentId);
             Platform.runLater(() -> {
                 messageField.setDisable(false);
                 messageField.requestFocus();
@@ -938,7 +1183,7 @@ public class GroupChatController {
         }
     }
 
-    private Integer post(String messageBody, List<Integer> excludeIds) {
+    private Integer post(String messageBody, List<Integer> excludeIds, Integer parentMessageId) {
         try {
             URL url = URI.create(BASE_URL + "/api/groups/" + groupId + "/chat-messages").toURL();
             HttpURLConnection conn = (HttpURLConnection) url.openConnection();
@@ -954,6 +1199,9 @@ public class GroupChatController {
                 payload.put("conversation_id", activeConversationId);
             } else if (!excludeIds.isEmpty()) {
                 payload.put("exclude", new JSONArray(excludeIds));
+            }
+            if (parentMessageId != null) {
+                payload.put("parent_message_id", parentMessageId);
             }
             try (OutputStream os = conn.getOutputStream()) {
                 os.write(payload.toString().getBytes(StandardCharsets.UTF_8));
@@ -972,7 +1220,7 @@ public class GroupChatController {
     /** Multipart counterpart to post() - used whenever an attachment is
      *  selected, since a JSON body can't carry file bytes. Mirrors
      *  TopicController's postReplyMultipart() field-by-field. */
-    private Integer postMultipart(String messageBody, List<Integer> excludeIds, File attachment) {
+    private Integer postMultipart(String messageBody, List<Integer> excludeIds, File attachment, Integer parentMessageId) {
         String boundary = "----DiscussionHubBoundary" + System.currentTimeMillis();
         try {
             URL url = URI.create(BASE_URL + "/api/groups/" + groupId + "/chat-messages").toURL();
@@ -991,6 +1239,9 @@ public class GroupChatController {
                     for (Integer id : excludeIds) {
                         writeMultipartField(os, boundary, "exclude[]", String.valueOf(id));
                     }
+                }
+                if (parentMessageId != null) {
+                    writeMultipartField(os, boundary, "parent_message_id", String.valueOf(parentMessageId));
                 }
 
                 String mimeType = URLConnection.guessContentTypeFromName(attachment.getName());

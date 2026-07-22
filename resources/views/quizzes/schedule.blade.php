@@ -408,6 +408,17 @@
         font-size: 13px;
         font-family: var(--font-body);
     }
+    .empty-state .btn-inline-add {
+        background: none;
+        border: none;
+        padding: 0;
+        margin: 0;
+        color: inherit;
+        font: inherit;
+        font-weight: 700;
+        cursor: pointer;
+    }
+    .empty-state .btn-inline-add:hover { text-decoration: underline; }
 
     @media (max-width: 768px) {
         .content { padding: 20px 16px 24px; }
@@ -418,11 +429,13 @@
 </style>
 
 <div class="content">
-    <div class="breadcrumb"><a href="{{ route('quiz.latest-results') }}">Quizzes</a> › Configure Quiz</div>
+    @php($isEditOfLiveQuiz = $draft && $draft->Status !== 'draft')
+    <div class="breadcrumb"><a href="{{ route('quiz.latest-results') }}">Quizzes</a> › {{ $isEditOfLiveQuiz ? 'Edit Quiz' : 'Configure Quiz' }}</div>
 
     <div class="page-header">
-        <h1 class="page-title">SCHEDULE QUIZ</h1>
+        <h1 class="page-title">{{ $isEditOfLiveQuiz ? 'EDIT QUIZ' : 'SCHEDULE QUIZ' }}</h1>
         <div class="header-actions">
+            @unless($isEditOfLiveQuiz)
             <a href="{{ route('quiz.drafts') }}" class="btn btn-outline-secondary">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
                 MY DRAFTS
@@ -431,9 +444,10 @@
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
                 SAVE DRAFT
             </button>
+            @endunless
             <button class="btn btn-primary" onclick="publishQuiz()">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
-                PUBLISH QUIZ
+                {{ $isEditOfLiveQuiz ? 'SAVE CHANGES' : 'PUBLISH QUIZ' }}
             </button>
         </div>
     </div>
@@ -525,7 +539,7 @@
             <div id="questionsList"></div>
 
             <div id="emptyState" class="empty-state">
-                No questions yet. Click <strong>ADD QUESTION</strong> to get started.
+                No questions yet. Click <button type="button" class="btn-inline-add" onclick="addQuestion()">ADD QUESTION</button> to get started.
             </div>
         </div>
     </div>

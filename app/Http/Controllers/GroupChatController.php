@@ -66,7 +66,7 @@ class GroupChatController extends Controller
                 $q->where('is_spam', false)->orWhere('user_id', $userId);
             })
             ->orderBy('CreatedAt')
-            ->with('user') // requires user() belongsTo on Message, add if missing
+            ->with(['user', 'parentMessage.user'])
             ->get();
 
         $groupMembers = GroupStudent::where('GroupID', $groupId)
@@ -121,6 +121,7 @@ class GroupChatController extends Controller
             'exclude.*' => 'exists:User,UserID',
             'conversation_id' => 'nullable|exists:conversation,ConversationID',
             'attachment' => ['nullable', 'file', 'mimes:pdf,doc,docx,ppt,pptx,png,jpg,jpeg,zip', 'max:20480'],
+            'parent_message_id' => 'nullable|exists:message,MessageID',
         ]);
 
         if (blank($request->input('body')) && !$request->hasFile('attachment')) {
@@ -153,8 +154,10 @@ class GroupChatController extends Controller
             $request->input('exclude', []),
             $request->input('conversation_id'),
             $attachmentPath,
-            $attachmentType
+            $attachmentType,
+            $request->input('parent_message_id')
         );
+        $chatMessage->load('parentMessage.user');
 
         $wantsJson = $request->wantsJson() || $request->header('Accept') === 'application/json';
 

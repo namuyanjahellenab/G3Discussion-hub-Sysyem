@@ -27,6 +27,19 @@ public function create(Request $request)
     return view('quizzes.schedule', compact('groups', 'draft'));
 }
 
+    // Loads an already-scheduled quiz into the same builder screen for editing
+    public function edit($id)
+    {
+        $groups = \App\Models\Group::orderBy('GroupName')->get();
+
+        $draft = Quiz::where('QuizID', $id)
+            ->where('LecturerID', auth()->id())
+            ->with('questions')
+            ->firstOrFail();
+
+        return view('quizzes.schedule', compact('groups', 'draft'));
+    }
+
     // ─── WEEK 1: Schedule a quiz ────────────────────────────────
     public function scheduleAssessment(Request $request)
     {
@@ -54,6 +67,7 @@ public function create(Request $request)
                 ->where('LecturerID', auth()->id())
                 ->first();
         }
+        $isEditOfLiveQuiz = $quiz && $quiz->Status === 'scheduled';
 
         $attributes = [
             'LecturerID'     => auth()->user()->UserID,
@@ -91,10 +105,13 @@ $students = User::whereHas('groupMemberships', function ($q) use ($request) {
                 })
                 ->where('Role', 'Student')
                 ->get();
+        $notifMessage = $isEditOfLiveQuiz
+            ? 'Quiz updated: ' . $request->Title
+            : 'New quiz scheduled: ' . $request->Title;
         foreach ($students as $student) {
             Notification::create([
                 'UserID'  => $student->UserID,
-                'Message' => 'New quiz scheduled: ' . $request->Title,
+                'Message' => $notifMessage,
                 'Status'  => false,
                 'Type'    => 'Quiz Announcement',
             ]);

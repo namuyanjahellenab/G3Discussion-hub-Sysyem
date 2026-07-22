@@ -180,12 +180,17 @@ use App\Http\Controllers\QuizEngineController;
 
 Route::middleware('auth')->group(function () {
     Route::get('/quiz/schedule', [QuizController::class, 'create'])->name('quiz.schedule');
+    Route::get('/quizzes/{id}/edit', [QuizController::class, 'edit'])->name('quiz.edit');
     Route::get('/quiz/drafts', [QuizController::class, 'drafts'])->name('quiz.drafts');
     Route::post('/quiz/draft', [QuizController::class, 'saveDraft'])->name('quiz.draft.save');
     Route::delete('/quiz/draft/{id}', [QuizController::class, 'deleteDraft'])->name('quiz.draft.delete');
     Route::get('/quiz/{id}/results', function ($id) {
         return view('quizzes.results', ['quizID' => $id]);
     })->name('quiz.results');
+    Route::get('/quiz/{id}/results/export-pdf', [QuizEngineController::class, 'exportResultsPdf'])->name('quiz.results.export');
+    Route::get('/quiz/{quizID}/results/{resultID}/review', [QuizEngineController::class, 'reviewSubmission'])->name('quiz.results.review');
+    Route::patch('/quiz/results/{resultID}/answers/{answerID}/marks', [QuizEngineController::class, 'updateAnswerMarks'])->name('quiz.results.review.marks');
+    Route::patch('/quiz/results/{resultID}/questions/{questionID}/marks', [QuizEngineController::class, 'updateQuestionMarks'])->name('quiz.results.review.question-marks');
     Route::post('/quiz/schedule-submit', [QuizController::class, 'scheduleAssessment']);
    Route::get('/quiz/{id}/take', function ($id) {
     $quiz = \App\Models\Quiz::findOrFail($id);

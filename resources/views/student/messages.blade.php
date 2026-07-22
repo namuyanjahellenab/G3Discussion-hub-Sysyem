@@ -113,6 +113,13 @@
                         <p class="exclude-hint">Checking someone here moves this message (and future ones with the same exclusion) into a separate restricted thread they can't see.</p>
                     </div>
 
+                    <div class="reply-context" data-reply-context style="display:none;">
+                        <i class="fa-solid fa-reply"></i>
+                        <span data-reply-context-text></span>
+                        <button type="button" data-reply-context-clear title="Cancel reply">&times;</button>
+                    </div>
+                    <input type="hidden" name="parent_message_id" data-parent-message-input>
+
                     <div class="attachment-preview" data-attachment-preview style="display:none;">
                         <i class="fa-solid fa-paperclip"></i>
                         <span data-attachment-name></span>
@@ -138,6 +145,13 @@
                 <form action="{{ route('student.messages.store', ['groupId' => $groupId]) }}" method="POST" class="chat-composer" enctype="multipart/form-data" data-chat-composer>
                     @csrf
                     <input type="hidden" name="conversation_id" value="{{ $activeConversation->ConversationID }}">
+
+                    <div class="reply-context" data-reply-context style="display:none;">
+                        <i class="fa-solid fa-reply"></i>
+                        <span data-reply-context-text></span>
+                        <button type="button" data-reply-context-clear title="Cancel reply">&times;</button>
+                    </div>
+                    <input type="hidden" name="parent_message_id" data-parent-message-input>
 
                     <div class="attachment-preview" data-attachment-preview style="display:none;">
                         <i class="fa-solid fa-paperclip"></i>
@@ -221,6 +235,33 @@ function sizeChatWindow() {
 window.addEventListener('resize', sizeChatWindow);
 sizeChatWindow();
 
+// WhatsApp-style tagging: sets which message is being replied to (shown as
+// a quote strip above the composer) and stamps its id into the hidden
+// parent_message_id field every composer form already carries, so it rides
+// along with whichever form actually gets submitted.
+function setReplyContext(messageId, authorName, body) {
+    const snippet = body.length > 40 ? body.slice(0, 40) + '…' : body;
+    document.querySelectorAll('[data-reply-context]').forEach((el) => {
+        el.style.display = 'flex';
+        el.querySelector('[data-reply-context-text]').textContent = `Replying to ${authorName}: ${snippet}`;
+    });
+    document.querySelectorAll('[data-parent-message-input]').forEach((input) => {
+        input.value = messageId;
+    });
+    document.querySelector('[data-chat-composer] textarea[name="body"]')?.focus();
+    sizeChatWindow();
+}
+
+function clearReplyContext() {
+    document.querySelectorAll('[data-reply-context]').forEach((el) => { el.style.display = 'none'; });
+    document.querySelectorAll('[data-parent-message-input]').forEach((input) => { input.value = ''; });
+    sizeChatWindow();
+}
+
+document.querySelectorAll('[data-reply-context-clear]').forEach((btn) => {
+    btn.addEventListener('click', clearReplyContext);
+});
+
 function showChatError(message) {
     const banner = document.getElementById('chat-error-banner');
     banner.textContent = message;
@@ -245,11 +286,7 @@ document.getElementById('chat-window').addEventListener('click', (event) => {
         const action = menuItem.dataset.action;
 
         if (action === 'reply') {
-            const textarea = document.querySelector('[data-chat-composer] textarea[name="body"]');
-            if (textarea) {
-                textarea.value = `@${bubble.dataset.username}: ${textarea.value}`;
-                textarea.focus();
-            }
+            setReplyContext(bubble.dataset.messageId, bubble.dataset.username, bubble.dataset.body || '');
         }
 
         if (action === 'exclude') {
@@ -285,8 +322,8 @@ const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || 
 // the sender-only Edit action in chat-bubble.blade.php. Only the text can
 // change here - an already-sent attachment can't be swapped out.
 function startEditingBubble(bubble) {
+    if (bubble.querySelector('[data-edit-form]')) return;
     const bodyEl = bubble.querySelector('[data-message-body]');
-    if (!bodyEl || bubble.querySelector('[data-edit-form]')) return;
 
     const originalText = bubble.dataset.body || '';
     const editForm = document.createElement('div');
@@ -299,11 +336,29 @@ function startEditingBubble(bubble) {
         </div>
     `;
     editForm.querySelector('textarea').value = originalText;
-    bodyEl.replaceWith(editForm);
+
+    if (bodyEl) {
+        bodyEl.replaceWith(editForm);
+    } else {
+        // Attachment-only message with no text yet - nothing to swap out,
+        // so insert the form instead, right before the attachment link (or
+        // at the end of the bubble if there isn't one).
+        const content = bubble.querySelector('.chat-bubble__content');
+        const attachment = content.querySelector('.chat-bubble__attachment');
+        if (attachment) {
+            attachment.before(editForm);
+        } else {
+            content.appendChild(editForm);
+        }
+    }
     editForm.querySelector('textarea').focus();
 
     editForm.querySelector('[data-edit-cancel]').addEventListener('click', () => {
-        editForm.replaceWith(bodyEl);
+        if (bodyEl) {
+            editForm.replaceWith(bodyEl);
+        } else {
+            editForm.remove();
+        }
     });
 
     editForm.querySelector('[data-edit-save]').addEventListener('click', async () => {
@@ -422,7 +477,7 @@ document.querySelectorAll('[data-chat-composer]').forEach((form) => {
                 const attachmentPreview = form.querySelector('[data-attachment-preview]');
                 if (attachmentInput) attachmentInput.value = '';
                 if (attachmentPreview) attachmentPreview.style.display = 'none';
-                sizeChatWindow();
+                clearReplyContext();
             }
         } catch (err) {
             console.error('Fetch error', err);
@@ -448,6 +503,7 @@ function buildRemoteBubble(e) {
                     <strong></strong>
                     <span></span>
                 </div>
+                <div class="quote-strip-slot"></div>
                 <p></p>
             </div>
             <div class="chat-bubble__actions">
@@ -469,6 +525,24 @@ function buildRemoteBubble(e) {
     const content = bubble.querySelector('.chat-bubble__content');
     bubble.querySelector('.chat-bubble__meta strong').textContent = e.author_name;
     bubble.querySelector('.chat-bubble__meta span').textContent = e.created_at;
+    bubble.dataset.body = e.body || '';
+
+    const quoteSlot = content.querySelector('.quote-strip-slot');
+    if (e.parent_message_author) {
+        const quoteEl = document.createElement('div');
+        quoteEl.className = 'quote-strip';
+        const icon = document.createElement('i');
+        icon.className = 'fa-solid fa-reply';
+        quoteEl.appendChild(icon);
+        quoteEl.append(' Replying to ');
+        const strong = document.createElement('strong');
+        strong.textContent = e.parent_message_author;
+        quoteEl.appendChild(strong);
+        quoteEl.append(': ' + (e.parent_message_snippet || ''));
+        quoteSlot.replaceWith(quoteEl);
+    } else {
+        quoteSlot.remove();
+    }
 
     const bodyEl = content.querySelector('p');
     if (e.body) {

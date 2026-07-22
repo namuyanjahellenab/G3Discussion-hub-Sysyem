@@ -24,7 +24,8 @@ class GroupChatService
         array $excludeIds = [],
         ?int $conversationId = null,
         ?string $attachmentPath = null,
-        ?string $attachmentType = null
+        ?string $attachmentType = null,
+        ?int $parentMessageId = null
     ): Message {
         abort_unless(
             GroupStudent::where('GroupID', $groupId)->where('UserID', $userId)->exists(),
@@ -53,10 +54,20 @@ class GroupChatService
 
         $isSpam = app(MlGatewayClient::class)->isSpam($body);
 
+        // The tagged message must belong to this same conversation - a stale
+        // reference (e.g. the message got deleted, or belongs to a different
+        // thread) is dropped rather than blocking the send outright.
+        if ($parentMessageId !== null && !Message::where('MessageID', $parentMessageId)
+                ->where('ConversationID', $conversation->ConversationID)
+                ->exists()) {
+            $parentMessageId = null;
+        }
+
         $message = Message::create([
             'ConversationID' => $conversation->ConversationID,
             'TopicID' => null,
             'user_id' => $userId,
+            'ParentMessageID' => $parentMessageId,
             'body' => $body,
             'is_spam' => $isSpam,
             'Attachment' => $attachmentPath,

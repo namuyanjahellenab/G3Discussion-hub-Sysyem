@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Announcement;
 use App\Models\AnnouncementExclusion;
 use App\Models\Blacklist;
+use App\Models\Question;
 use App\Models\Quiz;
 use App\Models\QuizResult;
 use App\Models\Group;
@@ -347,13 +348,33 @@ protected function participationSnapshot($userId)
             $q->StartTime->copy()->addMinutes($q->Duration) < $now
         )->count();
 
-        $recentResults = QuizResult::whereIn('QuizID', $quizzes->pluck('QuizID'))
-            ->orderByDesc('SubmissionTime')
+        // Joined with User/Quiz so the "Recent Submissions" card can show who
+        // actually took it and which quiz, instead of a bare "Student #16"
+        // with no context - TotalMarks per quiz is added after the fact
+        // since it's a sum across Question rather than a plain column.
+        $recentResults = QuizResult::whereIn('QuizResult.QuizID', $quizzes->pluck('QuizID'))
+            ->join('User', 'QuizResult.UserID', '=', 'User.UserID')
+            ->join('Quiz', 'QuizResult.QuizID', '=', 'Quiz.QuizID')
+            ->select(
+                'QuizResult.ResultID',
+                'QuizResult.Score',
+                'QuizResult.SubmissionTime',
+                'QuizResult.IsAutoSubmit',
+                'User.UserName as StudentName',
+                'Quiz.Title as QuizTitle',
+                'Quiz.QuizID'
+            )
+            ->orderByDesc('QuizResult.SubmissionTime')
             ->take(10)
             ->get();
 
+        $totalMarksByQuiz = Question::whereIn('QuizID', $recentResults->pluck('QuizID')->unique())
+            ->selectRaw('QuizID, SUM(Marks) as total')
+            ->groupBy('QuizID')
+            ->pluck('total', 'QuizID');
+
         $recentDiscussions = collect(); // TODO: replace with real discussions query once Post/Topic feature is ready
 
-        return view('lecturer.marks', compact('quizzes', 'upcoming', 'active', 'closed', 'recentResults', 'recentDiscussions'));
+        return view('lecturer.marks', compact('quizzes', 'upcoming', 'active', 'closed', 'recentResults', 'totalMarksByQuiz', 'recentDiscussions'));
     }
 }

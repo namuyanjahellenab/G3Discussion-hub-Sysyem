@@ -68,7 +68,7 @@ class GroupChatApiController extends Controller
 
         $messages = Message::where('ConversationID', $activeConversation->ConversationID)
             ->orderBy('CreatedAt')
-            ->with('user')
+            ->with(['user', 'parentMessage.user'])
             ->get();
 
         $groupMembers = GroupStudent::where('GroupID', $groupId)
@@ -110,6 +110,11 @@ class GroupChatApiController extends Controller
                 'attachment_url' => $m->Attachment ? Storage::url($m->Attachment) : null,
                 'attachment_type' => $m->AttachmentType,
                 'attachment_name' => $m->Attachment ? AttachmentUploader::displayName($m->Attachment) : null,
+                'parent_message_id' => $m->ParentMessageID,
+                'parent_message_author' => $m->parentMessage?->user?->UserName,
+                'parent_message_snippet' => $m->parentMessage
+                    ? \Illuminate\Support\Str::limit($m->parentMessage->body, 40)
+                    : null,
             ]),
         ]);
     }
@@ -122,6 +127,7 @@ class GroupChatApiController extends Controller
             'exclude.*' => 'exists:User,UserID',
             'conversation_id' => 'nullable|exists:conversation,ConversationID',
             'attachment' => ['nullable', 'file', 'mimes:pdf,doc,docx,ppt,pptx,png,jpg,jpeg,zip', 'max:20480'],
+            'parent_message_id' => 'nullable|exists:message,MessageID',
         ]);
 
         if (blank($request->input('body')) && !$request->hasFile('attachment')) {
@@ -147,8 +153,10 @@ class GroupChatApiController extends Controller
             $request->input('exclude', []),
             $request->input('conversation_id'),
             $attachmentPath,
-            $attachmentType
+            $attachmentType,
+            $request->input('parent_message_id')
         );
+        $message->load('parentMessage.user');
 
         return response()->json([
             'id' => $message->MessageID,
@@ -162,6 +170,41 @@ class GroupChatApiController extends Controller
             'attachment_url' => $message->Attachment ? Storage::url($message->Attachment) : null,
             'attachment_type' => $message->AttachmentType,
             'attachment_name' => $message->Attachment ? AttachmentUploader::displayName($message->Attachment) : null,
+            'parent_message_id' => $message->ParentMessageID,
+            'parent_message_author' => $message->parentMessage?->user?->UserName,
+            'parent_message_snippet' => $message->parentMessage
+                ? \Illuminate\Support\Str::limit($message->parentMessage->body, 40)
+                : null,
         ], 201);
+    }
+
+    // JSON counterpart to GroupChatController::update() - only the sender
+    // can edit their own message, and only its text (an already-sent
+    // attachment can't be swapped out here either).
+    public function update(Request $request, Message $message)
+    {
+        abort_unless($message->user_id === $request->user()->UserID, 403, 'You can only edit your own messages.');
+
+        $request->validate([
+            'body' => 'required|string|max:2000',
+        ]);
+
+        $message->update(['body' => $request->input('body')]);
+
+        return response()->json(['success' => true, 'body' => $message->body]);
+    }
+
+    // JSON counterpart to GroupChatController::destroy().
+    public function destroy(Request $request, Message $message)
+    {
+        abort_unless($message->user_id === $request->user()->UserID, 403, 'You can only delete your own messages.');
+
+        if ($message->Attachment) {
+            Storage::disk('public')->delete($message->Attachment);
+        }
+
+        $message->delete();
+
+        return response()->json(['success' => true]);
     }
 }

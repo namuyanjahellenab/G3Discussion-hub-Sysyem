@@ -9,6 +9,8 @@ use App\Models\QuizResult;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Str;
+use Dompdf\Dompdf;
 
 class QuizEngineController extends Controller
 {
@@ -101,6 +103,10 @@ class QuizEngineController extends Controller
                 'QuestionID'   => $a['QuestionID'],
                 'ResponseText' => $a['ResponseText'],
                 'IsCorrect'    => $isCorrect,
+                // Starting point for the lecturer's review, not the final
+                // word - Open-ended questions always start at 0 here since
+                // they're never auto-graded to "correct" above.
+                'MarksAwarded' => $isCorrect ? $question->Marks : 0,
             ];
         }
 
@@ -126,6 +132,7 @@ class QuizEngineController extends Controller
                 'UserID'       => $userID,
                 'ResponseText' => $g['ResponseText'],
                 'IsCorrect'    => $g['IsCorrect'],
+                'MarksAwarded' => $g['MarksAwarded'],
             ]);
         }
 
@@ -259,6 +266,144 @@ public function results($quizID)
     ]);
 }
 
+// ─── Lecturer review: see one student's question-by-question answers
+// and award marks per question (auto-grading never gives credit for
+// Open-ended questions - see gradeAnswers() - so this is the only way
+// those ever get real marks) ─────────────────────────────────────────
+public function reviewSubmission($quizID, $resultID)
+{
+    $quiz = Quiz::findOrFail($quizID);
+    $result = QuizResult::where('QuizID', $quizID)->findOrFail($resultID);
+    $student = \App\Models\User::find($result->UserID);
+
+    $questions = Question::where('QuizID', $quizID)->get();
+    $answers = Answer::where('ResultID', $resultID)->get()->keyBy('QuestionID');
+
+    $totalMarks = $questions->sum('Marks');
+
+    return view('quizzes.review-submission', compact(
+        'quiz', 'result', 'student', 'questions', 'answers', 'totalMarks'
+    ));
+}
+
+// Awards marks for one question's answer and recalculates the result's
+// overall Score as the sum of every answer's MarksAwarded - "update
+// immediately" per the request that prompted this, so the lecturer sees
+// the new total the moment they change one question, not after a
+// separate save step.
+public function updateAnswerMarks(Request $request, $resultID, $answerID)
+{
+    $answer = Answer::where('ResultID', $resultID)->findOrFail($answerID);
+    $question = Question::findOrFail($answer->QuestionID);
+    Quiz::where('QuizID', $question->QuizID)
+        ->where('LecturerID', auth()->id())
+        ->firstOrFail();
+
+    $validated = $request->validate([
+        'marks' => ['required', 'numeric', 'min:0', 'max:' . $question->Marks],
+    ]);
+
+    $answer->update(['MarksAwarded' => $validated['marks']]);
+
+    $newTotal = Answer::where('ResultID', $resultID)->sum('MarksAwarded');
+    QuizResult::where('ResultID', $resultID)->update(['Score' => $newTotal]);
+
+    return response()->json([
+        'success' => true,
+        'marks_awarded' => (float) $validated['marks'],
+        'new_total_score' => (float) $newTotal,
+    ]);
+}
+
+// Lets the lecturer set/fix a question's maximum marks directly from the
+// review screen (e.g. a question that was scheduled with none set at
+// all) instead of having to go rebuild the quiz. Any already-awarded
+// marks that now exceed the new ceiling are clamped down, and every
+// submission's Score that touches this question is recalculated so
+// nothing drifts out of sync.
+public function updateQuestionMarks(Request $request, $resultID, $questionID)
+{
+    $question = Question::findOrFail($questionID);
+    Quiz::where('QuizID', $question->QuizID)
+        ->where('LecturerID', auth()->id())
+        ->firstOrFail();
+
+    $validated = $request->validate([
+        'marks' => ['required', 'numeric', 'min:0'],
+    ]);
+
+    $question->update(['Marks' => $validated['marks']]);
+
+    Answer::where('QuestionID', $questionID)
+        ->where('MarksAwarded', '>', $validated['marks'])
+        ->update(['MarksAwarded' => $validated['marks']]);
+
+    $affectedResultIds = Answer::where('QuestionID', $questionID)->pluck('ResultID')->unique();
+    foreach ($affectedResultIds as $rid) {
+        $sum = Answer::where('ResultID', $rid)->sum('MarksAwarded');
+        QuizResult::where('ResultID', $rid)->update(['Score' => $sum]);
+    }
+
+    $currentAnswer = Answer::where('ResultID', $resultID)->where('QuestionID', $questionID)->first();
+
+    return response()->json([
+        'success' => true,
+        'question_marks' => (float) $validated['marks'],
+        'marks_awarded' => (float) ($currentAnswer->MarksAwarded ?? 0),
+        'new_total_score' => (float) Answer::where('ResultID', $resultID)->sum('MarksAwarded'),
+        'new_quiz_total_marks' => (float) Question::where('QuizID', $question->QuizID)->sum('Marks'),
+    ]);
+}
+
+// Same shape as results() above, rendered to PDF via Dompdf instead of
+// JSON - the "Export PDF" button on quizzes/results.blade.php was a
+// disabled stub until now (see the note there about no endpoint existing).
+public function exportResultsPdf($quizID)
+{
+    $quiz = Quiz::findOrFail($quizID);
+
+    $results = QuizResult::where('QuizID', $quizID)
+        ->join('User', 'QuizResult.UserID', '=', 'User.UserID')
+        ->select(
+            'QuizResult.ResultID',
+            'QuizResult.UserID',
+            'User.UserName as StudentName',
+            'QuizResult.Score',
+            'QuizResult.SubmissionTime',
+            'QuizResult.IsAutoSubmit'
+        )
+        ->orderBy('QuizResult.Score', 'desc')
+        ->get();
+
+    $totalMarks = Question::where('QuizID', $quizID)->sum('Marks');
+    $attempted = $results->count();
+    $average = $attempted > 0 ? round($results->avg('Score'), 2) : 0;
+    $highest = $attempted > 0 ? round($results->max('Score'), 2) : 0;
+    $autoCount = $results->where('IsAutoSubmit', 1)->count();
+
+    $html = view('quizzes.results_export_pdf', [
+        'quiz' => $quiz,
+        'results' => $results,
+        'totalMarks' => $totalMarks,
+        'attempted' => $attempted,
+        'average' => $average,
+        'highest' => $highest,
+        'autoCount' => $autoCount,
+    ])->render();
+
+    $dompdf = new Dompdf();
+    $dompdf->loadHtml($html);
+    $dompdf->setPaper('A4', 'portrait');
+    $dompdf->render();
+
+    $filename = Str::slug($quiz->Title ?: 'quiz') . '-results.pdf';
+
+    return response($dompdf->output(), 200, [
+        'Content-Type' => 'application/pdf',
+        'Content-Disposition' => "attachment; filename=\"{$filename}\"",
+    ]);
+}
+
 public function latestResults()
 {
     $lecturerId = Auth::id();
@@ -340,6 +485,15 @@ public function myReviewApi($quizID)
 public function activeNow(Request $request)
 {
     $user = auth()->user();
+
+    // Quizzes are something a student takes, not something a lecturer or
+    // admin gets pulled into - without this, the "Quiz Starting Now!" popup
+    // (and its quiz-join flow) fired for every role, since the query below
+    // never filtered by who's asking.
+    if ($user->Role !== 'Student') {
+        return response()->json(['quiz' => null]);
+    }
+
     $now  = now();
 
     $quiz = \App\Models\Quiz::where('StartTime', '<=', $now)
