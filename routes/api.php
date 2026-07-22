@@ -12,6 +12,7 @@ use App\Http\Controllers\QuizController;
 
 Route::post('/login', [AuthController::class, 'apiLogin']);
 Route::post('/register', [AuthController::class, 'apiRegister']);
+Route::post('/forgot-password', [AuthController::class, 'apiForgotPassword']);
 
 // Deliberately outside auth:sanctum and every other middleware - the
 // desktop's NetworkUtil.isNetworkAvailable() probes this to answer "is the

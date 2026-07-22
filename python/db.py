@@ -77,14 +77,12 @@ def _fetch_user_recent_text(user_id: Any) -> list[str] | None:
 
 
 def _fetch_trending_groups() -> list[dict[str, Any]] | None:
-    # Every group with at least one real member, ranked by member count +
-    # weighted recent activity (posts + replies in the last
-    # TRENDING_WINDOW_DAYS days). Membership status of the *requesting* user
-    # is irrelevant here - trending is an objective, platform-wide signal,
-    # not a personalized "you haven't joined this yet" suggestion. But a
-    # group nobody has actually joined isn't "trending" just because it has
-    # a stray post in it, so MemberCount > 0 is a hard requirement, not just
-    # a non-zero combined score.
+    # Ranks every group by member count plus weighted recent activity
+    # (posts + replies in the last TRENDING_WINDOW_DAYS days). This is an
+    # objective, platform-wide signal - it ignores whether the requesting
+    # user has joined the group, unlike a personalized recommendation.
+    # A group with zero members still doesn't count as trending, even if
+    # it somehow has a stray post, so MemberCount > 0 is required.
     return _run_query(
         """
         SELECT g.GroupID AS GroupID, g.GroupName AS GroupName,
