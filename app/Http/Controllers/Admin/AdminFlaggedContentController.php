@@ -56,7 +56,33 @@ class AdminFlaggedContentController extends Controller
                 'destroy_route' => route('admin.flagged-content.replies.destroy', $reply->ReplyID),
             ]);
 
-        $merged = $posts->concat($replies)->sortByDesc('date')->values();
+        // A student reporting a chat message (Message::flagBy) is the same
+        // kind of human report as flagging a post/reply, so it belongs in
+        // the same queue with the same actions (Dismiss/Warn/Delete) - not
+        // only in the separate spam table below. Excludes is_spam=true here
+        // even if it's ALSO been reported, since that one is still being
+        // held back from the group and stays solely in the spam table until
+        // resolved there, instead of appearing (and being actionable) twice.
+        $reportedMessages = Message::where('IsFlagged', true)
+            ->where('is_spam', false)
+            ->with(['user', 'conversation.group', 'flags'])
+            ->get()
+            ->map(fn (Message $message) => [
+                'type' => 'Message',
+                'id' => $message->MessageID,
+                'content' => $message->body,
+                'author_name' => $message->user?->UserName ?? 'Unknown User',
+                'author_id' => $message->user_id,
+                'context' => 'Group Chat',
+                'group_name' => $message->conversation?->group?->GroupName,
+                'flag_count' => $message->flags->count(),
+                'reason' => $message->FlaggedReason,
+                'date' => $message->CreatedAt,
+                'dismiss_route' => route('admin.flagged-content.messages.dismiss', $message->MessageID),
+                'destroy_route' => route('admin.flagged-content.messages.destroy', $message->MessageID),
+            ]);
+
+        $merged = $posts->concat($replies)->concat($reportedMessages)->sortByDesc('date')->values();
 
         $page = (int) $request->get('flagged_page', 1);
         $perPage = 20;
@@ -68,12 +94,10 @@ class AdminFlaggedContentController extends Controller
             ['path' => $request->url(), 'pageName' => 'flagged_page']
         );
 
-        // Manually-reported messages (Message::flagBy, mirroring Post/Reply)
-        // and ML-detected spam both belong in the same moderation queue - a
-        // message shouldn't be invisible to the admin just because a human
-        // reported it instead of the spam gateway.
+        // Only is_spam here - a manually-reported (IsFlagged, not spam)
+        // message is already in $reportedMessages/$flaggedItems above, so it
+        // isn't duplicated (and double-actionable) in both tables.
         $flaggedMessages = Message::where('is_spam', true)
-            ->orWhere('IsFlagged', true)
             ->with('user')
             ->latest('CreatedAt')
             ->limit(20)

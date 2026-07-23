@@ -168,9 +168,14 @@
     <div class="col-lg-4">
         <div class="card border-0 shadow-sm h-100">
             <div class="card-body d-flex flex-column">
-                <h5 class="fw-bold mb-3">Top Students</h5>
+                @php
+                    $topStudentsHeading = $groupId
+                        ? ($groups->firstWhere('GroupID', $groupId)?->GroupName ?? 'Top Students')
+                        : 'Top Students';
+                @endphp
+                <h5 class="fw-bold mb-3">{{ $topStudentsHeading }}</h5>
                 <div class="flex-grow-1">
-                    @forelse($topMembers->take(3) as $index => $member)
+                    @forelse($topMembers->take(5) as $index => $member)
                         @php
                             $palette = ['primary', 'success', 'warning'];
                             $color = $palette[$index % 3];
@@ -212,12 +217,12 @@
                 <thead>
                     <tr class="text-uppercase small text-muted">
                         <th>Group</th>
-                        <th>Total Students</th>
-                        <th>Total Posts</th>
-                        <th>Active Users</th>
-                        <th style="width: 220px;">Quiz Completion %</th>
-                        <th>Average Score</th>
-                        <th>Flagged Content</th>
+                        <th>Total<br>Students</th>
+                        <th>Active<br>Students</th>
+                        <th>Total<br>Posts</th>
+                        <th>Students<br>Participation</th>
+                        <th>Quiz<br>Participation</th>
+                        <th>Average<br>Score</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -225,20 +230,11 @@
                         <tr>
                             <td class="text-primary fw-semibold">{{ $row['GroupName'] }}</td>
                             <td>{{ $row['TotalStudents'] }}</td>
-                            <td>{{ number_format($row['TotalPosts']) }}</td>
                             <td>{{ $row['ActiveUsers'] }}</td>
-                            <td>
-                                <div class="d-flex align-items-center gap-2">
-                                    <div class="progress flex-grow-1" style="height: 6px;">
-                                        <div class="progress-bar bg-primary" style="width: {{ $row['QuizCompletion'] }}%"></div>
-                                    </div>
-                                    <span class="small text-muted">{{ $row['QuizCompletion'] }}%</span>
-                                </div>
-                            </td>
+                            <td>{{ number_format($row['TotalPosts']) }}</td>
+                            <td>{{ $row['StudentsParticipation'] }}</td>
+                            <td>{{ $row['QuizCompletion'] }}%</td>
                             <td class="fw-semibold">{{ number_format($row['AverageScore'], 2) }}</td>
-                            <td class="{{ $row['FlaggedContent'] > 0 ? 'text-danger fw-semibold' : 'text-muted' }}">
-                                {{ $row['FlaggedContent'] }}
-                            </td>
                         </tr>
                     @empty
                         <tr><td colspan="7" class="text-center text-muted py-3">No groups found.</td></tr>

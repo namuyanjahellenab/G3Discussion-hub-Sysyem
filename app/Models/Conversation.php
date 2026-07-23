@@ -26,4 +26,9 @@ class Conversation extends Model
     {
         return $this->hasMany(Message::class, 'ConversationID');
     }
+
+    public function group()
+    {
+        return $this->belongsTo(Group::class, 'group_id', 'GroupID');
+    }
 }

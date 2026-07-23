@@ -52,8 +52,22 @@ class AdminStatisticsController extends Controller
         // behind the 2-minute cache above - a student going Active right
         // after sending a message wouldn't show up here until the cache
         // expired, making the counters look stuck/wrong.
-        $stats['activeStudents'] = User::where('Role', 'Student')->where('Status', 'Active')->count();
-        $stats['inactiveStudents'] = User::where('Role', 'Student')->where('Status', 'Inactive')->count();
+        $stats['activeStudents'] = User::where('Role', 'Student')->where('Status', 'Active')
+            ->when($groupId, fn ($q) => $q->whereHas('groupMemberships', fn ($q2) => $q2->where('GroupID', $groupId)))
+            ->count();
+        $stats['inactiveStudents'] = User::where('Role', 'Student')->where('Status', 'Inactive')
+            ->when($groupId, fn ($q) => $q->whereHas('groupMemberships', fn ($q2) => $q2->where('GroupID', $groupId)))
+            ->count();
+
+        // Also read live, not cached - both are group-membership counts
+        // (groupstudent), which must reflect a join/leave immediately rather
+        // than up to 2 minutes late when a specific group is filtered.
+        $stats['totalStudents'] = User::where('Role', 'Student')
+            ->when($groupId, fn ($q) => $q->whereHas('groupMemberships', fn ($q2) => $q2->where('GroupID', $groupId)))
+            ->count();
+        $stats['totalLecturers'] = User::where('Role', 'Lecturer')
+            ->when($groupId, fn ($q) => $q->whereHas('groupMemberships', fn ($q2) => $q2->where('GroupID', $groupId)))
+            ->count();
 
         // Group Participation Summary is read live rather than out of the
         // cached snapshot above, same reasoning as postsToday/activeStudents -
@@ -128,8 +142,12 @@ class AdminStatisticsController extends Controller
                 DB::raw('SUM(QuizResult.Score) as TotalScore')
             )
             ->groupBy('User.UserID', 'User.UserName')
+            // Ties (most commonly a whole group still sitting at 0 marks)
+            // fall back to alphabetical order instead of whatever order the
+            // database happens to return them in.
             ->orderByDesc('TotalScore')
-            ->limit(10)
+            ->orderBy('User.UserName')
+            ->limit(5)
             ->get();
 
         // Batch the blacklist count for all top members in one query instead
@@ -159,18 +177,17 @@ class AdminStatisticsController extends Controller
         // Reads User.Status, which the students:process-inactivity scheduled
         // command keeps in sync (Active/Inactive/Blacklisted) — distinct from
         // activeUsersToday above, which measures same-day posting activity.
-        // activeStudents/inactiveStudents are deliberately NOT computed here -
-        // they're read live in index() instead (same reason as postsToday
-        // below), since this whole array gets cached for 2 minutes.
+        // activeStudents/inactiveStudents/totalStudents/totalLecturers are
+        // deliberately NOT computed here - they're read live in index()
+        // instead (same reason as postsToday below), since this whole array
+        // gets cached for 2 minutes.
         $totalUsers = User::count();
-        $totalStudents = User::where('Role', 'Student')->count();
-        $totalLecturers = User::where('Role', 'Lecturer')->count();
         $totalAdmins = User::where('Role', 'Administrator')->count();
 
         return compact(
             'openQuestions', 'quizzesRun',
             'postsPerDay', 'topMembers', 'blacklistedCount',
-            'totalUsers', 'totalStudents', 'totalLecturers', 'totalAdmins'
+            'totalUsers', 'totalAdmins'
         );
     }
 
@@ -214,9 +231,20 @@ class AdminStatisticsController extends Controller
     {
         $groupIds = $groups->pluck('GroupID');
 
+        // Excludes posts from a user who has since left THIS post's group
+        // (Studentsleft is keyed per UserID+GroupID, so a post they made in
+        // a DIFFERENT group they haven't left still counts there) - their
+        // post row itself is untouched in the Post table, just no longer
+        // read into this group's real-time count.
         $totalPostsByGroup = DB::table('Post')
             ->join('Topic', 'Post.TopicID', '=', 'Topic.TopicID')
             ->whereIn('Topic.GroupID', $groupIds)
+            ->whereNotExists(function ($q) {
+                $q->select(DB::raw(1))
+                    ->from('Studentsleft')
+                    ->whereColumn('Studentsleft.UserID', 'Post.UserID')
+                    ->whereColumn('Studentsleft.GroupID', 'Topic.GroupID');
+            })
             ->selectRaw('Topic.GroupID as GroupID, COUNT(*) as total')
             ->groupBy('Topic.GroupID')
             ->pluck('total', 'GroupID');
@@ -258,8 +286,15 @@ class AdminStatisticsController extends Controller
         // (yet/anymore) reflect must still count, or completion reads as a
         // false 0%/"not calculated" despite a genuine attempt existing.
         $attemptedUsersByQuiz = QuizResult::join('User', 'User.UserID', '=', 'QuizResult.UserID')
+            ->join('Quiz', 'Quiz.QuizID', '=', 'QuizResult.QuizID')
             ->where('User.Role', 'Student')
             ->whereIn('QuizResult.QuizID', $scheduledQuizzes->pluck('QuizID'))
+            ->whereNotExists(function ($q) {
+                $q->select(DB::raw(1))
+                    ->from('Studentsleft')
+                    ->whereColumn('Studentsleft.UserID', 'QuizResult.UserID')
+                    ->whereColumn('Studentsleft.GroupID', 'Quiz.GroupID');
+            })
             ->select('QuizResult.QuizID as QuizID', 'QuizResult.UserID as UserID')
             ->distinct()
             ->get()
@@ -275,6 +310,12 @@ class AdminStatisticsController extends Controller
             ->join('User', 'User.UserID', '=', 'QuizResult.UserID')
             ->where('User.Role', 'Student')
             ->whereIn('Quiz.GroupID', $groupIds)
+            ->whereNotExists(function ($q) {
+                $q->select(DB::raw(1))
+                    ->from('Studentsleft')
+                    ->whereColumn('Studentsleft.UserID', 'QuizResult.UserID')
+                    ->whereColumn('Studentsleft.GroupID', 'Quiz.GroupID');
+            })
             ->selectRaw('Quiz.GroupID as GroupID, SUM(QuizResult.Score) as total')
             ->groupBy('Quiz.GroupID')
             ->pluck('total', 'GroupID');
@@ -301,19 +342,38 @@ class AdminStatisticsController extends Controller
             $enrolledStudentIds = $studentIdsByGroup[$gid] ?? collect();
             $totalStudents = $enrolledStudentIds->count();
 
-            // Distinct students who attempted at least one of this group's
-            // quizzes, out of the group's own student count. A group with 0
-            // students is always 0% regardless of any stray attempts
-            // recorded against its quizzes - "this group's completion" isn't
-            // meaningful without students to complete it. Still capped at
-            // 100 as a hard safety net for groups that do have students.
+            // Students Participation - raw count of distinct students who
+            // attempted at least one of this group's quizzes (real-time,
+            // from QuizResult).
             $quizIds = $quizIdsByGroup[$gid] ?? collect();
             $attemptedCount = $quizIds
                 ->flatMap(fn ($qid) => $attemptedUsersByQuiz[$qid] ?? collect())
                 ->unique()
                 ->count();
-            $quizCompletion = $totalStudents > 0
-                ? min(100, round(($attemptedCount / max($totalStudents, $attemptedCount)) * 100, 1))
+
+            // Quiz Participation - the average, per student, of how much of
+            // this group's own quiz set they've each completed:
+            //   1. fraction_i = quizzes THIS student answered / total quizzes
+            //      sent to this group
+            //   2. sum those fractions across every enrolled student
+            //   3. (sum / total students) * 100
+            // 0 students -> 0% (nothing to average). 0 quizzes, or students
+            // with 0 attempts -> every fraction is 0 -> 0%. Every enrolled
+            // student having answered every quiz -> every fraction is 1 ->
+            // sum == totalStudents -> exactly 100%, true even for a single
+            // student who's completed everything.
+            $answeredCountByUser = [];
+            foreach ($quizIds as $qid) {
+                foreach (($attemptedUsersByQuiz[$qid] ?? collect()) as $uid) {
+                    $answeredCountByUser[$uid] = ($answeredCountByUser[$uid] ?? 0) + 1;
+                }
+            }
+            $totalQuizzes = $quizIds->count();
+            $sumFractions = $totalQuizzes > 0
+                ? $enrolledStudentIds->sum(fn ($uid) => ($answeredCountByUser[$uid] ?? 0) / $totalQuizzes)
+                : 0;
+            $quizParticipation = $totalStudents > 0
+                ? round(($sumFractions / $totalStudents) * 100, 1)
                 : 0;
 
             $activeUsers = $activeUsersByGroup[$gid] ?? 0;
@@ -326,7 +386,8 @@ class AdminStatisticsController extends Controller
                 'GroupName' => $group->GroupName,
                 'TotalPosts' => $totalPostsByGroup[$gid] ?? 0,
                 'ActiveUsers' => $activeUsers,
-                'QuizCompletion' => $quizCompletion,
+                'StudentsParticipation' => $attemptedCount,
+                'QuizCompletion' => $quizParticipation,
                 'FlaggedContent' => $flaggedByGroup[$gid] ?? 0,
                 'TotalStudents' => $totalStudents,
                 'AverageScore' => $averageScore,

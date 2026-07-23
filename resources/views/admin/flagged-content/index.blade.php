@@ -48,7 +48,7 @@
                                     @endif
                                 </td>
                                 <td>{{ $item['flag_count'] }} {{ Str::plural('member', $item['flag_count']) }}</td>
-                                <td>{{ $item['reason'] ?: 'Not specified' }}</td>
+                                <td>{{ $item['reason'] ?: 'Not Specified' }}</td>
                                 <td>{{ $item['date']->format('d M Y') }}</td>
                                 <td class="flagged-content-action-col">
                                     <div class="d-flex gap-2">
@@ -112,7 +112,7 @@
                             <tr>
                                 <td class="flagged-content-excerpt">{{ \Illuminate\Support\Str::limit($message->body, 120) }}</td>
                                 <td>{{ $message->user?->UserName ?? 'Unknown User' }}</td>
-                                <td>{{ $message->FlaggedReason ?: ($message->is_spam ? 'Automatic spam detection' : 'Not specified') }}</td>
+                                <td>{{ $message->FlaggedReason ?: ($message->is_spam ? 'Automatic spam detection' : 'Not Specified') }}</td>
                                 <td>{{ $message->CreatedAt->format('d M Y') }}</td>
                                 <td class="flagged-content-action-col">
                                     <div class="d-flex gap-2">
