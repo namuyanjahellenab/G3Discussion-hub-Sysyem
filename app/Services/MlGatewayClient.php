@@ -117,11 +117,17 @@ class MlGatewayClient
             // once a connection is established - see ->timeout() below,
             // and the class-level note on why ->timeout() alone wasn't
             // enough to bound a refused connection on this environment.
+            // Attachment images live on this server's disk, not the gateway's -
+            // in production these are two separate machines/containers, so the
+            // gateway can't just read the file locally. Passing Laravel's own
+            // public URL lets it fetch each image over HTTP instead (see
+            // pdf.py), the same way a browser tab would.
             $response = Http::withToken($token)
                 ->connectTimeout((float) config('services.ml_gateway.timeout', 0.5))
                 ->timeout((float) config('services.ml_gateway.pdf_timeout', 8))
                 ->post(rtrim($baseUrl, '/') . '/export-topic-pdf', [
                     'TopicID' => $topicId,
+                    'BaseUrl' => config('app.url'),
                 ]);
 
             if ($response->failed()) {

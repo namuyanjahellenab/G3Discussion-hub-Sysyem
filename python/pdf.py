@@ -6,8 +6,9 @@
 import base64
 import io
 import logging
-import os
 import re
+import urllib.parse
+import urllib.request
 from datetime import datetime
 from typing import Any
 
@@ -17,10 +18,11 @@ from playwright.sync_api import sync_playwright
 
 _logger = logging.getLogger(__name__)
 
-# Laravel's public storage root - python/ and storage/ are sibling
-# directories sharing the same disk, so images are read straight off disk
-# and inlined as base64 rather than fetched back over HTTP from Laravel.
-_STORAGE_ROOT = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "storage", "app", "public")
+# Laravel and this gateway are two separate deployed services with no shared
+# disk, so an attachment image is fetched over HTTP from Laravel's own public
+# storage URL (the same bytes a browser tab would get) rather than assumed to
+# be readable from a local path.
+_IMAGE_FETCH_TIMEOUT_SECONDS = 5
 
 _MIME_TYPES = {
     "png": "image/png",
@@ -48,22 +50,25 @@ def _display_attachment_name(attachment_path: str) -> str:
     return base.split("--", 1)[-1] if "--" in base else base
 
 
-def _attachment_image_data_uri(attachment_path: str, attachment_type: str | None) -> str | None:
+def _attachment_image_data_uri(attachment_path: str, attachment_type: str | None, base_url: str) -> str | None:
     # Returns a data: URI the PDF can render inline, or None if this
-    # attachment isn't an embeddable image or the file couldn't be read -
-    # callers fall back to a plain text mention in either case, so a single
-    # missing/corrupt file never breaks the whole export.
-    if attachment_type != "image":
+    # attachment isn't an embeddable image or couldn't be fetched - callers
+    # fall back to a plain text mention in either case, so one missing/
+    # unreachable image never breaks the whole export.
+    if attachment_type != "image" or not base_url:
         return None
 
     ext = attachment_path.rsplit(".", 1)[-1].lower() if "." in attachment_path else ""
     if ext not in _MIME_TYPES:
         return None
 
-    full_path = os.path.join(_STORAGE_ROOT, *attachment_path.split("/"))
+    image_url = f"{base_url}/storage/{urllib.parse.quote(attachment_path, safe='/')}"
     try:
-        with Image.open(full_path) as image:
-            image.load()  # force the read now, inside the try, before resize/convert touch it
+        with urllib.request.urlopen(image_url, timeout=_IMAGE_FETCH_TIMEOUT_SECONDS) as response:
+            raw_bytes = response.read()
+
+        with Image.open(io.BytesIO(raw_bytes)) as image:
+            image.load()  # force the decode now, inside the try, before resize/convert touch it
 
             long_edge = max(image.width, image.height)
             if long_edge > _PDF_IMAGE_MAX_DIMENSION:
@@ -87,17 +92,19 @@ def _attachment_image_data_uri(attachment_path: str, attachment_type: str | None
             encoded = base64.b64encode(buffer.getvalue()).decode("ascii")
         return f"data:image/jpeg;base64,{encoded}"
     except (OSError, ValueError) as e:
-        _logger.warning("PDF export: could not read/resize attachment %s: %s", attachment_path, e)
+        # OSError also covers urllib.error.URLError (its subclass) - a
+        # network failure and a corrupt/unreadable image both land here.
+        _logger.warning("PDF export: could not fetch/resize attachment %s: %s", attachment_path, e)
         return None
 
 
-def _attach_display_fields(item: dict[str, Any]) -> None:
+def _attach_display_fields(item: dict[str, Any], base_url: str) -> None:
     # Enriches a post/reply dict in place with the two fields the template
-    # actually renders, so the template itself never touches the filesystem.
+    # actually renders, so the template itself never touches the network/filesystem.
     if not item.get("Attachment"):
         return
     item["AttachmentName"] = _display_attachment_name(item["Attachment"])
-    item["AttachmentImageDataUri"] = _attachment_image_data_uri(item["Attachment"], item.get("AttachmentType"))
+    item["AttachmentImageDataUri"] = _attachment_image_data_uri(item["Attachment"], item.get("AttachmentType"), base_url)
 
 
 def _slugify(text: str) -> str:
@@ -108,11 +115,11 @@ def _slugify(text: str) -> str:
     return slug or "discussion"
 
 
-def _build_topic_pdf(topic: dict[str, Any], posts: list[dict[str, Any]]) -> bytes | None:
+def _build_topic_pdf(topic: dict[str, Any], posts: list[dict[str, Any]], base_url: str = "") -> bytes | None:
     for post in posts:
-        _attach_display_fields(post)
+        _attach_display_fields(post, base_url)
         for reply in post.get("Replies", []):
-            _attach_display_fields(reply)
+            _attach_display_fields(reply, base_url)
 
     html = render_template(
         "topic_export.html",

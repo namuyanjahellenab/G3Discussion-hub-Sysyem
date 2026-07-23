@@ -138,6 +138,7 @@ def export_topic_pdf() -> ResponseReturnValue:
 
     payload = request.get_json(silent=True) or {}
     topic_id = payload.get("TopicID")
+    base_url = (payload.get("BaseUrl") or "").rstrip("/")
     if not topic_id:
         return jsonify({"error": "TopicID is required"}), 400
 
@@ -147,7 +148,7 @@ def export_topic_pdf() -> ResponseReturnValue:
     if data["topic"] is None:
         return jsonify({"error": "topic not found"}), 404
 
-    pdf_bytes = _build_topic_pdf(data["topic"], data["posts"])
+    pdf_bytes = _build_topic_pdf(data["topic"], data["posts"], base_url)
     if pdf_bytes is None:
         app.logger.warning("PDF generation failed for TopicID=%s", topic_id)
         return jsonify({"error": "pdf generation failed"}), 500
