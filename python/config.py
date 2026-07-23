@@ -14,10 +14,7 @@ CATALOG_TTL_SECONDS = 60
 # How many days back "recent activity" (posts/replies) counts toward a
 # group's trending score.
 TRENDING_WINDOW_DAYS = 14
-# Max number of a user's own recent posts/replies pulled in for
-# recommendation ranking.
 RECENT_ACTIVITY_LIMIT = 10
-# Max number of groups returned by the trending-groups endpoint.
 TRENDING_GROUP_LIMIT = 5
 # How much more a post/reply counts than a plain membership when ranking
 # trending groups (see db.py's trending query).
@@ -28,7 +25,6 @@ DB_CONNECT_TIMEOUT_SECONDS = 3
 
 
 def _expected_token() -> str | None:
-    # Shared secret the caller's Authorization header must match.
     return os.environ.get("GATEWAY_EXPECTED_TOKEN") or os.environ.get("GATEWAY_TOKEN")
 
 
@@ -39,8 +35,6 @@ def _token_prefix() -> str:
 
 
 def _is_authorized(req) -> bool:
-    # True only if the request's Authorization header carries the expected
-    # prefix and exactly matches the shared secret token.
     expected = _expected_token()
     if not expected:
         return False

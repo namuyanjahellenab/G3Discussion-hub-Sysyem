@@ -1,0 +1,73 @@
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+    /* Page size/margins are set via Playwright's page.pdf() call instead of
+       @page here (Chromium's print engine takes the API params as the
+       source of truth) - matches the Dompdf fallback's
+       setPaper('A4', 'portrait') so both generators produce consistent
+       output regardless of which one actually ran. */
+    body { font-family: Helvetica, Arial, sans-serif; font-size: 12px; color: #222; }
+    .header { border-bottom: 2px solid #0052CC; padding-bottom: 8px; margin-bottom: 4px; }
+    .header h2 { margin: 0 0 4px 0; color: #0052CC; }
+    .header .meta { color: #666; font-size: 10px; margin-bottom: 2px; }
+    .post { border: 1px solid #ddd; border-radius: 4px; padding: 10px; margin-top: 14px; }
+    .msg-header { margin-bottom: 6px; }
+    .avatar { display: inline-block; width: 20px; height: 20px; border-radius: 10px;
+              background-color: #0052CC; color: #ffffff; text-align: center;
+              font-size: 10px; font-weight: bold; line-height: 20px; }
+    .author-name { font-weight: bold; color: #111; font-size: 12px; }
+    .badge-op { color: #0052CC; font-size: 9px; font-weight: bold; margin-left: 6px; }
+    .timestamp { color: #999; font-size: 9px; margin-left: 6px; }
+    .content { margin-top: 6px; white-space: pre-wrap; line-height: 1.5; }
+    .attachment { margin-top: 6px; color: #666; font-size: 10px; }
+    .attachment-image { margin-top: 8px; max-width: 320px; max-height: 260px; border: 1px solid #ddd; border-radius: 4px; page-break-inside: avoid; }
+    .reply { margin-top: 10px; margin-left: 20px; padding: 8px 0; page-break-inside: avoid; }
+    .reply .author-name { font-size: 11px; }
+    .reply .avatar { width: 16px; height: 16px; border-radius: 8px; line-height: 16px;
+                      font-size: 9px; background-color: #6b7280; }
+</style>
+</head>
+<body>
+    <div class="header">
+        <h2>{{ topic.Title or "Discussion Export" }}</h2>
+        <div class="meta">Group: {{ topic.GroupName or "Discussion Hub" }}</div>
+        <div class="meta">Generated: {{ generated_at }}</div>
+    </div>
+    {% for post in posts %}
+    <div class="post">
+        <div class="msg-header">
+            <span class="avatar">{{ (post.AuthorName or "S")[0]|upper }}</span>
+            <span class="author-name">{{ post.AuthorName or "Student" }}</span>
+            <span class="badge-op">ORIGINAL POST</span>
+            {% if post.PostedAt %}<span class="timestamp">{{ post.PostedAt }}</span>{% endif %}
+        </div>
+        <div class="content">{{ post.Content or "" }}</div>
+        {% if post.Attachment %}
+            {% if post.AttachmentImageDataUri %}
+            <img class="attachment-image" src="{{ post.AttachmentImageDataUri }}">
+            {% else %}
+            <div class="attachment">Attachment: {{ post.AttachmentName }}</div>
+            {% endif %}
+        {% endif %}
+        {% for reply in post.Replies %}
+        <div class="reply">
+            <div class="msg-header">
+                <span class="avatar">{{ (reply.AuthorName or "S")[0]|upper }}</span>
+                <span class="author-name">{{ reply.AuthorName or "Student" }}</span>
+                {% if reply.PostedAt %}<span class="timestamp">{{ reply.PostedAt }}</span>{% endif %}
+            </div>
+            <div class="content">{{ reply.ReplyContent or "" }}</div>
+            {% if reply.Attachment %}
+                {% if reply.AttachmentImageDataUri %}
+                <img class="attachment-image" src="{{ reply.AttachmentImageDataUri }}">
+                {% else %}
+                <div class="attachment">Attachment: {{ reply.AttachmentName }}</div>
+                {% endif %}
+            {% endif %}
+        </div>
+        {% endfor %}
+    </div>
+    {% endfor %}
+</body>
+</html>
