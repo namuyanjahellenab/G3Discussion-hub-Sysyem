@@ -1077,7 +1077,7 @@ public class TopicController {
         Button whatsapp = shareLink("💬 WhatsApp", links.getString("whatsapp"));
         Button twitter = shareLink("𝕏 Twitter / X", links.getString("twitter"));
         Button facebook = shareLink("📘 Facebook", links.getString("facebook"));
-        Button email = shareLink("✉ Email", links.getString("email"));
+        Button email = emailShareButton("✉ Email", links.getString("email"));
 
         Button copyLink = new Button("🔗 Copy Link");
         copyLink.setMaxWidth(Double.MAX_VALUE);
@@ -1111,6 +1111,32 @@ public class TopicController {
                 java.awt.Desktop.getDesktop().browse(URI.create(url));
             } catch (Exception ex) {
                 System.err.println("[Topic] Couldn't open share link: " + ex.getMessage());
+            }
+        });
+        return b;
+    }
+
+    /** Email needs Desktop.Action.MAIL (the actual mailto: handler), not
+     *  browse() - browse() only happens to work for mailto: links on Windows
+     *  because ShellExecute dispatches by URI scheme regardless, which isn't
+     *  a guarantee on other platforms. */
+    private Button emailShareButton(String label, String url) {
+        Button b = new Button(label);
+        b.getStyleClass().add("btn-primary");
+        b.setMaxWidth(Double.MAX_VALUE);
+        b.setOnAction(e -> {
+            try {
+                if (!java.awt.Desktop.isDesktopSupported()
+                        || !java.awt.Desktop.getDesktop().isSupported(java.awt.Desktop.Action.MAIL)) {
+                    throw new UnsupportedOperationException("no default mail client configured");
+                }
+                java.awt.Desktop.getDesktop().mail(URI.create(url));
+            } catch (Exception ex) {
+                System.err.println("[Topic] Couldn't open mail client: " + ex.getMessage());
+                Alert alert = new Alert(Alert.AlertType.WARNING,
+                    "Couldn't open your email client — no default mail app is configured on this computer.");
+                alert.setHeaderText(null);
+                alert.showAndWait();
             }
         });
         return b;

@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\ConversationMember;
 use App\Models\Message;
 use App\Models\Post;
+use App\Models\Reply;
 use App\Services\AttachmentUploader;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -20,6 +21,18 @@ class AttachmentController extends Controller
         return response()->download(
             Storage::disk('public')->path($post->Attachment),
             AttachmentUploader::displayName($post->Attachment)
+        );
+    }
+
+    public function downloadReply(Reply $reply)
+    {
+        if (!$reply->Attachment) {
+            abort(404);
+        }
+
+        return response()->download(
+            Storage::disk('public')->path($reply->Attachment),
+            AttachmentUploader::displayName($reply->Attachment)
         );
     }
 

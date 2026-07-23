@@ -75,7 +75,7 @@
                             <i class="fa-solid fa-bullhorn"></i>
                         </div>
                         <div class="fw-bold text-dark small">ANNOUNCEMENTS</div>
-                        <div class="text-muted" style="font-size:0.75rem;">Broadcast system updates.</div>
+                        <div class="text-muted" style="font-size:0.75rem;">{{ number_format($announcementsCount) }} posted so far</div>
                     </div>
                 </div>
             </a>

@@ -202,7 +202,7 @@
     <div class="card-body">
         <div class="d-flex justify-content-between align-items-center mb-3">
             <h5 class="fw-bold mb-0">Group Participation Summary</h5>
-            <a href="{{ route('admin.statistics.export', ['group_id' => $groupId]) }}" class="text-primary text-decoration-none small fw-semibold">
+            <a href="{{ route('admin.statistics.export', ['group_id' => $groupId]) }}" class="btn-export-report">
                 Export Report <i class="bi bi-download"></i>
             </a>
         </div>
@@ -288,6 +288,24 @@
         border-radius: 50%;
         background-color: var(--luna-mid);
         margin-right: 4px;
+    }
+
+    .btn-export-report {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        background: var(--luna-dark);
+        color: #fff;
+        text-decoration: none;
+        font-size: 0.8rem;
+        font-weight: 600;
+        padding: 6px 14px;
+        border-radius: var(--radius-md, 8px);
+        transition: background 0.15s ease;
+    }
+    .btn-export-report:hover {
+        background: var(--luna-darkest, var(--luna-dark));
+        color: #fff;
     }
 
     /* This page only: pin the sidebar to the viewport with position:fixed

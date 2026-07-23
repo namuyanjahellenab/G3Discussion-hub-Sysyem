@@ -157,10 +157,11 @@
         .hover-actions button { background: var(--surface-bg); }
     }
 
-    .attach-file { display: flex; align-items: center; gap: 10px; background: var(--surface-bg); border: 1px solid var(--surface-border); border-radius: 10px; padding: 8px 12px; margin-bottom: 6px; max-width: 280px; text-decoration: none; }
+    .attach-file { display: flex; align-items: center; gap: 10px; background: var(--surface-bg); border: 1px solid var(--surface-border); border-radius: 10px; padding: 8px 12px; margin-bottom: 6px; max-width: 280px; }
+    .attach-file__open { display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0; text-decoration: none; }
     .attach-file .icon { width: 32px; height: 32px; border-radius: 8px; background: var(--luna-mid); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 14px; flex-shrink: 0; }
     .attach-file .fname { font-size: 12.5px; font-weight: 600; color: var(--text-heading); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; min-width: 0; }
-    .attach-file .attach-download-icon { flex-shrink: 0; color: var(--text-muted); font-size: 13px; }
+    .attach-file .attach-download-icon { flex-shrink: 0; color: var(--text-muted); font-size: 13px; text-decoration: none; }
     .attach-file:hover .attach-download-icon { color: var(--luna-mid); }
 
     /* Capped height (not just width) - a tall/portrait screenshot used to
@@ -358,21 +359,26 @@
                                     {{-- Attachment first, caption text after - matches WhatsApp's
                                          photo/file-then-caption order, not text-then-attachment. --}}
                                     @if($reply->Attachment)
+                                        @php($replyAttachmentName = \App\Services\AttachmentUploader::displayName($reply->Attachment))
                                         @if($reply->AttachmentType === 'image')
                                             <div class="attach-img">
                                                 <a href="{{ \Illuminate\Support\Facades\Storage::url($reply->Attachment) }}" target="_blank" rel="noopener" title="View full size">
                                                     <img src="{{ \Illuminate\Support\Facades\Storage::url($reply->Attachment) }}" alt="Attachment">
                                                 </a>
-                                                <a class="attach-img__download" href="{{ \Illuminate\Support\Facades\Storage::url($reply->Attachment) }}" download title="Download">
+                                                <a class="attach-img__download" href="{{ \Illuminate\Support\Facades\Storage::url($reply->Attachment) }}" download="{{ $replyAttachmentName }}" title="Download">
                                                     <i class="fa-solid fa-download"></i>
                                                 </a>
                                             </div>
                                         @else
-                                            <a class="attach-file" href="{{ \Illuminate\Support\Facades\Storage::url($reply->Attachment) }}" download title="Download {{ basename($reply->Attachment) }}">
-                                                <div class="icon"><i class="fa-solid fa-file"></i></div>
-                                                <div class="fname">{{ basename($reply->Attachment) }}</div>
-                                                <i class="fa-solid fa-download attach-download-icon"></i>
-                                            </a>
+                                            <div class="attach-file">
+                                                <a class="attach-file__open" href="{{ \Illuminate\Support\Facades\Storage::url($reply->Attachment) }}" target="_blank" rel="noopener" title="Open {{ $replyAttachmentName }}">
+                                                    <div class="icon"><i class="fa-solid fa-file"></i></div>
+                                                    <div class="fname">{{ $replyAttachmentName }}</div>
+                                                </a>
+                                                <a class="attach-download-icon" href="{{ route('replies.attachment', $reply->ReplyID) }}" title="Download">
+                                                    <i class="fa-solid fa-download"></i>
+                                                </a>
+                                            </div>
                                         @endif
                                     @endif
                                     {{ $reply->ReplyContent }}
@@ -698,12 +704,16 @@ sizeRightPanel();
 
         let attachHtml = '';
         if (r.attachment_url) {
+            const downloadUrl = `/replies/${r.id}/attachment`;
             attachHtml = r.attachment_type === 'image'
                 ? `<div class="attach-img">
                         <a href="${escapeHtml(r.attachment_url)}" target="_blank" rel="noopener" title="View full size"><img src="${escapeHtml(r.attachment_url)}" alt="Attachment"></a>
-                        <a class="attach-img__download" href="${escapeHtml(r.attachment_url)}" download title="Download"><i class="fa-solid fa-download"></i></a>
+                        <a class="attach-img__download" href="${escapeHtml(downloadUrl)}" title="Download"><i class="fa-solid fa-download"></i></a>
                    </div>`
-                : `<a class="attach-file" href="${escapeHtml(r.attachment_url)}" download title="Download ${escapeHtml(r.attachment_name || '')}"><div class="icon"><i class="fa-solid fa-file"></i></div><div class="fname">${escapeHtml(r.attachment_name || '')}</div><i class="fa-solid fa-download attach-download-icon"></i></a>`;
+                : `<div class="attach-file">
+                        <a class="attach-file__open" href="${escapeHtml(r.attachment_url)}" target="_blank" rel="noopener" title="Open ${escapeHtml(r.attachment_name || '')}"><div class="icon"><i class="fa-solid fa-file"></i></div><div class="fname">${escapeHtml(r.attachment_name || '')}</div></a>
+                        <a class="attach-download-icon" href="${escapeHtml(downloadUrl)}" title="Download"><i class="fa-solid fa-download"></i></a>
+                   </div>`;
         }
 
         const row = document.createElement('div');

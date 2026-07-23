@@ -99,10 +99,18 @@ class GroupChatService
         return $message;
     }
 
+    // A restricted thread is private to whoever set up the exclusion - only
+    // its creator ever becomes a member, so nobody else (whether excluded or
+    // simply not the one who restricted anyone) can see it exists, read it,
+    // or learn who was excluded from it. Matching an existing thread is
+    // scoped to this same sender for that reason - otherwise a second
+    // student picking the identical exclude list would silently be folded
+    // into the first student's private thread instead of getting their own.
     private function findOrCreateRestrictedConversation(int $groupId, int $senderId, Collection $excludeIds): Conversation
     {
         $candidates = Conversation::where('group_id', $groupId)
             ->where('Type', 'restricted')
+            ->where('CreatedBy', $senderId)
             ->get();
 
         foreach ($candidates as $candidate) {
@@ -120,19 +128,11 @@ class GroupChatService
             'group_id' => $groupId,
         ]);
 
-        $activeMembers = GroupStudent::where('GroupID', $groupId)
-            ->where('Status', 'active')
-            ->pluck('UserID');
-
-        foreach ($activeMembers as $memberId) {
-            if (!$excludeIds->contains($memberId)) {
-                ConversationMember::create([
-                    'ConversationID' => $conversation->ConversationID,
-                    'UserID' => $memberId,
-                    'JoinedAt' => now(),
-                ]);
-            }
-        }
+        ConversationMember::create([
+            'ConversationID' => $conversation->ConversationID,
+            'UserID' => $senderId,
+            'JoinedAt' => now(),
+        ]);
 
         foreach ($excludeIds as $excludedUserId) {
             ConversationExclusion::create([

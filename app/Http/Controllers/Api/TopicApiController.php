@@ -93,7 +93,7 @@ class TopicApiController extends Controller
                 'has_flagged' => $r->flags->contains('FlaggedByUserID', $userId),
                 'attachment_url' => $r->Attachment ? Storage::url($r->Attachment) : null,
                 'attachment_type' => $r->AttachmentType,
-                'attachment_name' => $r->Attachment ? basename($r->Attachment) : null,
+                'attachment_name' => $r->Attachment ? AttachmentUploader::displayName($r->Attachment) : null,
             ])->values() : [],
             'participants' => $participants->take(8)->map(fn ($p) => [
                 'name' => $p->UserName ?? '?',

@@ -113,6 +113,10 @@ Route::post('/messages', [DiscussionHubPageController::class, 'storeMessage'])
         ->middleware('verified')
         ->name('messages.attachment');
 
+    Route::get('/replies/{reply}/attachment', [AttachmentController::class, 'downloadReply'])
+        ->middleware('verified')
+        ->name('replies.attachment');
+
     Route::get('/topics/{topic}/export', [DiscussionHubPageController::class, 'exportTopic'])
         ->middleware('verified')
         ->name('topics.export');
@@ -120,7 +124,14 @@ Route::post('/messages', [DiscussionHubPageController::class, 'storeMessage'])
     Route::get('/marks', [DashboardController::class, 'marks'])
     ->middleware('verified')
     ->name('marks.index');
-    
+
+    Route::get('/participation-criteria', [\App\Http\Controllers\ParticipationCriteriaController::class, 'edit'])
+        ->middleware('verified')
+        ->name('participation-criteria.edit');
+    Route::post('/participation-criteria', [\App\Http\Controllers\ParticipationCriteriaController::class, 'update'])
+        ->middleware('verified')
+        ->name('participation-criteria.update');
+
     Route::get('/quizzes', [DiscussionHubPageController::class, 'quizzes'])
         ->middleware('verified')
         ->name('quizzes.index');

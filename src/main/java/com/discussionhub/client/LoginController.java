@@ -88,8 +88,17 @@ public class LoginController {
                         checkGroupsAndNavigate();
                     }
                 } else {
+                    InputStream errorStream = conn.getErrorStream();
+                    String body = "";
+                    if (errorStream != null) {
+                        try (Scanner s = new Scanner(errorStream, StandardCharsets.UTF_8).useDelimiter("\\A")) {
+                            body = s.hasNext() ? s.next() : "";
+                        }
+                    }
+                    String serverMessage = extractJsonValue(body, "message");
+
                     Platform.runLater(() -> {
-                        errorLabel.setText("Invalid credentials.");
+                        errorLabel.setText(serverMessage.isEmpty() ? "Invalid credentials." : serverMessage);
                         errorLabel.setVisible(true);
                     });
                 }

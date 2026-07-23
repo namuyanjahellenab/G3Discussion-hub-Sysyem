@@ -66,3 +66,9 @@ build/
 *.db
 attachment-cache/
 client/target/
+
+# Python
+__pycache__/
+*.pyc
+
+*.db-journal

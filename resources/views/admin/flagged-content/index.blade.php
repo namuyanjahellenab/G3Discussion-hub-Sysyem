@@ -21,51 +21,51 @@
     <div class="card flagged-content-table-card mb-4">
         <div class="card-body flagged-content-table-card-body">
             <h5 class="fw-bold mb-3 d-flex align-items-center gap-2"><i class="bi bi-chat-square-text"></i> Flagged Posts and Replies</h5>
-            <div class="table-responsive flagged-content-table-wrap">
+            <div class="flagged-content-table-wrap posts-replies-table">
                 <table class="table align-middle flagged-content-table mb-0">
                     <thead>
                         <tr class="text-uppercase small text-muted">
-                            <th>Type</th>
-                            <th>Content</th>
-                            <th>Author</th>
-                            <th>Topic / Group</th>
-                            <th>Flagged by</th>
-                            <th>Reason</th>
-                            <th>Date</th>
+                            <th class="col-type">Type</th>
+                            <th class="col-content">Content</th>
+                            <th class="col-author">Author</th>
+                            <th class="col-context">Topic / Group</th>
+                            <th class="col-flaggedby">Flagged by</th>
+                            <th class="col-reason">Reason</th>
+                            <th class="col-date">Date</th>
                             <th class="flagged-content-action-col">Action</th>
                         </tr>
                     </thead>
                     <tbody>
                         @forelse($flaggedItems as $item)
                             <tr>
-                                <td><span class="badge {{ $item['type'] === 'Post' ? 'bg-primary-subtle text-primary' : 'bg-info-subtle text-info' }}">{{ $item['type'] }}</span></td>
-                                <td class="flagged-content-excerpt">{{ \Illuminate\Support\Str::limit($item['content'], 120) }}</td>
-                                <td>{{ $item['author_name'] }}</td>
-                                <td>
+                                <td class="col-type"><span class="badge flagged-type-badge {{ $item['type'] === 'Post' ? 'bg-primary-subtle text-primary' : 'bg-info-subtle text-info' }}">{{ $item['type'] }}</span></td>
+                                <td class="flagged-content-excerpt col-content">{{ \Illuminate\Support\Str::limit($item['content'], 120) }}</td>
+                                <td class="col-author">{{ $item['author_name'] }}</td>
+                                <td class="col-context">
                                     {{ $item['context'] }}
                                     @if($item['group_name'])
                                         <div class="text-muted small">{{ $item['group_name'] }}</div>
                                     @endif
                                 </td>
-                                <td>{{ $item['flag_count'] }} {{ Str::plural('member', $item['flag_count']) }}</td>
-                                <td>{{ $item['reason'] ?: 'Not specified' }}</td>
-                                <td>{{ $item['date']->format('d M Y') }}</td>
+                                <td class="col-flaggedby">{{ $item['flag_count'] }} {{ Str::plural('member', $item['flag_count']) }}</td>
+                                <td class="col-reason">{{ $item['reason'] ?: 'Not specified' }}</td>
+                                <td class="col-date">{{ $item['date']->format('d M Y') }}</td>
                                 <td class="flagged-content-action-col">
-                                    <div class="d-flex gap-2">
+                                    <div class="flagged-action-icons">
                                         <form method="POST" action="{{ $item['dismiss_route'] }}">
                                             @csrf
-                                            <button type="submit" class="btn btn-outline-secondary btn-sm">Dismiss</button>
+                                            <button type="submit" class="btn-icon-action btn-icon-secondary">Dismiss</button>
                                         </form>
                                         <form method="POST" action="{{ route('admin.warning.store') }}">
                                             @csrf
                                             <input type="hidden" name="UserID" value="{{ $item['author_id'] }}">
                                             <input type="hidden" name="Reason" value="Flagged {{ strtolower($item['type']) }}: {{ \Illuminate\Support\Str::limit($item['content'], 80) }}">
-                                            <button type="submit" class="btn btn-outline-warning btn-sm">Warn ({{ $warningCounts[$item['author_id']] ?? 0 }}/{{ config('moderation.warning_threshold', 2) }})</button>
+                                            <button type="submit" class="btn-icon-action btn-icon-warning">Warn ({{ $warningCounts[$item['author_id']] ?? 0 }}/{{ config('moderation.warning_threshold', 2) }})</button>
                                         </form>
                                         <form method="POST" action="{{ $item['destroy_route'] }}" onsubmit="return confirm('Delete this {{ strtolower($item['type']) }} permanently?');">
                                             @csrf
                                             @method('DELETE')
-                                            <button type="submit" class="btn btn-outline-danger btn-sm">Delete</button>
+                                            <button type="submit" class="btn-icon-action btn-icon-danger">Delete</button>
                                         </form>
                                     </div>
                                 </td>
@@ -96,34 +96,40 @@
     <div class="card flagged-content-table-card">
         <div class="card-body flagged-content-table-card-body">
             <h5 class="fw-bold mb-3 d-flex align-items-center gap-2"><i class="bi bi-people"></i> Flagged Group Chat Messages</h5>
-            <div class="table-responsive flagged-content-table-wrap">
+            <div class="flagged-content-table-wrap messages-table">
                 <table class="table align-middle flagged-content-table mb-0">
                     <thead>
                         <tr class="text-uppercase small text-muted">
-                            <th>Message</th>
-                            <th>Author</th>
-                            <th>Reason</th>
-                            <th>Date</th>
+                            <th class="col-content">Message</th>
+                            <th class="col-author">Author</th>
+                            <th class="col-reason">Reason</th>
+                            <th class="col-date">Date</th>
                             <th class="flagged-content-action-col">Action</th>
                         </tr>
                     </thead>
                     <tbody>
                         @forelse($flaggedMessages as $message)
                             <tr>
-                                <td class="flagged-content-excerpt">{{ \Illuminate\Support\Str::limit($message->body, 120) }}</td>
-                                <td>{{ $message->user?->UserName ?? 'Unknown User' }}</td>
-                                <td>{{ $message->FlaggedReason ?: ($message->is_spam ? 'Automatic spam detection' : 'Not specified') }}</td>
-                                <td>{{ $message->CreatedAt->format('d M Y') }}</td>
+                                <td class="flagged-content-excerpt col-content">{{ \Illuminate\Support\Str::limit($message->body, 120) }}</td>
+                                <td class="col-author">{{ $message->user?->UserName ?? 'Unknown User' }}</td>
+                                <td class="col-reason">{{ $message->FlaggedReason ?: ($message->is_spam ? 'Automatic spam detection' : 'Not specified') }}</td>
+                                <td class="col-date">{{ $message->CreatedAt->format('d M Y') }}</td>
                                 <td class="flagged-content-action-col">
-                                    <div class="d-flex gap-2">
+                                    <div class="flagged-action-icons">
                                         <form method="POST" action="{{ route('admin.flagged-content.messages.dismiss', $message->MessageID) }}">
                                             @csrf
-                                            <button type="submit" class="btn btn-outline-secondary btn-sm">Dismiss</button>
+                                            <button type="submit" class="btn-icon-action btn-icon-secondary">Dismiss</button>
+                                        </form>
+                                        <form method="POST" action="{{ route('admin.warning.store') }}">
+                                            @csrf
+                                            <input type="hidden" name="UserID" value="{{ $message->user_id }}">
+                                            <input type="hidden" name="Reason" value="Flagged message: {{ \Illuminate\Support\Str::limit($message->body, 80) }}">
+                                            <button type="submit" class="btn-icon-action btn-icon-warning">Warn ({{ $warningCounts[$message->user_id] ?? 0 }}/{{ config('moderation.warning_threshold', 2) }})</button>
                                         </form>
                                         <form method="POST" action="{{ route('admin.flagged-content.messages.destroy', $message->MessageID) }}" onsubmit="return confirm('Delete this message permanently?');">
                                             @csrf
                                             @method('DELETE')
-                                            <button type="submit" class="btn btn-outline-danger btn-sm">Delete</button>
+                                            <button type="submit" class="btn-icon-action btn-icon-danger">Delete</button>
                                         </form>
                                     </div>
                                 </td>
@@ -171,8 +177,8 @@
     }
 
     .flagged-content-title-icon {
-        width: 3rem;
-        height: 3rem;
+        width: 2.25rem;
+        height: 2.25rem;
         border-radius: 999px;
         display: inline-flex;
         align-items: center;
@@ -184,8 +190,52 @@
     }
 
     .flagged-content-title-icon i {
-        font-size: 1.1rem;
+        font-size: 0.85rem;
     }
+
+    .flagged-content-table-card h5 {
+        font-size: 0.95rem;
+    }
+
+    .flagged-content-table-card h5 i {
+        font-size: 0.85rem;
+    }
+
+    .flagged-type-badge {
+        font-size: 0.68rem;
+        padding: 0.25em 0.5em;
+        font-weight: 600;
+    }
+
+    /* Small text pills with a tinted background per action, instead of the
+       original full-size outline buttons that forced the action column too
+       wide for the fixed table layout. */
+    .flagged-action-icons {
+        display: flex;
+        gap: 0.35rem;
+        flex-wrap: wrap;
+    }
+
+    .btn-icon-action {
+        display: inline-flex;
+        align-items: center;
+        padding: 0.3rem 0.6rem;
+        border-radius: 999px;
+        border: none;
+        font-size: 0.68rem;
+        font-weight: 700;
+        white-space: nowrap;
+        cursor: pointer;
+        transition: filter 0.15s ease;
+    }
+
+    .btn-icon-action:hover { filter: brightness(0.94); }
+
+    .btn-icon-secondary { background: var(--luna-lightest); color: var(--luna-dark); }
+
+    .btn-icon-warning { background: #FEF3C7; color: #92400E; }
+
+    .btn-icon-danger { background: var(--accent-danger-bg); color: var(--accent-danger); }
 
     .flagged-content-table-card {
         border: 1px solid var(--surface-border);
@@ -196,24 +246,72 @@
         padding: 1.25rem;
     }
 
+    .flagged-content-table-wrap {
+        /* No horizontal scrollbar - columns shrink and content wraps
+           instead of the table ever growing wider than its card. */
+        overflow-x: visible;
+        width: 100%;
+    }
+
+    .flagged-content-table {
+        table-layout: fixed;
+        width: 100%;
+    }
+
     .flagged-content-table thead th {
         padding: 1rem 1rem 0.9rem;
         letter-spacing: 0.08em;
-        white-space: nowrap;
+        white-space: normal;
+        word-break: break-word;
         color: var(--text-muted);
     }
 
     .flagged-content-table tbody td {
         padding: 1rem;
+        white-space: normal;
+        word-break: break-word;
+        vertical-align: top;
     }
 
     .flagged-content-excerpt {
-        max-width: 320px;
+        max-width: none;
     }
 
     .flagged-content-action-col {
-        width: 1%;
-        white-space: nowrap;
+        white-space: normal;
+    }
+
+    /* Posts and Replies table - 8 columns, widths sum to 100%. */
+    .posts-replies-table .col-type { width: 7%; }
+    .posts-replies-table .col-content { width: 22%; }
+    .posts-replies-table .col-author { width: 12%; }
+    .posts-replies-table .col-context { width: 14%; }
+    .posts-replies-table .col-flaggedby { width: 12%; white-space: nowrap; }
+    .posts-replies-table .col-reason { width: 14%; }
+    .posts-replies-table .col-date { width: 8%; }
+    .posts-replies-table .flagged-content-action-col { width: 11%; }
+
+    /* Flagged Messages table - 5 columns, widths sum to 100%. */
+    .messages-table .col-content { width: 30%; }
+    .messages-table .col-author { width: 13%; }
+    .messages-table .col-reason { width: 16%; }
+    .messages-table .col-date { width: 10%; }
+    .messages-table .flagged-content-action-col { width: 31%; }
+
+    @media (max-width: 768px) {
+        /* Least-essential-at-a-glance columns fold away first so the table
+           never has to grow wider than the screen to stay readable. */
+        .posts-replies-table .col-context,
+        .posts-replies-table .col-flaggedby {
+            display: none;
+        }
+
+        .posts-replies-table .col-type { width: 10%; }
+        .posts-replies-table .col-content { width: 32%; }
+        .posts-replies-table .col-author { width: 15%; }
+        .posts-replies-table .col-reason { width: 18%; }
+        .posts-replies-table .col-date { width: 10%; }
+        .posts-replies-table .flagged-content-action-col { width: 15%; }
     }
 
     .flagged-content-empty-state {

@@ -8,6 +8,7 @@ use App\Models\ConversationExclusion;
 use App\Models\ConversationMember;
 use App\Models\GroupStudent;
 use App\Models\Message;
+use App\Models\ReadState;
 use App\Services\AttachmentUploader;
 use App\Services\GroupChatService;
 use Illuminate\Http\Request;
@@ -76,6 +77,16 @@ class GroupChatApiController extends Controller
             ->where('UserID', '!=', $userId)
             ->with('user')
             ->get();
+
+        // Mirrors GroupChatController::index() (web) - without this, viewing
+        // a conversation from the desktop client never updated the shared
+        // ReadState the "unread" badges (both platforms' group-switcher, and
+        // web's own thread-list) are computed from, so desktop reads were
+        // invisible to the rest of the app.
+        $maxMessageId = $messages->max('MessageID') ?? 0;
+        if ($maxMessageId > 0) {
+            ReadState::markRead($userId, 'Conversation', $activeConversation->ConversationID, $maxMessageId);
+        }
 
         return response()->json([
             'main_conversation_id' => $mainConversation->ConversationID,

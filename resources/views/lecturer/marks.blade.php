@@ -45,6 +45,23 @@
         border-color: var(--luna-dark);
     }
 
+    .btn-outline {
+        background: transparent;
+        color: var(--luna-mid);
+        border: 1px solid var(--luna-mid);
+        padding: 11px 20px;
+        border-radius: 8px;
+        font-size: 13.5px;
+        font-weight: 600;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        text-decoration: none;
+        transition: background 0.15s ease, color 0.15s ease;
+    }
+    .btn-outline:hover { background: var(--luna-lightest); }
+
     .stats-grid {
         display: grid;
         grid-template-columns: repeat(4, 1fr);
@@ -220,7 +237,10 @@
             <h1>Marks Statistics</h1>
             <p>Review quiz status and the latest submission results across your assessments.</p>
         </div>
-        <a href="{{ route('quiz.schedule') }}" class="btn btn-primary">+ Schedule Quiz</a>
+        <div style="display:flex; gap:10px;">
+            <a href="{{ route('participation-criteria.edit') }}" class="btn-outline">Participation Criteria</a>
+            <a href="{{ route('quiz.schedule') }}" class="btn btn-primary">+ Schedule Quiz</a>
+        </div>
     </div>
 
     <div class="stats-grid">
