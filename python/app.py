@@ -29,9 +29,8 @@ app = Flask(__name__)
 
 @app.route("/classify", methods=["POST"])
 def classify() -> ResponseReturnValue:
-    # Predict a category for a single piece of text. _classify_content covers
-    # both the spam short-circuit and whether the message is educational/
-    # on-topic for an academic discussion board.
+    # _classify_content covers both the spam short-circuit and whether the
+    # message is educational/on-topic for an academic discussion board.
     if not _is_authorized(request):
         return jsonify({"error": "unauthorized"}), 401
 
@@ -134,7 +133,6 @@ def trending_groups() -> ResponseReturnValue:
 
 @app.route("/export-topic-pdf", methods=["POST"])
 def export_topic_pdf() -> ResponseReturnValue:
-    # Render a topic + its posts/replies to a downloadable PDF.
     if not _is_authorized(request):
         return jsonify({"error": "unauthorized"}), 401
 
@@ -164,7 +162,6 @@ def export_topic_pdf() -> ResponseReturnValue:
 
 @app.route("/topic-share-links", methods=["POST"])
 def topic_share_links() -> ResponseReturnValue:
-    # Build a share URL, a pre-filled text snippet, and links for WhatsApp/Twitter/Facebook/Email.
     if not _is_authorized(request):
         return jsonify({"error": "unauthorized"}), 401
 

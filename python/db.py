@@ -30,7 +30,6 @@ def _db_connect() -> Connection:
 
 
 def _run_query(sql: str, params: tuple | None = None) -> list[dict[str, Any]] | None:
-    # Run a SELECT and return its rows, or None if the DB is unreachable/errors.
     try:
         conn = _db_connect()
     except Exception:
@@ -103,7 +102,7 @@ def _fetch_trending_groups() -> list[dict[str, Any]] | None:
 
 
 def _fetch_topic_export_data(topic_id: Any) -> dict[str, Any] | None:
-    # Topic + its posts (each with nested replies), for PDF export. None = DB unreachable.
+    # Topic + its posts, each with nested replies, for PDF export.
     topic_rows = _run_query(
         "SELECT t.TopicID, t.Title, g.GroupName FROM `Topic` t "
         "LEFT JOIN `Group` g ON g.GroupID = t.GroupID WHERE t.TopicID = %s",
@@ -148,7 +147,7 @@ def _fetch_topic_export_data(topic_id: Any) -> dict[str, Any] | None:
 
 
 def _fetch_topic_share_data(topic_id: Any) -> dict[str, Any] | None:
-    # Topic title + reply count, for building a social-share snippet. None = DB unreachable.
+    # Topic title + reply count, for building a social-share snippet.
     topic_rows = _run_query("SELECT Title FROM `Topic` WHERE TopicID = %s", (topic_id,))
     if topic_rows is None:
         return None
