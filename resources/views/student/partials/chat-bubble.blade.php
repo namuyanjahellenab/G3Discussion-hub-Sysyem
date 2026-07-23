@@ -44,6 +44,11 @@
                     <i class="fa-solid fa-user-slash"></i> Exclude sender
                 </button>
             @endif
+            @if($msg->user_id !== auth()->id())
+                <button type="button" class="chat-bubble__menu-item" data-action="flag">
+                    <i class="fa-solid fa-flag"></i> Report
+                </button>
+            @endif
             @if($msg->user_id === auth()->id())
                 {{-- Always available, even on an attachment-only message
                      with no text yet - editing it there just adds a caption. --}}

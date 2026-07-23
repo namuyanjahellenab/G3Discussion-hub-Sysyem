@@ -9,7 +9,7 @@
             </div>
             <div class="flagged-content-title-block">
                 <h2 class="fw-bold mb-2">Flagged Content</h2>
-                <p class="text-muted mb-0">Posts and messages the ML gateway detected as spam, auto-flagged for review.</p>
+                <p class="text-muted mb-0">Posts, replies, and messages the community reported or the ML gateway detected as spam, flagged for review.</p>
             </div>
         </div>
     </div>
@@ -18,20 +18,14 @@
         <div class="alert alert-success">{{ session('success') }}</div>
     @endif
 
-    <div class="d-flex gap-2 mb-4 flex-wrap">
-        <a href="{{ route('admin.flagged-content.index') }}" class="btn btn-sm {{ !$reasonFilter ? 'btn-secondary' : 'btn-outline-secondary' }}">All</a>
-        @foreach($availableReasons as $reason)
-            <a href="{{ route('admin.flagged-content.index', ['reason' => $reason]) }}" class="btn btn-sm {{ $reasonFilter === $reason ? 'btn-secondary' : 'btn-outline-secondary' }}">{{ $reason }}</a>
-        @endforeach
-    </div>
-
     <div class="card flagged-content-table-card mb-4">
         <div class="card-body flagged-content-table-card-body">
-            <h5 class="fw-bold mb-3 d-flex align-items-center gap-2"><i class="bi bi-chat-square-text"></i> Flagged Posts</h5>
+            <h5 class="fw-bold mb-3 d-flex align-items-center gap-2"><i class="bi bi-chat-square-text"></i> Flagged Posts and Replies</h5>
             <div class="table-responsive flagged-content-table-wrap">
                 <table class="table align-middle flagged-content-table mb-0">
                     <thead>
                         <tr class="text-uppercase small text-muted">
+                            <th>Type</th>
                             <th>Content</th>
                             <th>Author</th>
                             <th>Topic / Group</th>
@@ -42,32 +36,33 @@
                         </tr>
                     </thead>
                     <tbody>
-                        @forelse($flaggedPosts as $post)
+                        @forelse($flaggedItems as $item)
                             <tr>
-                                <td class="flagged-content-excerpt">{{ \Illuminate\Support\Str::limit($post->Content, 120) }}</td>
-                                <td>{{ $post->author?->UserName ?? 'Unknown User' }}</td>
+                                <td><span class="badge {{ $item['type'] === 'Post' ? 'bg-primary-subtle text-primary' : 'bg-info-subtle text-info' }}">{{ $item['type'] }}</span></td>
+                                <td class="flagged-content-excerpt">{{ \Illuminate\Support\Str::limit($item['content'], 120) }}</td>
+                                <td>{{ $item['author_name'] }}</td>
                                 <td>
-                                    {{ $post->topic?->Title ?? 'Deleted topic' }}
-                                    @if($post->topic?->group)
-                                        <div class="text-muted small">{{ $post->topic->group->GroupName }}</div>
+                                    {{ $item['context'] }}
+                                    @if($item['group_name'])
+                                        <div class="text-muted small">{{ $item['group_name'] }}</div>
                                     @endif
                                 </td>
-                                <td>{{ $post->flags->count() }} {{ Str::plural('member', $post->flags->count()) }}</td>
-                                <td>{{ $post->FlaggedReason ?: 'Not specified' }}</td>
-                                <td>{{ $post->CreatedAt->format('d M Y') }}</td>
+                                <td>{{ $item['flag_count'] }} {{ Str::plural('member', $item['flag_count']) }}</td>
+                                <td>{{ $item['reason'] ?: 'Not specified' }}</td>
+                                <td>{{ $item['date']->format('d M Y') }}</td>
                                 <td class="flagged-content-action-col">
                                     <div class="d-flex gap-2">
-                                        <form method="POST" action="{{ route('admin.flagged-content.dismiss', $post->PostID) }}">
+                                        <form method="POST" action="{{ $item['dismiss_route'] }}">
                                             @csrf
                                             <button type="submit" class="btn btn-outline-secondary btn-sm">Dismiss</button>
                                         </form>
                                         <form method="POST" action="{{ route('admin.warning.store') }}">
                                             @csrf
-                                            <input type="hidden" name="UserID" value="{{ $post->author?->UserID }}">
-                                            <input type="hidden" name="Reason" value="Flagged post: {{ \Illuminate\Support\Str::limit($post->Content, 80) }}">
-                                            <button type="submit" class="btn btn-outline-warning btn-sm">Warn ({{ $warningCounts[$post->author?->UserID] ?? 0 }}/{{ config('moderation.warning_threshold', 2) }})</button>
+                                            <input type="hidden" name="UserID" value="{{ $item['author_id'] }}">
+                                            <input type="hidden" name="Reason" value="Flagged {{ strtolower($item['type']) }}: {{ \Illuminate\Support\Str::limit($item['content'], 80) }}">
+                                            <button type="submit" class="btn btn-outline-warning btn-sm">Warn ({{ $warningCounts[$item['author_id']] ?? 0 }}/{{ config('moderation.warning_threshold', 2) }})</button>
                                         </form>
-                                        <form method="POST" action="{{ route('admin.flagged-content.destroy', $post->PostID) }}" onsubmit="return confirm('Delete this post permanently?');">
+                                        <form method="POST" action="{{ $item['destroy_route'] }}" onsubmit="return confirm('Delete this {{ strtolower($item['type']) }} permanently?');">
                                             @csrf
                                             @method('DELETE')
                                             <button type="submit" class="btn btn-outline-danger btn-sm">Delete</button>
@@ -77,85 +72,12 @@
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="7" class="text-center py-5">
+                                <td colspan="8" class="text-center py-5">
                                     <div class="flagged-content-empty-state">
                                         <div class="flagged-content-empty-icon">
                                             <i class="fa-solid fa-shield-check"></i>
                                         </div>
-                                        <div class="fw-semibold mb-1">No flagged posts.</div>
-                                        <div class="text-muted small">Nothing has tripped spam detection recently.</div>
-                                    </div>
-                                </td>
-                            </tr>
-                        @endforelse
-                    </tbody>
-                </table>
-            </div>
-
-            <div class="flagged-content-pagination-wrap mt-4 pt-3">
-                {{ $flaggedPosts->links() }}
-            </div>
-        </div>
-    </div>
-
-    <div class="card flagged-content-table-card mb-4">
-        <div class="card-body flagged-content-table-card-body">
-            <h5 class="fw-bold mb-3 d-flex align-items-center gap-2"><i class="bi bi-reply-fill"></i> Flagged Replies</h5>
-            <div class="table-responsive flagged-content-table-wrap">
-                <table class="table align-middle flagged-content-table mb-0">
-                    <thead>
-                        <tr class="text-uppercase small text-muted">
-                            <th>Content</th>
-                            <th>Author</th>
-                            <th>Topic / Group</th>
-                            <th>Flagged by</th>
-                            <th>Reason</th>
-                            <th>Date</th>
-                            <th class="flagged-content-action-col">Action</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @forelse($flaggedReplies as $reply)
-                            <tr>
-                                <td class="flagged-content-excerpt">{{ \Illuminate\Support\Str::limit($reply->ReplyContent, 120) }}</td>
-                                <td>{{ $reply->author?->UserName ?? 'Unknown User' }}</td>
-                                <td>
-                                    {{ $reply->post?->topic?->Title ?? 'Deleted topic' }}
-                                    @if($reply->post?->topic?->group)
-                                        <div class="text-muted small">{{ $reply->post->topic->group->GroupName }}</div>
-                                    @endif
-                                </td>
-                                <td>{{ $reply->flags->count() }} {{ Str::plural('member', $reply->flags->count()) }}</td>
-                                <td>{{ $reply->flags->pluck('Reason')->filter()->first() ?: 'Not specified' }}</td>
-                                <td>{{ $reply->CreatedAt->format('d M Y') }}</td>
-                                <td class="flagged-content-action-col">
-                                    <div class="d-flex gap-2">
-                                        <form method="POST" action="{{ route('admin.flagged-content.replies.dismiss', $reply->ReplyID) }}">
-                                            @csrf
-                                            <button type="submit" class="btn btn-outline-secondary btn-sm">Dismiss</button>
-                                        </form>
-                                        <form method="POST" action="{{ route('admin.warning.store') }}">
-                                            @csrf
-                                            <input type="hidden" name="UserID" value="{{ $reply->author?->UserID }}">
-                                            <input type="hidden" name="Reason" value="Flagged reply: {{ \Illuminate\Support\Str::limit($reply->ReplyContent, 80) }}">
-                                            <button type="submit" class="btn btn-outline-warning btn-sm">Warn ({{ $warningCounts[$reply->author?->UserID] ?? 0 }}/{{ config('moderation.warning_threshold', 2) }})</button>
-                                        </form>
-                                        <form method="POST" action="{{ route('admin.flagged-content.replies.destroy', $reply->ReplyID) }}" onsubmit="return confirm('Delete this reply permanently?');">
-                                            @csrf
-                                            @method('DELETE')
-                                            <button type="submit" class="btn btn-outline-danger btn-sm">Delete</button>
-                                        </form>
-                                    </div>
-                                </td>
-                            </tr>
-                        @empty
-                            <tr>
-                                <td colspan="7" class="text-center py-5">
-                                    <div class="flagged-content-empty-state">
-                                        <div class="flagged-content-empty-icon">
-                                            <i class="fa-solid fa-shield-check"></i>
-                                        </div>
-                                        <div class="fw-semibold mb-1">No flagged replies.</div>
+                                        <div class="fw-semibold mb-1">No flagged posts or replies.</div>
                                         <div class="text-muted small">Nothing has been reported recently.</div>
                                     </div>
                                 </td>
@@ -166,7 +88,7 @@
             </div>
 
             <div class="flagged-content-pagination-wrap mt-4 pt-3">
-                {{ $flaggedReplies->links() }}
+                {{ $flaggedItems->links() }}
             </div>
         </div>
     </div>
@@ -180,6 +102,7 @@
                         <tr class="text-uppercase small text-muted">
                             <th>Message</th>
                             <th>Author</th>
+                            <th>Reason</th>
                             <th>Date</th>
                             <th class="flagged-content-action-col">Action</th>
                         </tr>
@@ -189,6 +112,7 @@
                             <tr>
                                 <td class="flagged-content-excerpt">{{ \Illuminate\Support\Str::limit($message->body, 120) }}</td>
                                 <td>{{ $message->user?->UserName ?? 'Unknown User' }}</td>
+                                <td>{{ $message->FlaggedReason ?: ($message->is_spam ? 'Automatic spam detection' : 'Not specified') }}</td>
                                 <td>{{ $message->CreatedAt->format('d M Y') }}</td>
                                 <td class="flagged-content-action-col">
                                     <div class="d-flex gap-2">
@@ -206,13 +130,13 @@
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="4" class="text-center py-5">
+                                <td colspan="5" class="text-center py-5">
                                     <div class="flagged-content-empty-state">
                                         <div class="flagged-content-empty-icon">
                                             <i class="fa-solid fa-shield-check"></i>
                                         </div>
                                         <div class="fw-semibold mb-1">No flagged messages.</div>
-                                        <div class="text-muted small">Nothing has tripped spam detection recently.</div>
+                                        <div class="text-muted small">Nothing has been reported or tripped spam detection recently.</div>
                                     </div>
                                 </td>
                             </tr>

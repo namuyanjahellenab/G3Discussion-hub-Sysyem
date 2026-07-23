@@ -2,7 +2,7 @@
 
 @section('content')
 <style>
-    .content { padding: 28px; max-width: 960px; }
+    .content { padding: 28px; }
 
     .review-card {
         background: var(--surface-card);

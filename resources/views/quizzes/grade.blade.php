@@ -1,7 +1,7 @@
 @extends('layouts.app')
 
 @section('content')
-<div class="chat-page" style="max-width: 800px;">
+<div class="chat-page">
     <div class="chat-header">
         <h2><i class="fa-solid fa-clipboard-check"></i> {{ $result->quiz->Title }} — Grading</h2>
         <p class="text-muted">

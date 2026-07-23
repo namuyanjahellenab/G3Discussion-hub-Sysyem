@@ -283,4 +283,5 @@ Route::patch('/notifications/read-all', [DiscussionHubPageController::class, 'ma
     Route::get('/group-messages/{message}/attachment', [AttachmentController::class, 'downloadMessage'])->name('student.messages.attachment');
     Route::patch('/group-messages/{message}', [GroupChatController::class, 'update'])->middleware('blacklist')->name('student.messages.update');
     Route::delete('/group-messages/{message}', [GroupChatController::class, 'destroy'])->name('student.messages.destroy');
+    Route::post('/group-messages/{message}/flag', [GroupChatController::class, 'flag'])->name('student.messages.flag');
 });

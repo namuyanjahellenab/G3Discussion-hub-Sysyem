@@ -312,6 +312,10 @@ document.getElementById('chat-window').addEventListener('click', (event) => {
             deleteBubble(bubble);
         }
 
+        if (action === 'flag') {
+            flagBubble(bubble);
+        }
+
         bubble.querySelector('.chat-bubble__actions')?.classList.remove('open');
     }
 });
@@ -410,6 +414,35 @@ async function deleteBubble(bubble) {
     } catch (err) {
         console.error('Delete error', err);
         showChatError('Something went wrong deleting your message.');
+    }
+}
+
+// Reason is optional server-side (Message::flagBy accepts null), same as
+// ajaxReplyAction's flag path in topics/show.blade.php - still worth asking
+// so the admin moderation queue has some context beyond "someone reported
+// this".
+async function flagBubble(bubble) {
+    const reason = prompt('Why are you reporting this message? (optional)') || null;
+
+    try {
+        const res = await fetch(`/group-messages/${bubble.dataset.messageId}/flag`, {
+            method: 'POST',
+            headers: {
+                'X-CSRF-TOKEN': csrfToken,
+                'Accept': 'application/json',
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ Reason: reason }),
+        });
+        const data = await res.json().catch(() => null);
+        if (!res.ok || !data?.success) {
+            showChatError(data?.message || 'Could not report this message.');
+            return;
+        }
+        alert('Message reported. A moderator will review it.');
+    } catch (err) {
+        console.error('Flag error', err);
+        showChatError('Something went wrong reporting this message.');
     }
 }
 

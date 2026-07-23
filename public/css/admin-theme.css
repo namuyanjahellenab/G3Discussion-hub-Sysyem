@@ -559,7 +559,7 @@ button:focus-visible,
 .skeleton-line + .skeleton-line { margin-top: 0.4rem; }
 .skeleton-line--short { width: 45%; }
 
-.chat-layout { display: grid; grid-template-columns: 260px 1fr; gap: 1.25rem; max-width: 1100px; margin: 0 auto; padding: 1.5rem; }
+.chat-layout { display: grid; grid-template-columns: 260px 1fr; gap: 1.25rem; padding: 1.5rem; }
 
 .thread-list { padding: 0.75rem; height: fit-content; }
 .thread-list__header {

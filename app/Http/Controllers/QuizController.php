@@ -49,7 +49,7 @@ public function create(Request $request)
     'Title'          => 'required|string|max:255',
     'StartTime'      => 'required|date',
     'Duration'       => 'required|integer|min:1',
-    'TargetCategory' => 'required|string|max:100',
+    'TargetCategory' => 'nullable|string|max:100',
     'GroupID'        => 'required|integer|exists:Group,GroupID',
     'Questions'      => 'required|array|min:1',
             'Questions.*.QuestionText'  => 'required|string',
@@ -99,9 +99,16 @@ public function create(Request $request)
         }
 
         // Step 4 — Notify all active students in the target group
+        // GroupStudent.Status is stored lowercase ('active') everywhere else
+        // in the app (GroupChatService, DashboardController, Group::
+        // activeMembers()) - this only matched real rows before because
+        // MySQL/MariaDB's default collation happens to compare case-
+        // insensitively, which made the actual audience size for a published
+        // quiz depend on a DB collation quirk instead of an explicit, correct
+        // comparison.
 $students = User::whereHas('groupMemberships', function ($q) use ($request) {
                     $q->where('GroupID', $request->GroupID)
-                      ->where('Status', 'Active');
+                      ->where('Status', 'active');
                 })
                 ->where('Role', 'Student')
                 ->get();
@@ -150,6 +157,14 @@ $students = User::whereHas('groupMemberships', function ($q) use ($request) {
                 ->first();
         }
 
+        // Quiz has $timestamps = false, so CreatedAt/UpdatedAt are otherwise
+        // left entirely to the DB's own useCurrent()/useCurrentOnUpdate()
+        // defaults - which stamp the DB server's local system clock (MariaDB
+        // time_zone=SYSTEM here), not the app's actual UTC time. That mismatch
+        // is what made "Last saved {{ $draft->UpdatedAt->diffForHumans() }}"
+        // on the drafts screen show a nonsensical time. Setting it explicitly
+        // with the app's own now() keeps it consistent with whatever
+        // diffForHumans() compares it against later.
         $attributes = [
             'LecturerID'     => auth()->id(),
             'GroupID'        => $request->input('GroupID'),
@@ -160,13 +175,14 @@ $students = User::whereHas('groupMemberships', function ($q) use ($request) {
             'Duration'       => $request->input('Duration'),
             'TargetCategory' => $request->input('TargetCategory'),
             'Status'         => 'draft',
+            'UpdatedAt'      => now(),
         ];
 
         if ($quiz) {
             $quiz->update($attributes);
             $quiz->questions()->delete();
         } else {
-            $quiz = Quiz::create($attributes);
+            $quiz = Quiz::create($attributes + ['CreatedAt' => now()]);
         }
 
         foreach ($request->input('Questions', []) as $q) {

@@ -227,4 +227,24 @@ class GroupChatController extends Controller
 
         return back();
     }
+
+    /**
+     * Report a group chat message for moderator review - the manual
+     * counterpart to is_spam (the ML gateway's automatic detection). Mirrors
+     * DiscussionHubPageController::flagPost()/flagReply().
+     */
+    public function flag(Request $request, Message $message)
+    {
+        abort_unless($message->user_id !== auth()->id(), 403, 'You cannot report your own message.');
+
+        $request->validate(['Reason' => 'nullable|string|max:250']);
+
+        $message->flagBy(auth()->id(), $request->input('Reason'));
+
+        if ($request->wantsJson() || $request->header('Accept') === 'application/json') {
+            return response()->json(['success' => true]);
+        }
+
+        return back()->with('status', 'Message reported. A moderator will review it.');
+    }
 }

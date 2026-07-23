@@ -2,7 +2,7 @@
 
 @section('content')
 <style>
-    .content { padding: 28px; max-width: 1280px; padding-bottom: 110px; }
+    .content { padding: 28px; padding-bottom: 110px; }
 
     .breadcrumb {
         font-size: 12px;
@@ -115,13 +115,6 @@
     .form-control:focus, .form-select:focus {
         border-color: var(--luna-light);
         box-shadow: 0 0 0 0.2rem rgba(84, 172, 191, 0.2);
-    }
-
-    .field-row {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 14px;
-        margin-bottom: 14px;
     }
 
     .field-row-3 {
@@ -422,7 +415,7 @@
 
     @media (max-width: 768px) {
         .content { padding: 20px 16px 24px; }
-        .field-row, .field-row-3, .options-grid, .q-row, .q-row-type { grid-template-columns: 1fr; }
+        .field-row-3, .options-grid, .q-row, .q-row-type { grid-template-columns: 1fr; }
         .header-actions { width: 100%; }
         .header-actions .btn { flex: 1 1 0; }
     }
@@ -468,27 +461,14 @@
                 <input type="text" id="Title" class="form-control" placeholder="e.g. Week 5 - Python Basics">
             </div>
 
-            <div class="field-row">
-                <div>
-                    <label class="field-label" for="GroupSelector">Group Selector</label>
-                    <select id="GroupSelector" class="form-select">
-                        <option value="">-- Select Group --</option>
-                        @foreach($groups as $group)
-                            <option value="{{ $group->GroupID }}">{{ $group->GroupName }}</option>
-                        @endforeach
-                    </select>
-                </div>
-                <div>
-                    <label class="field-label" for="TargetCategory">Subject Category Selector</label>
-                    <select id="TargetCategory" class="form-select">
-                        <option value="">-- Select Category --</option>
-                        <option value="Science">Science</option>
-                        <option value="Math">Math</option>
-                        <option value="English">English</option>
-                        <option value="History">History</option>
-                        <option value="All Students">All Students</option>
-                    </select>
-                </div>
+            <div class="field-group">
+                <label class="field-label" for="GroupSelector">Group Selector</label>
+                <select id="GroupSelector" class="form-select">
+                    <option value="">-- Select Group --</option>
+                    @foreach($groups as $group)
+                        <option value="{{ $group->GroupID }}">{{ $group->GroupName }}</option>
+                    @endforeach
+                </select>
             </div>
 
             <div class="field-row-3">
@@ -693,7 +673,6 @@
     function populateDraft(draft) {
         document.getElementById('Title').value = draft.Title === 'Untitled draft' ? '' : (draft.Title || '');
         if (draft.GroupID) document.getElementById('GroupSelector').value = draft.GroupID;
-        if (draft.TargetCategory) document.getElementById('TargetCategory').value = draft.TargetCategory;
         if (draft.StartTime) {
             const dt = draft.StartTime.replace(' ', 'T');
             const [datePart, timePart] = dt.split('T');
@@ -775,14 +754,12 @@
         const title     = document.getElementById('Title').value.trim();
         const startTime = getStartTime();
         const duration  = parseInt(document.getElementById('Duration').value);
-        const category  = document.getElementById('TargetCategory').value;
 const groupId    = document.getElementById('GroupSelector').value;
 const questions = collectQuestions();
 
 if (!title)     return showError('Please enter a quiz title.');
 if (!startTime) return showError('Please select a date and start time.');
 if (!duration)  return showError('Please enter a duration in minutes.');
-if (!category)  return showError('Please select a target category.');
 if (!groupId)   return showError('Please select a group.');
         if (questions.length === 0) return showError('Please add at least one question.');
 
@@ -799,7 +776,6 @@ if (!groupId)   return showError('Please select a group.');
     Title: title,
     StartTime: startTime,
     Duration: duration,
-    TargetCategory: category,
     GroupID: groupId,
     Questions: questions,
 }),
@@ -808,7 +784,11 @@ if (!groupId)   return showError('Please select a group.');
             const data = await response.json();
 
             if (response.ok) {
-                showSuccess('Quiz published! ' + (data.students_notified ?? 0) + ' students notified. Quiz ID: ' + (data.QuizID ?? '—'));
+                const notified = data.students_notified ?? 0;
+                const notifiedText = notified === 0
+                    ? 'This group has no students yet, so no one was notified.'
+                    : notified + ' students notified.';
+                showSuccess('Quiz published! ' + notifiedText + ' Quiz ID: ' + (data.QuizID ?? '—'));
                 currentDraftId = null;
                 resetForm();
             } else {
@@ -835,7 +815,6 @@ if (!groupId)   return showError('Please select a group.');
                     Title: document.getElementById('Title').value.trim(),
                     StartTime: getStartTime(),
                     Duration: parseInt(document.getElementById('Duration').value) || null,
-                    TargetCategory: document.getElementById('TargetCategory').value || null,
                     GroupID: document.getElementById('GroupSelector').value || null,
                     Questions: collectQuestions(),
                 }),
@@ -859,7 +838,6 @@ if (!groupId)   return showError('Please select a group.');
         document.getElementById('DateInput').value = '';
         document.getElementById('TimeInput').value = '';
         document.getElementById('Duration').value = '';
-        document.getElementById('TargetCategory').value = '';
         document.getElementById('GroupSelector').value = '';
         document.getElementById('questionsList').innerHTML = '';
         questionCount = 0;

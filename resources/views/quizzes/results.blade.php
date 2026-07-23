@@ -2,7 +2,7 @@
 
 @section('content')
 <style>
-    .content { padding: 28px; max-width: 1200px; }
+    .content { padding: 28px; }
 
     .results-card {
         background: var(--surface-card);

@@ -2,7 +2,7 @@
 
 @section('content')
 <style>
-    .content { padding: 28px; max-width: 1280px; }
+    .content { padding: 28px; }
 
     .page-header {
         display: flex;
@@ -80,6 +80,12 @@
         display: grid;
         grid-template-columns: 1.4fr 1fr;
         gap: 20px;
+        /* Grid items stretch to match the tallest sibling by default - "Your
+           Quizzes" was always as tall as "Recent Submissions" regardless of
+           its own quiz count, leaving dead space below a short quiz list.
+           align-items: start lets each panel size to its own content instead,
+           so it shrinks with few quizzes and grows as more are scheduled. */
+        align-items: start;
     }
 
     .panel {
@@ -261,7 +267,6 @@
                             <div class="meta">
                                 {{ $quiz->StartTime->format('d M Y, h:i A') }}
                                 &middot; {{ $quiz->Duration }} min
-                                &middot; {{ $quiz->TargetCategory }}
                             </div>
                         </div>
                         <div style="display:flex; align-items:center; gap:14px;">

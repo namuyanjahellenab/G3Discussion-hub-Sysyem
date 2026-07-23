@@ -13,7 +13,7 @@
 @endphp
 
 <style>
-    .content-workspace { padding: 28px; max-width: 1200px; }
+    .content-workspace { padding: 28px; }
     .breadcrumb-row { color: var(--text-muted); font-size: 0.8rem; margin-bottom: 8px; }
     .breadcrumb-row a { color: var(--text-muted); text-decoration: none; }
     .breadcrumb-row a:hover { color: var(--luna-mid); }

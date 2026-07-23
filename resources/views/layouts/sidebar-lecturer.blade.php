@@ -65,10 +65,10 @@
         <li class="{{ request()->routeIs('marks.index') ? 'active' : '' }}">
             <a href="{{ route('marks.index') }}"><i class="fa-regular fa-star"></i> Marks</a>
         </li>
-       <li class="{{ request()->routeIs('quiz.schedule') ? 'active' : '' }}">
+       <li class="{{ request()->routeIs('quiz.schedule') || request()->routeIs('quiz.drafts') || request()->routeIs('quiz.edit') || request()->routeIs('quiz.draft.save') || request()->routeIs('quiz.draft.delete') ? 'active' : '' }}">
     <a href="{{ route('quiz.schedule') }}"><i class="fa-solid fa-plus"></i> Schedule Quiz</a>
 </li>
-<li class="{{ request()->routeIs('quiz.results') || request()->routeIs('quiz.latest-results') || request()->routeIs('quiz.grade') || request()->routeIs('quiz.grade.save') ? 'active' : '' }}">
+<li class="{{ request()->routeIs('quiz.results') || request()->routeIs('quiz.latest-results') || request()->routeIs('quiz.grade') || request()->routeIs('quiz.grade.save') || request()->routeIs('quiz.results.review') || request()->routeIs('quiz.results.review.*') ? 'active' : '' }}">
     <a href="{{ route('quiz.latest-results') }}"><i class="fa-solid fa-chart-simple"></i> Quiz Results</a>
 </li>
 <li class="{{ request()->routeIs('groups.index') ? 'active' : '' }}">

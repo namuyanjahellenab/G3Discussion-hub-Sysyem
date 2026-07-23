@@ -7,7 +7,7 @@
 @endphp
 
 <style>
-    .content-workspace { padding: 28px; max-width: 1200px; }
+    .content-workspace { padding: 28px; }
     .page-header { margin-bottom: 24px; }
     .page-header p.eyebrow { text-transform: uppercase; color: var(--text-muted); font-size: 0.75rem; font-weight: 600; letter-spacing: 0.5px; margin: 0 0 4px 0; }
     .page-header h1 { font-size: 24px; font-weight: 800; margin: 0; }

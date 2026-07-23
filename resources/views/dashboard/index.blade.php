@@ -7,10 +7,15 @@
 @endphp
 
 <style>
-    .content-workspace { padding: 28px; max-width: 1200px; }
+    .content-workspace { padding: 28px; }
     .page-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 24px; flex-wrap: wrap; gap: 12px; }
     .page-header p.eyebrow { text-transform: uppercase; color: var(--text-muted); font-size: 0.75rem; font-weight: 600; letter-spacing: 0.5px; margin: 0 0 4px 0; }
     .page-header h1 { font-size: 24px; font-weight: 800; margin: 0; }
+
+    /* Same date-badge treatment as the lecturer dashboard - shows today's
+       date, refreshed on every page load since it's rendered server-side. */
+    .date-badge { display: flex; align-items: center; gap: 8px; background: var(--surface-card); border: 1px solid var(--surface-border); border-radius: var(--radius-md); padding: 10px 16px; font-size: 13px; font-weight: 600; color: var(--text-heading); box-shadow: var(--shadow-soft); }
+    .date-badge i { color: var(--luna-mid); }
 
     .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 28px; }
     .stat-card { background: var(--surface-card); border: 1px solid var(--surface-border); border-top: 3px solid var(--luna-mid); border-radius: var(--radius-lg); padding: 18px 20px; box-shadow: var(--shadow-soft); }
@@ -96,6 +101,9 @@
         <div>
             <p class="eyebrow">Overview</p>
             <h1>My Dashboard</h1>
+        </div>
+        <div class="date-badge">
+            <i class="fa-regular fa-calendar"></i> {{ now()->format('l, M j, Y') }}
         </div>
     </div>
 

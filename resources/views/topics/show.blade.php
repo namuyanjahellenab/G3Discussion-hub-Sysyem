@@ -25,7 +25,7 @@
        overflow is hidden, so this page never grows a second/outer
        scrollbar - all scrolling happens only inside .chat-panel and
        .right-info-panel, which are already sized to fit inside it. */
-    .content-workspace { padding: 14px 28px 28px; max-width: 1600px; overflow: hidden; box-sizing: border-box; }
+    .content-workspace { padding: 14px 28px 28px; overflow: hidden; box-sizing: border-box; }
     .breadcrumb-row { margin-bottom: 10px; }
     .back-link { display: inline-flex; align-items: center; gap: 7px; color: var(--text-muted); text-decoration: none; font-size: 0.82rem; font-weight: 600; padding: 7px 14px; border-radius: 999px; border: 1px solid var(--surface-border); background: var(--surface-card); box-shadow: var(--shadow-soft); transition: color 0.15s ease, border-color 0.15s ease, background-color 0.15s ease; }
     .back-link i { font-size: 0.72rem; transition: transform 0.15s ease; }

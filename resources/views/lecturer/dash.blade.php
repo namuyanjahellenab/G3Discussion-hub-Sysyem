@@ -13,7 +13,7 @@
 @endphp
 
 <style>
-    .content-workspace { padding: 28px; max-width: 1200px; }
+    .content-workspace { padding: 28px; }
     .page-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 24px; flex-wrap: wrap; gap: 12px; }
     .page-header p.eyebrow { text-transform: uppercase; color: var(--text-muted); font-size: 0.75rem; font-weight: 600; letter-spacing: 0.5px; margin: 0 0 4px 0; }
     .page-header h1 { font-size: 24px; font-weight: 800; margin: 0; }
@@ -22,7 +22,7 @@
     .date-badge { display: flex; align-items: center; gap: 8px; background: var(--surface-card); border: 1px solid var(--surface-border); border-radius: var(--radius-md); padding: 10px 16px; font-size: 13px; font-weight: 600; color: var(--text-heading); box-shadow: var(--shadow-soft); }
     .date-badge i { color: var(--luna-mid); }
 
-    .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 20px; }
+    .stats-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 20px; }
     .stat-card { background: var(--surface-card); border: 1px solid var(--surface-border); border-top: 3px solid var(--luna-mid); border-radius: var(--radius-lg); padding: 18px 20px; box-shadow: var(--shadow-soft); }
     .stat-card-top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px; }
     .stat-card .label { font-size: 12.5px; color: var(--text-muted); font-weight: 600; }
@@ -124,14 +124,6 @@
                 <div class="stat-icon amber"><i class="fa-solid fa-circle-question"></i></div>
             </div>
             <div class="value">{{ number_format($unansweredQuestions) }}</div>
-        </div>
-
-        <div class="stat-card">
-            <div class="stat-card-top">
-                <div class="label">Reported Posts</div>
-                <div class="stat-icon red"><i class="fa-solid fa-flag"></i></div>
-            </div>
-            <div class="value">{{ number_format($reportedPosts) }}</div>
         </div>
     </div>
 

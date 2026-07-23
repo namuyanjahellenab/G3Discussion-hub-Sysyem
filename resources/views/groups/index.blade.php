@@ -15,7 +15,7 @@
     .group-card .code-badge-right { position: absolute; top: 14px; right: 14px; font-size: 0.68rem; font-weight: 700; text-transform: uppercase; padding: 3px 8px; border-radius: 999px; }
 </style>
 
-<div class="container py-5" style="max-width: 1100px;">
+<div class="container-fluid py-5">
     <div class="mb-4">
         <h1 class="fw-bold mb-1" style="font-size: 1.75rem; color: var(--text-heading);">View Discussion Groups</h1>
     </div>

@@ -227,18 +227,12 @@ protected function participationSnapshot($userId)
             ->distinct('UserID')
             ->count('UserID');
 
-        $topicIds = Topic::whereIn('GroupID', $groupIds)->pluck('TopicID');
-
         $activeDiscussions = Topic::whereIn('GroupID', $groupIds)
             ->whereIn('Status', ['open', 'discussion'])
             ->count();
 
         $unansweredQuestions = Topic::whereIn('GroupID', $groupIds)
             ->where('Status', 'open')
-            ->count();
-
-        $reportedPosts = Post::whereIn('TopicID', $topicIds)
-            ->where('IsFlagged', true)
             ->count();
 
         $recentDiscussions = Topic::whereIn('GroupID', $groupIds)
@@ -254,7 +248,7 @@ protected function participationSnapshot($userId)
 
         return view('lecturer.dash', compact(
             'activeCoursesCount', 'totalStudents', 'activeDiscussions',
-            'unansweredQuestions', 'reportedPosts', 'recentDiscussions', 'courses'
+            'unansweredQuestions', 'recentDiscussions', 'courses'
         ));
     }
 
