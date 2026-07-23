@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Announcement;
 use App\Models\Group;
 use App\Models\User;
 use App\Models\Topic;
@@ -19,8 +20,7 @@ class AdminDashboardController extends Controller
         // TODO: replace once the Blacklist feature (UserBlacklist table) is built
         $blacklistedCount = 0;
 
-        // TODO: replace once Announcements has its own model/table
-        $announcementsCount = 0;
+        $announcementsCount = Announcement::count();
 
         // Recent topic activity across all groups, used to seed the live activity log
         $recentTopics = Topic::with('creator', 'group')

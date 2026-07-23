@@ -106,9 +106,32 @@ class GroupChatController extends Controller
             ReadState::markRead($userId, 'Conversation', $activeConversation->ConversationID, $maxMessageId);
         }
 
+        // Mirrors forum/group.blade.php's per-topic unread badges, but for
+        // the "Your Groups" switcher above - otherwise switching groups from
+        // inside the chat page gives no clue which other group has new
+        // messages waiting, only threads within the group already open.
+        $otherGroupIds = $userGroups->pluck('GroupID')->reject(fn ($id) => (string) $id === (string) $groupId);
+        $otherMainConversations = Conversation::whereIn('group_id', $otherGroupIds)
+            ->where('Type', 'group')
+            ->pluck('ConversationID', 'group_id');
+
+        $otherLastRead = ReadState::where('UserID', $userId)
+            ->where('EntityType', 'Conversation')
+            ->whereIn('EntityID', $otherMainConversations->values())
+            ->pluck('LastReadItemId', 'EntityID');
+
+        $groupUnreadCounts = [];
+        foreach ($otherMainConversations as $gid => $convId) {
+            $lastRead = $otherLastRead[$convId] ?? 0;
+            $groupUnreadCounts[$gid] = Message::where('ConversationID', $convId)
+                ->where('is_spam', false)
+                ->where('MessageID', '>', $lastRead)
+                ->count();
+        }
+
         return view('student.messages', compact(
             'groupId', 'mainConversation', 'restrictedThreads',
-            'activeConversation', 'messages', 'groupMembers', 'userGroups',
+            'activeConversation', 'messages', 'groupMembers', 'userGroups', 'groupUnreadCounts',
             'threadUnreadCounts', 'lastReadMessageId'
         ));
     }

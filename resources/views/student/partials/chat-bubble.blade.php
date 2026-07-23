@@ -26,9 +26,27 @@
             <p data-message-body>{{ $msg->body }}</p>
         @endif
         @if($msg->Attachment)
-            <a href="{{ route('student.messages.attachment', $msg->MessageID) }}" class="chat-bubble__attachment" target="_blank">
-                <i class="fa-solid fa-paperclip"></i> {{ \App\Services\AttachmentUploader::displayName($msg->Attachment) }}
-            </a>
+            @php($msgAttachmentName = \App\Services\AttachmentUploader::displayName($msg->Attachment))
+            @if($msg->AttachmentType === 'image')
+                <div class="attach-img">
+                    <a href="{{ \Illuminate\Support\Facades\Storage::url($msg->Attachment) }}" target="_blank" rel="noopener" title="View full size">
+                        <img src="{{ \Illuminate\Support\Facades\Storage::url($msg->Attachment) }}" alt="Attachment">
+                    </a>
+                    <a class="attach-img__download" href="{{ route('student.messages.attachment', $msg->MessageID) }}" title="Download">
+                        <i class="fa-solid fa-download"></i>
+                    </a>
+                </div>
+            @else
+                <div class="attach-file">
+                    <a class="attach-file__open" href="{{ \Illuminate\Support\Facades\Storage::url($msg->Attachment) }}" target="_blank" rel="noopener" title="Open {{ $msgAttachmentName }}">
+                        <div class="icon"><i class="fa-solid fa-file"></i></div>
+                        <div class="fname">{{ $msgAttachmentName }}</div>
+                    </a>
+                    <a class="attach-download-icon" href="{{ route('student.messages.attachment', $msg->MessageID) }}" title="Download">
+                        <i class="fa-solid fa-download"></i>
+                    </a>
+                </div>
+            @endif
         @endif
     </div>
     <div class="chat-bubble__actions">

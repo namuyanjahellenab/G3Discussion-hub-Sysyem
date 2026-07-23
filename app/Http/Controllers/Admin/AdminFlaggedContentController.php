@@ -20,7 +20,12 @@ class AdminFlaggedContentController extends Controller
         // each was flagged - normalize both into a common shape, merge, sort,
         // then paginate the merged collection by hand (a plain Eloquent
         // paginate() can only ever page a single query).
+        // IsFlagged only flips true once the escalation threshold (2+ distinct
+        // flaggers, or ML spam detection) is met - orWhereHas('flags') also
+        // surfaces a single student's report immediately instead of making
+        // the admin wait for a second person to flag the same thing.
         $posts = Post::where('IsFlagged', true)
+            ->orWhereHas('flags')
             ->with(['author', 'topic.group', 'flags'])
             ->get()
             ->map(fn (Post $post) => [
@@ -39,6 +44,7 @@ class AdminFlaggedContentController extends Controller
             ]);
 
         $replies = Reply::where('IsFlagged', true)
+            ->orWhereHas('flags')
             ->with(['author', 'post.topic.group', 'flags'])
             ->get()
             ->map(fn (Reply $reply) => [

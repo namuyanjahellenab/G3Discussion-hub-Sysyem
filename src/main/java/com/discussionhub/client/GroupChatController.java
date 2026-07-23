@@ -100,6 +100,10 @@ public class GroupChatController {
     private int mainConversationId;
     private int activeConversationId;
     private boolean isRestricted;
+    // Set by post()/postMultipart() when the server actively rejects a send
+    // (e.g. blacklisted) so onSend() can show the real reason instead of a
+    // silent failure - null means either success or a plain connection error.
+    private String lastSendError;
     private final List<CheckBox> excludeCheckboxes = new ArrayList<>();
     private File selectedAttachment;
     // WhatsApp-style tagging: which message (if any) is being replied to -
@@ -214,7 +218,9 @@ public class GroupChatController {
             JSONObject group = myGroups.getJSONObject(i);
             int id = group.getInt("id");
             String name = group.getString("name");
-            Button item = threadItem("📚  " + name, "Tap to switch groups", id == groupId);
+            boolean active = id == groupId;
+            int unreadCount = group.optInt("unread_count", 0);
+            Button item = threadItemWithUnreadCount("📚  " + name, "Tap to switch groups", active, unreadCount);
             item.setOnAction(e -> switchGroup(id, name));
             groupSwitcherBox.getChildren().add(item);
         }
@@ -463,6 +469,12 @@ public class GroupChatController {
                 System.err.println("[GroupChat] Poll parse error: " + e.getMessage());
             }
         }).start();
+
+        // Same cadence as the message poll above - keeps other groups'
+        // unread badges in the switcher current too, not just this group's
+        // own threads, so a message landing in a group you're not currently
+        // viewing shows up within the same ~10s window.
+        loadMyGroups();
     }
 
     private void markOffline() {
@@ -562,11 +574,21 @@ public class GroupChatController {
         return threadItem(title, subtitle, active, 0);
     }
 
-    /** conversationId > 0 adds a small unread-count badge next to the title
-     *  (see DatabaseManager.countUnreadMessages()) - 0 for callers like the
-     *  group-switcher list where the id represents a GroupID, not a
-     *  conversation, and no badge applies. */
+    /** conversationId > 0 adds a small unread-count badge next to the title,
+     *  looked up from the local cache (see DatabaseManager.
+     *  countUnreadMessages()) - 0 for callers like the group-switcher list
+     *  where the id represents a GroupID, not a conversation. */
     private Button threadItem(String title, String subtitle, boolean active, int conversationId) {
+        int unread = (conversationId > 0 && !active) ? dbManager.countUnreadMessages(conversationId) : 0;
+        return threadItemWithUnreadCount(title, subtitle, active, unread);
+    }
+
+    /** Group-switcher variant: the unread count comes straight from the
+     *  server (StudentDataApiController::dashboard()'s per-group
+     *  unread_count), since the local cache has no data for a group the
+     *  desktop hasn't opened yet - mirrors student.messages.blade.php's
+     *  $groupUnreadCounts. */
+    private Button threadItemWithUnreadCount(String title, String subtitle, boolean active, int unreadCount) {
         VBox content = new VBox(1);
         Label titleLbl = new Label(title);
         titleLbl.setStyle("-fx-font-weight: bold; -fx-font-size: 12.5; -fx-text-fill: " + (active ? "white" : "#33455A") + ";");
@@ -583,16 +605,13 @@ public class GroupChatController {
 
         HBox titleRow = new HBox(6, titleLbl);
         titleRow.setAlignment(Pos.CENTER_LEFT);
-        if (conversationId > 0 && !active) {
+        if (!active && unreadCount > 0) {
             // Not shown on the currently-open thread - you're already
             // looking at it, so nothing there is "unread" from this view.
-            int unread = dbManager.countUnreadMessages(conversationId);
-            if (unread > 0) {
-                Label dot = new Label(unread > 99 ? "99+" : String.valueOf(unread));
-                dot.setStyle("-fx-background-color: #D9483D; -fx-text-fill: white; -fx-font-size: 10; -fx-font-weight: bold; " +
-                    "-fx-padding: 1 7; -fx-background-radius: 999;");
-                titleRow.getChildren().add(dot);
-            }
+            Label dot = new Label(unreadCount > 99 ? "99+" : String.valueOf(unreadCount));
+            dot.setStyle("-fx-background-color: #D9483D; -fx-text-fill: white; -fx-font-size: 10; -fx-font-weight: bold; " +
+                "-fx-padding: 1 7; -fx-background-radius: 999;");
+            titleRow.getChildren().add(dot);
         }
         content.getChildren().addAll(titleRow, subLbl);
 
@@ -1138,7 +1157,12 @@ public class GroupChatController {
                     // request actually landing - still don't lose the draft.
                     if (attachment == null) queueOfflineSend(text, excludeIds);
                 } else {
-                    System.err.println("[GroupChat] Failed to send message");
+                    messageField.setText(text);
+                    Alert alert = new Alert(Alert.AlertType.WARNING,
+                        lastSendError != null ? lastSendError : "Couldn't send that message.");
+                    alert.setHeaderText(null);
+                    alert.showAndWait();
+                    lastSendError = null;
                 }
             });
         }).start();
@@ -1208,7 +1232,10 @@ public class GroupChatController {
             }
 
             int code = conn.getResponseCode();
-            if (code != 200 && code != 201) return null;
+            if (code != 200 && code != 201) {
+                lastSendError = errorMessageFrom(conn);
+                return null;
+            }
             JSONObject response = new JSONObject(readBody(conn));
             return response.getInt("conversation_id");
         } catch (Exception e) {
@@ -1257,7 +1284,10 @@ public class GroupChatController {
             }
 
             int code = conn.getResponseCode();
-            if (code != 200 && code != 201) return null;
+            if (code != 200 && code != 201) {
+                lastSendError = errorMessageFrom(conn);
+                return null;
+            }
             JSONObject response = new JSONObject(readBody(conn));
             return response.getInt("conversation_id");
         } catch (Exception e) {

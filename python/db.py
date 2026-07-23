@@ -116,7 +116,7 @@ def _fetch_topic_export_data(topic_id: Any) -> dict[str, Any] | None:
 
     # %% is required here - pymysql treats a bare % in DATE_FORMAT as a param placeholder.
     posts = _run_query(
-        "SELECT p.PostID, p.Content, p.Attachment, u.UserName AS AuthorName, "
+        "SELECT p.PostID, p.Content, p.Attachment, p.AttachmentType, u.UserName AS AuthorName, "
         "DATE_FORMAT(p.CreatedAt, '%%Y-%%m-%%d %%H:%%i') AS PostedAt "
         "FROM `Post` p LEFT JOIN `User` u ON u.UserID = p.UserID "
         "WHERE p.TopicID = %s ORDER BY p.CreatedAt",
@@ -130,7 +130,7 @@ def _fetch_topic_export_data(topic_id: Any) -> dict[str, Any] | None:
     if post_ids:
         placeholders = ",".join(["%s"] * len(post_ids))
         replies = _run_query(
-            "SELECT r.PostID, r.ReplyContent, u.UserName AS AuthorName, "
+            "SELECT r.PostID, r.ReplyContent, r.Attachment, r.AttachmentType, u.UserName AS AuthorName, "
             "DATE_FORMAT(r.CreatedAt, '%%Y-%%m-%%d %%H:%%i') AS PostedAt "
             "FROM `Reply` r LEFT JOIN `User` u ON u.UserID = r.UserID "
             f"WHERE r.PostID IN ({placeholders}) ORDER BY r.CreatedAt",

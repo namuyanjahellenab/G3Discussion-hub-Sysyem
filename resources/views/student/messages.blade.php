@@ -24,6 +24,9 @@
                        class="thread-item {{ (string) $g->GroupID === (string) $groupId ? 'thread-item--active' : '' }}">
                         <i class="fa-solid fa-layer-group"></i>
                         <div><strong>{{ $g->GroupName }}</strong></div>
+                        @if(($groupUnreadCounts[$g->GroupID] ?? 0) > 0)
+                            <span class="unread-badge">{{ $groupUnreadCounts[$g->GroupID] > 99 ? '99+' : $groupUnreadCounts[$g->GroupID] }}</span>
+                        @endif
                     </a>
                 @endforeach
             @endif
@@ -348,7 +351,7 @@ function startEditingBubble(bubble) {
         // so insert the form instead, right before the attachment link (or
         // at the end of the bubble if there isn't one).
         const content = bubble.querySelector('.chat-bubble__content');
-        const attachment = content.querySelector('.chat-bubble__attachment');
+        const attachment = content.querySelector('.attach-img, .attach-file');
         if (attachment) {
             attachment.before(editForm);
         } else {
@@ -585,12 +588,22 @@ function buildRemoteBubble(e) {
     }
 
     if (e.attachment_url) {
-        const link = document.createElement('a');
-        link.href = e.attachment_url;
-        link.target = '_blank';
-        link.className = 'chat-bubble__attachment';
-        link.innerHTML = `<i class="fa-solid fa-paperclip"></i> ${e.attachment_name || 'Attachment'}`;
-        content.appendChild(link);
+        const downloadUrl = `/group-messages/${e.id}/attachment`;
+        const wrapper = document.createElement('div');
+        if (e.attachment_type === 'image') {
+            wrapper.className = 'attach-img';
+            wrapper.innerHTML = `
+                <a href="${e.attachment_url}" target="_blank" rel="noopener" title="View full size"><img src="${e.attachment_url}" alt="Attachment"></a>
+                <a class="attach-img__download" href="${downloadUrl}" title="Download"><i class="fa-solid fa-download"></i></a>
+            `;
+        } else {
+            wrapper.className = 'attach-file';
+            wrapper.innerHTML = `
+                <a class="attach-file__open" href="${e.attachment_url}" target="_blank" rel="noopener" title="Open ${e.attachment_name || 'Attachment'}"><div class="icon"><i class="fa-solid fa-file"></i></div><div class="fname">${e.attachment_name || 'Attachment'}</div></a>
+                <a class="attach-download-icon" href="${downloadUrl}" title="Download"><i class="fa-solid fa-download"></i></a>
+            `;
+        }
+        content.appendChild(wrapper);
     }
 
     return bubble;
