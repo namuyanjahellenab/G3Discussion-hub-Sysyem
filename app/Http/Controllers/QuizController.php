@@ -233,4 +233,23 @@ $students = User::whereHas('groupMemberships', function ($q) use ($request) {
         return redirect()->route('quiz.drafts')->with('status', 'Draft deleted.');
     }
 
+    // ─── Delete a scheduled/live quiz and everything tied to it ─
+    public function destroy(Quiz $quiz)
+    {
+        abort_unless($quiz->LecturerID === auth()->id(), 403);
+
+        // Explicit for clarity even though Question.QuizID and
+        // QuizResult.QuizID both already cascade on delete at the DB level
+        // (and Answer.ResultID cascades from QuizResult in turn) - deleting
+        // the quiz removes every student's result and answers for it, so
+        // their marks disappear wherever they're shown (Marks pages,
+        // Statistics averages, Top Students) since all of those read
+        // QuizResult live rather than a cached copy.
+        $quiz->questions()->delete();
+        $quiz->results()->delete();
+        $quiz->delete();
+
+        return back()->with('success', 'Quiz and all its results deleted.');
+    }
+
 }

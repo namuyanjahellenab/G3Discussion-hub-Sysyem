@@ -2,7 +2,7 @@
 
 @section('content')
 <style>
-    .content { padding: 28px; max-width: 720px; }
+    .content { padding: 28px; }
 
     .page-header h1 {
         font-size: 24px;

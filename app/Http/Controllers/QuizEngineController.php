@@ -5,6 +5,7 @@ use Illuminate\Http\Request;
 use App\Models\Quiz;
 use App\Models\Question;
 use App\Models\Answer;
+use App\Models\GroupStudent;
 use App\Models\QuizResult;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -25,6 +26,10 @@ class QuizEngineController extends Controller
 
         if (!$quiz) {
             return response()->json(['error' => 'Quiz not found.'], 404);
+        }
+
+        if (!$this->isGroupMember($quiz->GroupID, $user->UserID)) {
+            return response()->json(['error' => 'You are not a member of this quiz\'s group.'], 403);
         }
 
         // Calculate how many minutes have passed since quiz started
@@ -75,6 +80,16 @@ class QuizEngineController extends Controller
             'AllocatedSeconds' => $allocatedSeconds, // Use this for the countdown timer
             'Questions'        => $questions,
         ]);
+    }
+
+    // ─── A student can only attempt a quiz for a group they're actually
+    // enrolled in - previously unenforced, which let attempts land against
+    // groups the student never joined. ───────────────────────────────────
+    private function isGroupMember(int $groupId, int $userId): bool
+    {
+        return GroupStudent::where('GroupID', $groupId)
+            ->where('UserID', $userId)
+            ->exists();
     }
 
     // ─── STEP 2: Grade answers ──────────────────────────────────
@@ -157,6 +172,10 @@ class QuizEngineController extends Controller
             return response()->json(['error' => 'Quiz not found.'], 404);
         }
 
+        if (!$this->isGroupMember($quiz->GroupID, $user->UserID)) {
+            return response()->json(['error' => 'You are not a member of this quiz\'s group.'], 403);
+        }
+
         // Prevent duplicate submissions
         $existing = QuizResult::where('QuizID', $quizID)
                                ->where('UserID', $user->UserID)
@@ -204,6 +223,10 @@ class QuizEngineController extends Controller
 
         if (!$quiz) {
             return response()->json(['error' => 'Quiz not found.'], 404);
+        }
+
+        if (!$this->isGroupMember($quiz->GroupID, $user->UserID)) {
+            return response()->json(['error' => 'You are not a member of this quiz\'s group.'], 403);
         }
 
         // Prevent duplicate submissions

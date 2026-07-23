@@ -90,7 +90,7 @@ class GroupController extends Controller
         // Admins need to know someone left; the remaining members of THIS
         // group get the same notice so the group itself isn't left wondering
         // where a member went.
-        $message = "\"{$user->UserName}\" has left {$group->GroupName}.";
+        $message = "{$user->UserName} has left {$group->GroupName}.";
 
         foreach (User::where('Role', 'Administrator')->get() as $admin) {
             Notification::create([
@@ -108,7 +108,7 @@ class GroupController extends Controller
         foreach ($remainingMemberIds as $memberId) {
             Notification::create([
                 'UserID' => $memberId,
-                'Message' => "\"{$user->UserName}\" has left.",
+                'Message' => $message,
                 'Status' => false,
                 'Type' => 'Group',
             ]);

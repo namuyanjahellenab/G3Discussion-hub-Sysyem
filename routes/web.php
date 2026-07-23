@@ -195,6 +195,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/quiz/drafts', [QuizController::class, 'drafts'])->name('quiz.drafts');
     Route::post('/quiz/draft', [QuizController::class, 'saveDraft'])->name('quiz.draft.save');
     Route::delete('/quiz/draft/{id}', [QuizController::class, 'deleteDraft'])->name('quiz.draft.delete');
+    Route::delete('/quiz/{quiz}', [QuizController::class, 'destroy'])->name('quiz.destroy');
     Route::get('/quiz/{id}/results', function ($id) {
         return view('quizzes.results', ['quizID' => $id]);
     })->name('quiz.results');

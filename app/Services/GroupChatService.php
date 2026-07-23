@@ -76,6 +76,12 @@ class GroupChatService
 
         $message->load('user');
 
+        // Group chat messages count toward PostCount in participation
+        // scoring (see ParticipationService::recalculate) - without this,
+        // sending chat messages never moved a student's marks at all, only
+        // topic posts/replies did.
+        app(ParticipationService::class)->recalculate($userId, $groupId);
+
         // The message is already durably saved above - a live-push failure
         // (e.g. the Reverb server isn't running, as in local dev without it
         // started) must not fail the whole send. Without this try/catch,

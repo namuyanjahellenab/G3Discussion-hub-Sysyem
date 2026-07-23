@@ -62,7 +62,7 @@
         <a href="#" class="disabled" title="Join a group first to unlock its chat"><i class="fa-regular fa-comments"></i> Group Chat</a>
     @endif
 </li>
-        <li class="{{ request()->routeIs('marks.index') ? 'active' : '' }}">
+        <li class="{{ request()->routeIs('marks.index') || request()->routeIs('participation-criteria.edit') || request()->routeIs('participation-criteria.update') ? 'active' : '' }}">
             <a href="{{ route('marks.index') }}"><i class="fa-regular fa-star"></i> Marks</a>
         </li>
        <li class="{{ request()->routeIs('quiz.schedule') || request()->routeIs('quiz.drafts') || request()->routeIs('quiz.edit') || request()->routeIs('quiz.draft.save') || request()->routeIs('quiz.draft.delete') ? 'active' : '' }}">

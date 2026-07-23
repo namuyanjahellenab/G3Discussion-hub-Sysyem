@@ -73,6 +73,7 @@
                             <div class="sub-details">
                                 <div>Posts: {{ $group['post_count'] }}</div>
                                 <div>Replies: {{ $group['reply_count'] }}</div>
+                                <div>Correct Answers: {{ $group['accepted_count'] }}</div>
                             </div>
                         </div>
 

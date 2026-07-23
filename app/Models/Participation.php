@@ -11,7 +11,7 @@ class Participation extends Model
     const CREATED_AT = 'CreatedAt';
     const UPDATED_AT = 'UpdatedAt';
 
-    protected $fillable = ['UserID', 'GroupID', 'PostCount', 'ReplyCount', 'ParticipationScore'];
+    protected $fillable = ['UserID', 'GroupID', 'PostCount', 'ReplyCount', 'AcceptedCount', 'ParticipationScore'];
 
     public function user()
     {

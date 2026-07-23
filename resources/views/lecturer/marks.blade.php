@@ -220,6 +220,24 @@
     .results-card-link:hover { background: var(--luna-dark); }
     .results-card-link svg { width: 13px; height: 13px; }
 
+    .quiz-delete-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        background: none;
+        color: var(--accent-danger, #dc3545);
+        border: 1px solid var(--accent-danger, #dc3545);
+        text-decoration: none;
+        font-size: 12px;
+        font-weight: 700;
+        padding: 6px 13px;
+        border-radius: var(--radius-md);
+        cursor: pointer;
+        transition: background 0.15s, color 0.15s;
+    }
+    .quiz-delete-btn:hover { background: var(--accent-danger, #dc3545); color: #fff; }
+    .quiz-delete-btn svg { width: 13px; height: 13px; }
+
     @media (max-width: 1024px) {
         .panels-grid { grid-template-columns: 1fr; }
         .stats-grid { grid-template-columns: repeat(2, 1fr); }
@@ -238,10 +256,13 @@
             <p>Review quiz status and the latest submission results across your assessments.</p>
         </div>
         <div style="display:flex; gap:10px;">
-            <a href="{{ route('participation-criteria.edit') }}" class="btn-outline">Participation Criteria</a>
             <a href="{{ route('quiz.schedule') }}" class="btn btn-primary">+ Schedule Quiz</a>
         </div>
     </div>
+
+    @if(session('success'))
+        <div class="alert alert-success" style="margin-bottom: 20px;">{{ session('success') }}</div>
+    @endif
 
     <div class="stats-grid">
         <div class="card stat-card">
@@ -295,6 +316,14 @@
                                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 17V9m6 8V5M5 21h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg>
                                 Results
                             </a>
+                            <form method="POST" action="{{ route('quiz.destroy', $quiz->QuizID) }}" onsubmit="return confirm('Delete this quiz and all student results for it? This cannot be undone.');">
+                                @csrf
+                                @method('DELETE')
+                                <button type="submit" class="quiz-delete-btn">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2m3 0v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6h14z"/></svg>
+                                    Delete
+                                </button>
+                            </form>
                         </div>
                     </div>
                 @empty

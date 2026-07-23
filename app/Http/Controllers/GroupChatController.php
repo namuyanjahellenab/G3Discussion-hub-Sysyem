@@ -18,6 +18,16 @@ class GroupChatController extends Controller
     {
         $userId = auth()->id();
 
+        // A student who has left (or never joined) this group must not be
+        // able to view its chat just by knowing/guessing the URL - without
+        // this, the auto-provisioning just below would even silently make
+        // them a ConversationMember of a group they're not part of.
+        abort_unless(
+            GroupStudent::where('GroupID', $groupId)->where('UserID', $userId)->exists(),
+            403,
+            'You are not a member of this group.'
+        );
+
         // Ensure a main group-wide conversation exists
         $mainConversation = Conversation::firstOrCreate(
             ['group_id' => $groupId, 'Type' => 'group'],

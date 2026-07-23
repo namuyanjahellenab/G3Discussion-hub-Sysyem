@@ -49,7 +49,7 @@
         </div>
     </div>
     <ul class="sidebar-menu">
-        <li class="{{ request()->routeIs('dashboard') ? 'active' : '' }}">
+        <li class="{{ request()->routeIs('dashboard') || request()->routeIs('groups.index') ? 'active' : '' }}">
             <a href="{{ route('dashboard') }}"><i class="fa-solid fa-table-columns"></i> Dashboard</a>
         </li>
         <li class="{{ request()->routeIs('forum.index', 'groups.topics', 'topics.create', 'topics.store', 'topics.show', 'topics.export') ? 'active' : '' }}">

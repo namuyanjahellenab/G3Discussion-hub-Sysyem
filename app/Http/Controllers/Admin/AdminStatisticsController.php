@@ -344,12 +344,16 @@ class AdminStatisticsController extends Controller
 
             // Students Participation - raw count of distinct students who
             // attempted at least one of this group's quizzes (real-time,
-            // from QuizResult).
+            // from QuizResult; already deduplicated via ->unique(), so a
+            // student who attempted several quizzes is still only counted
+            // once). Capped at this group's own student count so an attempt
+            // from someone no longer (or never) enrolled here can't push the
+            // figure past the group's actual headcount.
             $quizIds = $quizIdsByGroup[$gid] ?? collect();
-            $attemptedCount = $quizIds
-                ->flatMap(fn ($qid) => $attemptedUsersByQuiz[$qid] ?? collect())
-                ->unique()
-                ->count();
+            $attemptedCount = min(
+                $totalStudents,
+                $quizIds->flatMap(fn ($qid) => $attemptedUsersByQuiz[$qid] ?? collect())->unique()->count()
+            );
 
             // Quiz Participation - the average, per student, of how much of
             // this group's own quiz set they've each completed:

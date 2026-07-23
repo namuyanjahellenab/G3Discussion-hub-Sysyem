@@ -990,6 +990,12 @@ public function storeTopic(Request $request)
         'FlaggedReason' => $isSpam ? 'Auto-flagged by spam detection' : null,
     ]);
 
+    // Starting a new topic is itself a Post (its initial content) and must
+    // count toward PostCount the same as any other post - this was the only
+    // post-creation path that never called this, so a student's "Posts"
+    // figure on the Marks screen never moved when they created new topics.
+    $this->updateParticipationScore(Auth::id(), $topic->GroupID);
+
     if ($request->input('audience') === 'custom') {
         foreach (collect($request->input('exclude', []))->unique() as $excludedUserId) {
             TopicExclusion::create(['TopicID' => $topic->TopicID, 'UserID' => $excludedUserId]);
