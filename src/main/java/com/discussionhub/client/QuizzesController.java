@@ -269,6 +269,21 @@ public class QuizzesController {
         tabContentBox.getChildren().setAll(empty);
     }
 
+    @FXML
+    protected void onBack() {
+        try {
+            FXMLLoader loader = new FXMLLoader(getClass().getResource("dashboard-view.fxml"));
+            Scene scene = new Scene(loader.load());
+            DashboardController controller = loader.getController();
+            controller.setServices(dbManager, syncService);
+
+            Stage stage = (Stage) syncStatusLabel.getScene().getWindow();
+            WindowUtil.applyScene(stage, scene, "DiscussionHub — Desktop Client");
+        } catch (Exception e) {
+            System.err.println("[Quizzes] Error going back: " + e.getMessage());
+        }
+    }
+
     private String get(String path) {
         try {
             URL url = URI.create(BASE_URL + path).toURL();

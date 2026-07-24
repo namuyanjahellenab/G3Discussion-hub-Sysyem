@@ -59,6 +59,8 @@ public class QuizPopupService {
     private static DatabaseManager dbManager;
     private static DeltaSyncService syncService;
     private static Integer lastShownQuizId = null;
+    private static Stage currentPopupStage;
+    private static javafx.animation.PauseTransition popupCloseTimer;
 
     private QuizPopupService() {
         // static utility class
@@ -102,8 +104,6 @@ public class QuizPopupService {
 
     // ---- Polling -----------------------------------------------------
     private static void checkForActiveQuiz() {
-        if (popupShown) return; // already showing, skip this poll
-
         try {
             if (authToken == null) {
                 // Session token was rejected/expired and we have no way to refresh
@@ -115,6 +115,18 @@ public class QuizPopupService {
 
             String json = fetchActiveQuizJson();
             QuizInfo quiz = parseQuiz(json);
+
+            if (popupShown) {
+                // Keep polling even while shown (rather than the old
+                // skip-if-shown guard) purely to notice the moment the quiz's
+                // time window (StartTime + Duration) lapses server-side - the
+                // popup must vanish immediately instead of sitting there
+                // blocking the window for a quiz that's no longer joinable.
+                if (quiz == null) {
+                    Platform.runLater(QuizPopupService::closeExpiredPopup);
+                }
+                return;
+            }
 
             boolean isNewQuiz = quiz != null
                     && (lastShownQuizId == null || lastShownQuizId != quiz.quizId);
@@ -172,11 +184,12 @@ public class QuizPopupService {
         int quizId;
         String title;
         int durationMinutes;
+        long expiryEpochMillis; // StartTime + Duration, precomputed; 0 if StartTime was unparseable
     }
 
     /**
      * Parses the small fixed-shape JSON the endpoint returns, e.g.
-     * {"quiz":{"QuizID":5,"Title":"week5 quiz","Duration":30, ...}}
+     * {"quiz":{"QuizID":5,"Title":"week5 quiz","Duration":30,"StartTime":"2026-07-23T09:28:20.000000Z", ...}}
      * Returns null if "quiz" is null or fields are missing.
      */
     private static QuizInfo parseQuiz(String json) {
@@ -189,6 +202,7 @@ public class QuizPopupService {
         Matcher idMatch = Pattern.compile("\"QuizID\":(\\d+)").matcher(json);
         Matcher titleMatch = Pattern.compile("\"Title\":\"([^\"]*)\"").matcher(json);
         Matcher durationMatch = Pattern.compile("\"Duration\":(\\d+)").matcher(json);
+        Matcher startTimeMatch = Pattern.compile("\"StartTime\":\"([^\"]*)\"").matcher(json);
 
         if (!idMatch.find() || !titleMatch.find()) {
             return null;
@@ -197,6 +211,15 @@ public class QuizPopupService {
         info.quizId = Integer.parseInt(idMatch.group(1));
         info.title = titleMatch.group(1);
         info.durationMinutes = durationMatch.find() ? Integer.parseInt(durationMatch.group(1)) : 0;
+
+        if (startTimeMatch.find()) {
+            try {
+                info.expiryEpochMillis = java.time.Instant.parse(startTimeMatch.group(1)).toEpochMilli()
+                        + (long) info.durationMinutes * 60_000L;
+            } catch (Exception ex) {
+                info.expiryEpochMillis = 0; // falls back to poll-only close detection
+            }
+        }
 
         return info;
     }
@@ -210,6 +233,7 @@ public class QuizPopupService {
         mainStage.getScene().getRoot().setEffect(new GaussianBlur(8));
 
         Stage popupStage = new Stage();
+        currentPopupStage = popupStage;
         popupStage.initOwner(mainStage);
         popupStage.initModality(Modality.WINDOW_MODAL);
         popupStage.initStyle(StageStyle.UNDECORATED);
@@ -282,13 +306,39 @@ public class QuizPopupService {
         });
 
         popupStage.show();
+
+        // Close precisely when the quiz's own time window ends, rather than
+        // waiting for the next 15s poll to merely notice via active-now. The
+        // poll keeps running regardless, as a fallback (e.g. if a lecturer
+        // edits the quiz's timing after this popup already opened).
+        if (popupCloseTimer != null) {
+            popupCloseTimer.stop();
+        }
+        long remainingMs = Math.max(quiz.expiryEpochMillis - System.currentTimeMillis(), 0);
+        popupCloseTimer = new javafx.animation.PauseTransition(javafx.util.Duration.millis(remainingMs));
+        popupCloseTimer.setOnFinished(e -> closeExpiredPopup());
+        popupCloseTimer.play();
     }
 
     private static void closePopup(Stage popupStage) {
+        if (popupCloseTimer != null) {
+            popupCloseTimer.stop();
+            popupCloseTimer = null;
+        }
         if (mainStage != null && mainStage.getScene() != null) {
             mainStage.getScene().getRoot().setEffect(null);
         }
         popupStage.close();
         popupShown = false; // allow future quizzes to trigger again
+        currentPopupStage = null;
+    }
+
+    /** Called from the poll loop once the shown quiz's time window has
+     *  lapsed server-side - same cleanup as closePopup(), just without the
+     *  "Start Quiz Now" navigation since there's no quiz left to join. */
+    private static void closeExpiredPopup() {
+        if (currentPopupStage != null) {
+            closePopup(currentPopupStage);
+        }
     }
 }

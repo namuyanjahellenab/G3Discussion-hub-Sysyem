@@ -4,9 +4,12 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Announcement;
+use App\Models\Conversation;
+use App\Models\Message;
 use App\Models\Notification;
 use App\Models\Quiz;
 use App\Models\QuizResult;
+use App\Models\ReadState;
 use App\Models\Topic;
 use App\Services\MarksService;
 use App\Services\MlGatewayClient;
@@ -198,11 +201,35 @@ class StudentDataApiController extends Controller
             ->latest('CreatedAt')
             ->first();
 
+        // Mirrors GroupChatController::index()'s $groupUnreadCounts - lets
+        // the desktop group-switcher badge other groups' unread counts too,
+        // not just threads within whichever group is currently open (its
+        // local SQLite cache has no way to know that on its own for a group
+        // it hasn't opened yet).
+        $mainConversationsByGroup = Conversation::whereIn('group_id', $groupIds)
+            ->where('Type', 'group')
+            ->pluck('ConversationID', 'group_id');
+
+        $lastReadByConversation = ReadState::where('UserID', $user->UserID)
+            ->where('EntityType', 'Conversation')
+            ->whereIn('EntityID', $mainConversationsByGroup->values())
+            ->pluck('LastReadItemId', 'EntityID');
+
+        $groupUnreadCounts = [];
+        foreach ($mainConversationsByGroup as $gid => $convId) {
+            $lastRead = $lastReadByConversation[$convId] ?? 0;
+            $groupUnreadCounts[$gid] = Message::where('ConversationID', $convId)
+                ->where('is_spam', false)
+                ->where('MessageID', '>', $lastRead)
+                ->count();
+        }
+
         return response()->json([
             'joined_groups' => $joinedGroups->map(fn ($g) => [
                 'id' => $g->GroupID,
                 'name' => $g->GroupName,
                 'member_count' => $g->member_count,
+                'unread_count' => $groupUnreadCounts[$g->GroupID] ?? 0,
             ])->values(),
             'notifications_count' => $notifications->where('Status', false)->count(),
             'notifications' => $notifications->take(6)->map(fn ($n) => [

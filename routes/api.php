@@ -12,6 +12,7 @@ use App\Http\Controllers\QuizController;
 
 Route::post('/login', [AuthController::class, 'apiLogin']);
 Route::post('/register', [AuthController::class, 'apiRegister']);
+Route::post('/forgot-password', [AuthController::class, 'apiForgotPassword']);
 
 // Deliberately outside auth:sanctum and every other middleware - the
 // desktop's NetworkUtil.isNetworkAvailable() probes this to answer "is the
@@ -137,12 +138,12 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/notifications/read-all', [App\Http\Controllers\Api\StudentDataApiController::class, 'markAllNotificationsRead']);
     Route::get('/forum', [App\Http\Controllers\Api\StudentDataApiController::class, 'forum']);
     Route::get('/groups/{group}/topics', [App\Http\Controllers\Api\GroupTopicsApiController::class, 'index']);
-    Route::post('/groups/{group}/topics', [App\Http\Controllers\Api\GroupTopicsApiController::class, 'store']);
+    Route::post('/groups/{group}/topics', [App\Http\Controllers\Api\GroupTopicsApiController::class, 'store'])->middleware('blacklist');
 
     Route::get('/topics/{topic}', [App\Http\Controllers\Api\TopicApiController::class, 'show']);
     Route::get('/topics/{topic}/export', [App\Http\Controllers\Api\TopicApiController::class, 'export']);
     Route::get('/topics/{topic}/share-links', [App\Http\Controllers\Api\TopicApiController::class, 'shareLinks']);
-    Route::post('/posts/{post}/replies', [App\Http\Controllers\Api\TopicApiController::class, 'storeReply']);
+    Route::post('/posts/{post}/replies', [App\Http\Controllers\Api\TopicApiController::class, 'storeReply'])->middleware('blacklist');
     Route::post('/replies/{reply}/flag', [App\Http\Controllers\Api\TopicApiController::class, 'flagReply']);
     Route::delete('/replies/{reply}/flag', [App\Http\Controllers\Api\TopicApiController::class, 'unflagReply']);
     Route::delete('/replies/{reply}', [App\Http\Controllers\Api\TopicApiController::class, 'deleteReply']);
@@ -154,7 +155,9 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Desktop-client equivalent of the web's Group Chat (main conversation only).
     Route::get('/groups/{groupId}/chat-messages', [App\Http\Controllers\Api\GroupChatApiController::class, 'index']);
-    Route::post('/groups/{groupId}/chat-messages', [App\Http\Controllers\Api\GroupChatApiController::class, 'store']);
+    Route::post('/groups/{groupId}/chat-messages', [App\Http\Controllers\Api\GroupChatApiController::class, 'store'])->middleware('blacklist');
+    Route::patch('/group-messages/{message}', [App\Http\Controllers\Api\GroupChatApiController::class, 'update'])->middleware('blacklist');
+    Route::delete('/group-messages/{message}', [App\Http\Controllers\Api\GroupChatApiController::class, 'destroy']);
 });
 
 // Route::middleware('auth')->group(function () {

@@ -2,7 +2,7 @@
 
 @section('content')
 <style>
-    .content { padding: 28px; max-width: 1280px; }
+    .content { padding: 28px; }
 
     .page-header {
         display: flex;
@@ -45,6 +45,23 @@
         border-color: var(--luna-dark);
     }
 
+    .btn-outline {
+        background: transparent;
+        color: var(--luna-mid);
+        border: 1px solid var(--luna-mid);
+        padding: 11px 20px;
+        border-radius: 8px;
+        font-size: 13.5px;
+        font-weight: 600;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        text-decoration: none;
+        transition: background 0.15s ease, color 0.15s ease;
+    }
+    .btn-outline:hover { background: var(--luna-lightest); }
+
     .stats-grid {
         display: grid;
         grid-template-columns: repeat(4, 1fr);
@@ -80,6 +97,12 @@
         display: grid;
         grid-template-columns: 1.4fr 1fr;
         gap: 20px;
+        /* Grid items stretch to match the tallest sibling by default - "Your
+           Quizzes" was always as tall as "Recent Submissions" regardless of
+           its own quiz count, leaving dead space below a short quiz list.
+           align-items: start lets each panel size to its own content instead,
+           so it shrinks with few quizzes and grows as more are scheduled. */
+        align-items: start;
     }
 
     .panel {
@@ -148,8 +171,22 @@
     .status-active   { background: var(--accent-success-bg); color: var(--accent-success); }
     .status-closed   { background: var(--surface-bg); color: var(--text-muted); }
 
-    .result-row .user { font-weight: 600; }
-    .result-row .score { color: var(--luna-mid); font-weight: 700; }
+    .result-row .user { font-weight: 600; display: flex; align-items: center; gap: 10px; }
+    .result-row .score { color: var(--luna-mid); font-weight: 700; text-align: right; }
+    .result-row .quiz-name { color: var(--text-muted); font-size: 12px; font-weight: 500; margin-top: 2px; font-family: var(--font-body); }
+
+    .result-avatar {
+        width: 30px; height: 30px; min-width: 30px; border-radius: 50%;
+        background: var(--luna-mid); color: #fff; font-size: 12px; font-weight: 700;
+        display: flex; align-items: center; justify-content: center;
+    }
+
+    .submit-badge {
+        font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 999px;
+        text-transform: uppercase; letter-spacing: 0.3px; margin-top: 4px; display: inline-block;
+    }
+    .submit-manual { background: var(--accent-success-bg); color: var(--accent-success); }
+    .submit-auto   { background: var(--accent-danger-bg); color: var(--accent-danger); }
 
     .empty-state {
         padding: 40px 20px;
@@ -165,6 +202,41 @@
         text-decoration: none;
         font-weight: 600;
     }
+
+    .results-card-link {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        background: var(--luna-mid);
+        color: #fff;
+        text-decoration: none;
+        font-size: 12px;
+        font-weight: 700;
+        padding: 7px 14px;
+        border-radius: var(--radius-md);
+        box-shadow: var(--shadow-soft);
+        transition: background 0.15s;
+    }
+    .results-card-link:hover { background: var(--luna-dark); }
+    .results-card-link svg { width: 13px; height: 13px; }
+
+    .quiz-delete-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        background: none;
+        color: var(--accent-danger, #dc3545);
+        border: 1px solid var(--accent-danger, #dc3545);
+        text-decoration: none;
+        font-size: 12px;
+        font-weight: 700;
+        padding: 6px 13px;
+        border-radius: var(--radius-md);
+        cursor: pointer;
+        transition: background 0.15s, color 0.15s;
+    }
+    .quiz-delete-btn:hover { background: var(--accent-danger, #dc3545); color: #fff; }
+    .quiz-delete-btn svg { width: 13px; height: 13px; }
 
     @media (max-width: 1024px) {
         .panels-grid { grid-template-columns: 1fr; }
@@ -183,8 +255,14 @@
             <h1>Marks Statistics</h1>
             <p>Review quiz status and the latest submission results across your assessments.</p>
         </div>
-        <a href="{{ route('quiz.schedule') }}" class="btn btn-primary">+ Schedule Quiz</a>
+        <div style="display:flex; gap:10px;">
+            <a href="{{ route('quiz.schedule') }}" class="btn btn-primary">+ Schedule Quiz</a>
+        </div>
     </div>
+
+    @if(session('success'))
+        <div class="alert alert-success" style="margin-bottom: 20px;">{{ session('success') }}</div>
+    @endif
 
     <div class="stats-grid">
         <div class="card stat-card">
@@ -230,13 +308,22 @@
                             <div class="meta">
                                 {{ $quiz->StartTime->format('d M Y, h:i A') }}
                                 &middot; {{ $quiz->Duration }} min
-                                &middot; {{ $quiz->TargetCategory }}
                             </div>
                         </div>
                         <div style="display:flex; align-items:center; gap:14px;">
                             <span class="status-pill status-{{ $status }}">{{ $status }}</span>
-                            <a href="{{ route('quiz.results', $quiz->QuizID) }}" class="quiz-edit-link">Results</a>
-                            <a href="{{ url('/quizzes/'.$quiz->QuizID.'/edit') }}" class="quiz-edit-link">Edit</a>
+                            <a href="{{ route('quiz.results', $quiz->QuizID) }}" class="results-card-link">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 17V9m6 8V5M5 21h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg>
+                                Results
+                            </a>
+                            <form method="POST" action="{{ route('quiz.destroy', $quiz->QuizID) }}" onsubmit="return confirm('Delete this quiz and all student results for it? This cannot be undone.');">
+                                @csrf
+                                @method('DELETE')
+                                <button type="submit" class="quiz-delete-btn">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2m3 0v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6h14z"/></svg>
+                                    Delete
+                                </button>
+                            </form>
                         </div>
                     </div>
                 @empty
@@ -253,14 +340,24 @@
             </div>
             <div class="panel-body">
                 @forelse ($recentResults as $result)
+                    @php($totalMarks = $totalMarksByQuiz[$result->QuizID] ?? null)
                     <div class="result-row">
-                        <div>
-                            <div class="user">Student #{{ $result->UserID }}</div>
-                            <div class="meta" style="color:var(--text-muted); font-size:12px; margin-top:2px; font-family:var(--font-body);">
-                                {{ \Carbon\Carbon::parse($result->SubmissionTime)->diffForHumans() }}
+                        <div class="user">
+                            <div class="result-avatar">{{ Str::substr($result->StudentName ?? '?', 0, 1) }}</div>
+                            <div>
+                                <div>{{ $result->StudentName ?? 'Unknown student' }}</div>
+                                <div class="quiz-name">{{ $result->QuizTitle }}</div>
                             </div>
                         </div>
-                        <div class="score">{{ $result->Score }} pts</div>
+                        <div>
+                            <div class="score">{{ rtrim(rtrim(number_format($result->Score, 2), '0'), '.') }}{{ $totalMarks !== null ? ' / '.rtrim(rtrim(number_format($totalMarks, 2), '0'), '.') : '' }}</div>
+                            <div class="meta" style="color:var(--text-muted); font-size:11.5px; margin-top:2px; font-family:var(--font-body); text-align:right;">
+                                {{ \Carbon\Carbon::parse($result->SubmissionTime)->diffForHumans() }}
+                            </div>
+                            <span class="submit-badge {{ $result->IsAutoSubmit ? 'submit-auto' : 'submit-manual' }}">
+                                {{ $result->IsAutoSubmit ? 'Auto' : 'Manual' }}
+                            </span>
+                        </div>
                     </div>
                 @empty
                     <div class="empty-state">

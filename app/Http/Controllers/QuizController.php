@@ -27,6 +27,19 @@ public function create(Request $request)
     return view('quizzes.schedule', compact('groups', 'draft'));
 }
 
+    // Loads an already-scheduled quiz into the same builder screen for editing
+    public function edit($id)
+    {
+        $groups = \App\Models\Group::orderBy('GroupName')->get();
+
+        $draft = Quiz::where('QuizID', $id)
+            ->where('LecturerID', auth()->id())
+            ->with('questions')
+            ->firstOrFail();
+
+        return view('quizzes.schedule', compact('groups', 'draft'));
+    }
+
     // ─── WEEK 1: Schedule a quiz ────────────────────────────────
     public function scheduleAssessment(Request $request)
     {
@@ -36,7 +49,7 @@ public function create(Request $request)
     'Title'          => 'required|string|max:255',
     'StartTime'      => 'required|date',
     'Duration'       => 'required|integer|min:1',
-    'TargetCategory' => 'required|string|max:100',
+    'TargetCategory' => 'nullable|string|max:100',
     'GroupID'        => 'required|integer|exists:Group,GroupID',
     'Questions'      => 'required|array|min:1',
             'Questions.*.QuestionText'  => 'required|string',
@@ -54,6 +67,7 @@ public function create(Request $request)
                 ->where('LecturerID', auth()->id())
                 ->first();
         }
+        $isEditOfLiveQuiz = $quiz && $quiz->Status === 'scheduled';
 
         $attributes = [
             'LecturerID'     => auth()->user()->UserID,
@@ -85,16 +99,26 @@ public function create(Request $request)
         }
 
         // Step 4 — Notify all active students in the target group
+        // GroupStudent.Status is stored lowercase ('active') everywhere else
+        // in the app (GroupChatService, DashboardController, Group::
+        // activeMembers()) - this only matched real rows before because
+        // MySQL/MariaDB's default collation happens to compare case-
+        // insensitively, which made the actual audience size for a published
+        // quiz depend on a DB collation quirk instead of an explicit, correct
+        // comparison.
 $students = User::whereHas('groupMemberships', function ($q) use ($request) {
                     $q->where('GroupID', $request->GroupID)
-                      ->where('Status', 'Active');
+                      ->where('Status', 'active');
                 })
                 ->where('Role', 'Student')
                 ->get();
+        $notifMessage = $isEditOfLiveQuiz
+            ? 'Quiz updated: ' . $request->Title
+            : 'New quiz scheduled: ' . $request->Title;
         foreach ($students as $student) {
             Notification::create([
                 'UserID'  => $student->UserID,
-                'Message' => 'New quiz scheduled: ' . $request->Title,
+                'Message' => $notifMessage,
                 'Status'  => false,
                 'Type'    => 'Quiz Announcement',
             ]);
@@ -133,6 +157,14 @@ $students = User::whereHas('groupMemberships', function ($q) use ($request) {
                 ->first();
         }
 
+        // Quiz has $timestamps = false, so CreatedAt/UpdatedAt are otherwise
+        // left entirely to the DB's own useCurrent()/useCurrentOnUpdate()
+        // defaults - which stamp the DB server's local system clock (MariaDB
+        // time_zone=SYSTEM here), not the app's actual UTC time. That mismatch
+        // is what made "Last saved {{ $draft->UpdatedAt->diffForHumans() }}"
+        // on the drafts screen show a nonsensical time. Setting it explicitly
+        // with the app's own now() keeps it consistent with whatever
+        // diffForHumans() compares it against later.
         $attributes = [
             'LecturerID'     => auth()->id(),
             'GroupID'        => $request->input('GroupID'),
@@ -143,13 +175,14 @@ $students = User::whereHas('groupMemberships', function ($q) use ($request) {
             'Duration'       => $request->input('Duration'),
             'TargetCategory' => $request->input('TargetCategory'),
             'Status'         => 'draft',
+            'UpdatedAt'      => now(),
         ];
 
         if ($quiz) {
             $quiz->update($attributes);
             $quiz->questions()->delete();
         } else {
-            $quiz = Quiz::create($attributes);
+            $quiz = Quiz::create($attributes + ['CreatedAt' => now()]);
         }
 
         foreach ($request->input('Questions', []) as $q) {
@@ -198,6 +231,25 @@ $students = User::whereHas('groupMemberships', function ($q) use ($request) {
         $quiz->delete();
 
         return redirect()->route('quiz.drafts')->with('status', 'Draft deleted.');
+    }
+
+    // ─── Delete a scheduled/live quiz and everything tied to it ─
+    public function destroy(Quiz $quiz)
+    {
+        abort_unless($quiz->LecturerID === auth()->id(), 403);
+
+        // Explicit for clarity even though Question.QuizID and
+        // QuizResult.QuizID both already cascade on delete at the DB level
+        // (and Answer.ResultID cascades from QuizResult in turn) - deleting
+        // the quiz removes every student's result and answers for it, so
+        // their marks disappear wherever they're shown (Marks pages,
+        // Statistics averages, Top Students) since all of those read
+        // QuizResult live rather than a cached copy.
+        $quiz->questions()->delete();
+        $quiz->results()->delete();
+        $quiz->delete();
+
+        return back()->with('success', 'Quiz and all its results deleted.');
     }
 
 }

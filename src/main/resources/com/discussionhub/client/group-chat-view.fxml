@@ -18,6 +18,9 @@
         <!-- Header bar -->
         <HBox alignment="CENTER_LEFT" spacing="12"
               style="-fx-background-color: #26658C; -fx-padding: 16 22;">
+            <Button text="← Back" onAction="#onBack"
+                    style="-fx-background-color: transparent; -fx-border-color: white; -fx-text-fill: white;
+                           -fx-border-radius: 6; -fx-background-radius: 6; -fx-font-weight: bold; -fx-padding: 6 14; -fx-cursor: hand;"/>
             <VBox>
                 <Label fx:id="titleLabel" text="Group Chat"
                        style="-fx-text-fill: white; -fx-font-size: 18; -fx-font-weight: bold;"/>
@@ -58,12 +61,29 @@
                                style="-fx-font-size: 10.5; -fx-text-fill: #6B8094;"/>
                     </VBox>
 
+                    <HBox alignment="CENTER_LEFT" spacing="6" style="-fx-padding: 0 0 6 0;">
+                        <Label fx:id="replyContextLabel" text="" visible="false" managed="false"
+                               style="-fx-text-fill: #26658C; -fx-font-size: 11.5;"/>
+                        <Button fx:id="cancelReplyButton" text="✕" onAction="#onCancelReply" visible="false" managed="false"
+                                style="-fx-background-color: transparent; -fx-text-fill: #D9483D; -fx-padding: 0 0 0 2; -fx-font-size: 11;"/>
+                    </HBox>
+
+                    <HBox alignment="CENTER_LEFT" spacing="6" style="-fx-padding: 0 0 6 0;">
+                        <Label fx:id="attachedFileLabel" text="" visible="false" managed="false" styleClass="muted-text"/>
+                        <Button fx:id="removeAttachmentButton" text="✕" onAction="#onRemoveAttachment" visible="false" managed="false"
+                                style="-fx-background-color: transparent; -fx-text-fill: #D9483D; -fx-padding: 0 0 0 2; -fx-font-size: 11;"/>
+                    </HBox>
+
                     <!-- WhatsApp/Claude-style single rounded pill: icon buttons
                          flush against a borderless text field, instead of three
                          separate boxy controls in a row. -->
                     <HBox spacing="6" alignment="CENTER"
                           style="-fx-background-color: white; -fx-background-radius: 999;
                                  -fx-border-color: #E1E9ED; -fx-border-radius: 999; -fx-padding: 6 6 6 16;">
+                        <Button text="📎" onAction="#onAttachFile"
+                                style="-fx-background-color: #F4F8FA; -fx-text-fill: #33455A; -fx-background-radius: 999;
+                                       -fx-min-width: 34; -fx-min-height: 34; -fx-max-width: 34; -fx-max-height: 34;
+                                       -fx-padding: 0; -fx-font-size: 13; -fx-cursor: hand;"/>
                         <Button fx:id="excludeToggleButton" text="🚫" onAction="#onToggleExclude"
                                 style="-fx-background-color: #F4F8FA; -fx-text-fill: #33455A; -fx-background-radius: 999;
                                        -fx-min-width: 34; -fx-min-height: 34; -fx-max-width: 34; -fx-max-height: 34;

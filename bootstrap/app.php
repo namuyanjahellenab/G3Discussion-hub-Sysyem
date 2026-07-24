@@ -1,5 +1,6 @@
 <?php
 
+use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -12,6 +13,13 @@ return Application::configure(basePath: dirname(__DIR__))
         channels: __DIR__.'/../routes/channels.php',
         health: '/up',
     )
+    ->withSchedule(function (Schedule $schedule): void {
+        // Recomputes Active/Inactive/Blacklisted status and runs the
+        // inactivity warning/auto-blacklist pipeline. Needs `php artisan
+        // schedule:run` invoked every minute by the OS (cron/Task
+        // Scheduler) - or `php artisan schedule:work` while developing.
+        $schedule->command('students:process-inactivity')->everyMinute()->withoutOverlapping();
+    })
     ->withMiddleware(function (Middleware $middleware): void {
         // Lets same-origin browser requests (e.g. the topic page's polling
         // fetch()) authenticate against auth:sanctum API routes using the

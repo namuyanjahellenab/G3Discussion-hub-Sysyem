@@ -559,7 +559,7 @@ button:focus-visible,
 .skeleton-line + .skeleton-line { margin-top: 0.4rem; }
 .skeleton-line--short { width: 45%; }
 
-.chat-layout { display: grid; grid-template-columns: 260px 1fr; gap: 1.25rem; max-width: 1100px; margin: 0 auto; padding: 1.5rem; }
+.chat-layout { display: grid; grid-template-columns: 260px 1fr; gap: 1.25rem; padding: 1.5rem; }
 
 .thread-list { padding: 0.75rem; height: fit-content; }
 .thread-list__header {
@@ -640,7 +640,10 @@ button:focus-visible,
 
 .chat-bubble__meta { display: flex; gap: 0.5rem; font-size: 0.72rem; color: var(--text-muted); margin-bottom: 0.2rem; }
 
-.chat-bubble__actions { position: relative; opacity: 0; transition: opacity .15s ease; }
+.quote-strip { border-left: 3px solid var(--luna-mid); background: var(--luna-lightest); border-radius: 6px; padding: 5px 10px; font-size: 11.5px; color: var(--luna-dark); margin-bottom: 6px; display: block; }
+.chat-bubble--own .quote-strip { background: rgba(255,255,255,0.6); }
+
+.chat-bubble__actions { position: relative; opacity: 0.55; transition: opacity .15s ease; }
 .chat-bubble:hover .chat-bubble__actions, .chat-bubble__actions.open { opacity: 1; }
 
 .chat-bubble__menu-toggle {
@@ -749,12 +752,41 @@ button:focus-visible,
 }
 .attachment-preview button:hover { background: var(--accent-danger-bg); color: var(--accent-danger); }
 
-.chat-bubble__attachment {
-    display: inline-flex; align-items: center; gap: 0.4rem; margin-top: 0.4rem;
-    padding: 0.35rem 0.7rem; background: var(--surface-bg); border-radius: var(--radius-md);
-    font-size: 0.8rem; color: var(--luna-mid); text-decoration: none;
+.reply-context {
+    display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.6rem;
+    padding: 0.5rem 0.9rem; background: var(--luna-lightest); border-left: 3px solid var(--luna-mid);
+    border-radius: 6px; font-size: 0.82rem; color: var(--luna-dark);
 }
-.chat-bubble__attachment:hover { color: var(--luna-dark); text-decoration: underline; }
+.reply-context i { color: var(--luna-mid); }
+.reply-context span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.reply-context button {
+    flex-shrink: 0; width: 20px; height: 20px; border-radius: 50%; border: none;
+    background: var(--surface-bg); color: var(--text-muted); cursor: pointer; line-height: 1;
+}
+.reply-context button:hover { background: var(--accent-danger-bg); color: var(--accent-danger); }
+
+/* Attachment preview - images get an inline thumbnail, documents get a
+   click-to-open link (browser handles preview, e.g. its native PDF viewer);
+   both keep a separate small download button so opening one to check it
+   never forces a download you didn't ask for. Mirrors topics/show.blade.php's
+   .attach-img/.attach-file so both Group Chat and Topic Discussions look
+   and behave the same way. */
+.attach-img { position: relative; margin-top: 0.4rem; border-radius: 12px; overflow: hidden; border: 1px solid var(--surface-border); max-width: 260px; }
+.attach-img img { width: 100%; max-height: 220px; object-fit: cover; display: block; cursor: zoom-in; }
+.attach-img__download {
+    position: absolute; top: 8px; right: 8px; width: 28px; height: 28px;
+    display: flex; align-items: center; justify-content: center;
+    background: rgba(1, 28, 64, 0.55); color: #fff; border-radius: 50%;
+    opacity: 0; transition: opacity 0.15s ease;
+}
+.attach-img:hover .attach-img__download { opacity: 1; }
+
+.attach-file { display: flex; align-items: center; gap: 10px; background: var(--surface-bg); border: 1px solid var(--surface-border); border-radius: 10px; padding: 8px 12px; margin-top: 0.4rem; max-width: 280px; }
+.attach-file__open { display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0; text-decoration: none; }
+.attach-file .icon { width: 32px; height: 32px; border-radius: 8px; background: var(--luna-mid); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 14px; flex-shrink: 0; }
+.attach-file .fname { font-size: 12.5px; font-weight: 600; color: var(--text-heading); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; min-width: 0; }
+.attach-file .attach-download-icon { flex-shrink: 0; color: var(--text-muted); font-size: 13px; text-decoration: none; }
+.attach-file:hover .attach-download-icon { color: var(--luna-mid); }
 
 @media (max-width: 768px) {
     .chat-layout { grid-template-columns: 1fr; }

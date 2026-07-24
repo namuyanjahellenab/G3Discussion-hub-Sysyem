@@ -197,6 +197,33 @@ public function apiLogin(Request $request)
   ]);
 }
 
+// JSON counterpart to PasswordResetLinkController::store() for the desktop
+// client - same Password::sendResetLink() call the web "Forgot Password?"
+// form uses, just returning JSON instead of a redirect+session flash. The
+// desktop has no way to render the "set new password" form itself (that
+// still happens on the web, via the emailed link), so this only covers
+// sending the reset email.
+//
+// Fully-qualified here (not `use`d) because this file already imports
+// Illuminate\Validation\Rules\Password for registration's password rule -
+// a second `use Password` for the facade would collide with it.
+public function apiForgotPassword(Request $request)
+{
+    $request->validate([
+        'email' => 'required|email',
+    ]);
+
+    $status = \Illuminate\Support\Facades\Password::sendResetLink(
+        $request->only('email')
+    );
+
+    if ($status === \Illuminate\Support\Facades\Password::RESET_LINK_SENT) {
+        return response()->json(['message' => __($status)]);
+    }
+
+    return response()->json(['message' => __($status)], 422);
+}
+
     /**
      * Display role selection page.
      */

@@ -2,7 +2,7 @@
 
 @section('content')
 <style>
-    .content { padding: 28px; max-width: 1280px; padding-bottom: 110px; }
+    .content { padding: 28px; padding-bottom: 110px; }
 
     .breadcrumb {
         font-size: 12px;
@@ -115,13 +115,6 @@
     .form-control:focus, .form-select:focus {
         border-color: var(--luna-light);
         box-shadow: 0 0 0 0.2rem rgba(84, 172, 191, 0.2);
-    }
-
-    .field-row {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 14px;
-        margin-bottom: 14px;
     }
 
     .field-row-3 {
@@ -408,21 +401,34 @@
         font-size: 13px;
         font-family: var(--font-body);
     }
+    .empty-state .btn-inline-add {
+        background: none;
+        border: none;
+        padding: 0;
+        margin: 0;
+        color: inherit;
+        font: inherit;
+        font-weight: 700;
+        cursor: pointer;
+    }
+    .empty-state .btn-inline-add:hover { text-decoration: underline; }
 
     @media (max-width: 768px) {
         .content { padding: 20px 16px 24px; }
-        .field-row, .field-row-3, .options-grid, .q-row, .q-row-type { grid-template-columns: 1fr; }
+        .field-row-3, .options-grid, .q-row, .q-row-type { grid-template-columns: 1fr; }
         .header-actions { width: 100%; }
         .header-actions .btn { flex: 1 1 0; }
     }
 </style>
 
 <div class="content">
-    <div class="breadcrumb"><a href="{{ route('quiz.latest-results') }}">Quizzes</a> › Configure Quiz</div>
+    @php($isEditOfLiveQuiz = $draft && $draft->Status !== 'draft')
+    <div class="breadcrumb"><a href="{{ route('quiz.latest-results') }}">Quizzes</a> › {{ $isEditOfLiveQuiz ? 'Edit Quiz' : 'Configure Quiz' }}</div>
 
     <div class="page-header">
-        <h1 class="page-title">SCHEDULE QUIZ</h1>
+        <h1 class="page-title">{{ $isEditOfLiveQuiz ? 'EDIT QUIZ' : 'SCHEDULE QUIZ' }}</h1>
         <div class="header-actions">
+            @unless($isEditOfLiveQuiz)
             <a href="{{ route('quiz.drafts') }}" class="btn btn-outline-secondary">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
                 MY DRAFTS
@@ -431,9 +437,10 @@
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
                 SAVE DRAFT
             </button>
+            @endunless
             <button class="btn btn-primary" onclick="publishQuiz()">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
-                PUBLISH QUIZ
+                {{ $isEditOfLiveQuiz ? 'SAVE CHANGES' : 'PUBLISH QUIZ' }}
             </button>
         </div>
     </div>
@@ -454,22 +461,14 @@
                 <input type="text" id="Title" class="form-control" placeholder="e.g. Week 5 - Python Basics">
             </div>
 
-            <div class="field-row">
-                <div>
-                    <label class="field-label" for="GroupSelector">Group Selector</label>
-                    <select id="GroupSelector" class="form-select">
-                        <option value="">-- Select Group --</option>
-                        @foreach($groups as $group)
-                            <option value="{{ $group->GroupID }}">{{ $group->GroupName }}</option>
-                        @endforeach
-                    </select>
-                </div>
-                <div>
-                    <label class="field-label" for="TargetCategory">Subject Category Selector</label>
-                    <select id="TargetCategory" class="form-select">
-                        <option value="All Students">All Students</option>
-                    </select>
-                </div>
+            <div class="field-group">
+                <label class="field-label" for="GroupSelector">Group Selector</label>
+                <select id="GroupSelector" class="form-select">
+                    <option value="">-- Select Group --</option>
+                    @foreach($groups as $group)
+                        <option value="{{ $group->GroupID }}">{{ $group->GroupName }}</option>
+                    @endforeach
+                </select>
             </div>
 
             <div class="field-row-3">
@@ -520,7 +519,7 @@
             <div id="questionsList"></div>
 
             <div id="emptyState" class="empty-state">
-                No questions yet. Click <strong>ADD QUESTION</strong> to get started.
+                No questions yet. Click <button type="button" class="btn-inline-add" onclick="addQuestion()">ADD QUESTION</button> to get started.
             </div>
         </div>
     </div>
@@ -674,7 +673,6 @@
     function populateDraft(draft) {
         document.getElementById('Title').value = draft.Title === 'Untitled draft' ? '' : (draft.Title || '');
         if (draft.GroupID) document.getElementById('GroupSelector').value = draft.GroupID;
-        if (draft.TargetCategory) document.getElementById('TargetCategory').value = draft.TargetCategory;
         if (draft.StartTime) {
             const dt = draft.StartTime.replace(' ', 'T');
             const [datePart, timePart] = dt.split('T');
@@ -756,14 +754,12 @@
         const title     = document.getElementById('Title').value.trim();
         const startTime = getStartTime();
         const duration  = parseInt(document.getElementById('Duration').value);
-        const category  = document.getElementById('TargetCategory').value;
 const groupId    = document.getElementById('GroupSelector').value;
 const questions = collectQuestions();
 
 if (!title)     return showError('Please enter a quiz title.');
 if (!startTime) return showError('Please select a date and start time.');
 if (!duration)  return showError('Please enter a duration in minutes.');
-if (!category)  return showError('Please select a target category.');
 if (!groupId)   return showError('Please select a group.');
         if (questions.length === 0) return showError('Please add at least one question.');
 
@@ -780,7 +776,6 @@ if (!groupId)   return showError('Please select a group.');
     Title: title,
     StartTime: startTime,
     Duration: duration,
-    TargetCategory: category,
     GroupID: groupId,
     Questions: questions,
 }),
@@ -789,7 +784,11 @@ if (!groupId)   return showError('Please select a group.');
             const data = await response.json();
 
             if (response.ok) {
-                showSuccess('Quiz published! ' + (data.students_notified ?? 0) + ' students notified. Quiz ID: ' + (data.QuizID ?? '—'));
+                const notified = data.students_notified ?? 0;
+                const notifiedText = notified === 0
+                    ? 'This group has no students yet, so no one was notified.'
+                    : notified + ' students notified.';
+                showSuccess('Quiz published! ' + notifiedText + ' Quiz ID: ' + (data.QuizID ?? '—'));
                 currentDraftId = null;
                 resetForm();
             } else {
@@ -816,7 +815,6 @@ if (!groupId)   return showError('Please select a group.');
                     Title: document.getElementById('Title').value.trim(),
                     StartTime: getStartTime(),
                     Duration: parseInt(document.getElementById('Duration').value) || null,
-                    TargetCategory: document.getElementById('TargetCategory').value || null,
                     GroupID: document.getElementById('GroupSelector').value || null,
                     Questions: collectQuestions(),
                 }),
@@ -840,7 +838,6 @@ if (!groupId)   return showError('Please select a group.');
         document.getElementById('DateInput').value = '';
         document.getElementById('TimeInput').value = '';
         document.getElementById('Duration').value = '';
-        document.getElementById('TargetCategory').value = '';
         document.getElementById('GroupSelector').value = '';
         document.getElementById('questionsList').innerHTML = '';
         questionCount = 0;

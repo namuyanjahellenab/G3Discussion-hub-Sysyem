@@ -1,7 +1,7 @@
 @extends('layouts.app')
 
 @section('content')
-<div class="container py-5">
+<div class="container-fluid py-5">
     <div class="mb-4">
         <h1 class="h3 fw-bold">{{ $group->GroupName }} Forum</h1>
         <p class="text-muted">This is the forum page for your selected group. Topics and posts will appear here.</p>

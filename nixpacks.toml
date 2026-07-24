@@ -1,0 +1,21 @@
+# Used by Railway (Nixpacks builder) for the two Laravel services (web +
+# queue worker) - both point their Root Directory at the repo root and share
+# this same build, differing only in each service's Start Command override.
+#
+# Left untouched here: the [start] phase. Nixpacks' PHP provider still
+# auto-detects Laravel and generates its own Nginx+PHP-FPM start command from
+# NIXPACKS_PHP_ROOT_DIR (set to /app/public as a service Variable) - only the
+# install/build phases needed customizing, to also run the Vite frontend
+# build that a bare PHP-only detection wouldn't know about.
+
+[phases.setup]
+nixPkgs = ["...", "nodejs_20", "php82Extensions.pdo_mysql", "php82Extensions.gd", "php82Extensions.bcmath", "php82Extensions.fileinfo"]
+
+[phases.install]
+cmds = [
+  "composer install --no-dev --optimize-autoloader",
+  "npm ci"
+]
+
+[phases.build]
+cmds = ["npm run build"]

@@ -388,6 +388,77 @@ public class QuizTakeController {
         }
     }
 
+    // ---- Exit (leave without submitting) -------------------------------
+
+    /** Unlike onPrevious/onNext, leaving mid-quiz abandons whatever isn't
+     *  submitted yet - same risk as just closing the app, but a "← Exit"
+     *  button invites doing it by accident, so this confirms first (unless
+     *  the quiz is already submitted, where there's nothing left to lose). */
+    @FXML
+    private void onExit() {
+        if (submitted) {
+            backToDashboard();
+            return;
+        }
+        showExitConfirm();
+    }
+
+    private void showExitConfirm() {
+        Label heading = new Label("Exit this quiz?");
+        heading.getStyleClass().add("heading-text");
+        heading.setStyle("-fx-font-size: 17;");
+
+        Label body = new Label("Your answers so far won't be submitted, and the timer keeps running until it expires.");
+        body.getStyleClass().add("muted-text");
+        body.setWrapText(true);
+        body.setStyle("-fx-font-size: 13;");
+
+        Button cancelBtn = new Button("Keep Working");
+        cancelBtn.setStyle("-fx-background-color: -surface-bg; -fx-text-fill: -text-body; -fx-padding: 9 20; -fx-background-radius: 8; -fx-cursor: hand;");
+        Button exitBtn = new Button("Exit Without Submitting");
+        exitBtn.setStyle("-fx-background-color: -accent-danger; -fx-text-fill: white; -fx-font-weight: bold; -fx-padding: 9 20; -fx-background-radius: 8; -fx-cursor: hand;");
+
+        HBox buttons = new HBox(10, cancelBtn, exitBtn);
+        buttons.setAlignment(Pos.CENTER_RIGHT);
+
+        VBox card = new VBox(14, heading, body, buttons);
+        card.setStyle("-fx-background-color: -surface-card; -fx-background-radius: 12; -fx-padding: 24; " +
+            "-fx-effect: dropshadow(gaussian, rgba(1,28,64,0.25), 20, 0, 0, 6);");
+        card.setMaxWidth(380);
+        // See the identical fix + longer explanation in showSubmitConfirm()/
+        // SidebarController.showNotificationPopup() - a Popup/Stage's content
+        // gets its own Scene, and the -surface-card etc. vars are declared on
+        // ".root", which only a real Scene root gets auto-attached.
+        card.getStyleClass().add("root");
+        card.getStylesheets().add(getClass().getResource("app-theme.css").toExternalForm());
+
+        StackPane wrapper = new StackPane(card);
+        wrapper.setStyle("-fx-background-color: transparent;");
+        wrapper.setPadding(new Insets(20));
+
+        Stage owner = (Stage) rootBox.getScene().getWindow();
+        Stage popup = new Stage();
+        popup.initOwner(owner);
+        popup.initModality(Modality.WINDOW_MODAL);
+        popup.initStyle(StageStyle.TRANSPARENT);
+        Scene scene = new Scene(wrapper);
+        scene.setFill(Color.TRANSPARENT);
+        popup.setScene(scene);
+
+        cancelBtn.setOnAction(e -> popup.close());
+        exitBtn.setOnAction(e -> {
+            popup.close();
+            if (timer != null) timer.stop();
+            backToDashboard();
+        });
+
+        popup.setOnShown(e -> {
+            popup.setX(owner.getX() + (owner.getWidth() - popup.getWidth()) / 2);
+            popup.setY(owner.getY() + (owner.getHeight() - popup.getHeight()) / 2);
+        });
+        popup.show();
+    }
+
     // ---- Timer ------------------------------------------------------------
 
     private void startTimer() {

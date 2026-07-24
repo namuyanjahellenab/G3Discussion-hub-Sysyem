@@ -7,6 +7,7 @@ use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\View;
 use Illuminate\Support\Str;
 use App\Models\GroupStudent;
+use App\Models\Message;
 use App\Models\Post;
 use App\Models\Reply;
 use App\Models\Topic;
@@ -87,15 +88,12 @@ class AppServiceProvider extends ServiceProvider
     });
 
         View::composer('layouts.sidebar-admin', function ($view) {
-            // Same reasoning - every admin page recomputed this from two
-            // full-table-ish COUNT queries on every navigation. The count
-            // only needs to be "recent enough" for a sidebar badge, not
-            // live-accurate to the second.
-            $pendingFlagCount = Cache::remember(
-                'sidebar_pending_flag_count',
-                60,
-                fn () => Post::where('IsFlagged', true)->count() + Reply::where('IsFlagged', true)->count()
-            );
+            // Read live, not cached - a newly-flagged post/reply/message (or
+            // one an admin just dismissed/deleted on another tab) must
+            // change this badge immediately, not up to 60 seconds late.
+            $pendingFlagCount = Post::where('IsFlagged', true)->count()
+                + Reply::where('IsFlagged', true)->count()
+                + Message::where('is_spam', true)->orWhere('IsFlagged', true)->count();
 
             $view->with('pendingFlagCount', $pendingFlagCount);
         });

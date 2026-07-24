@@ -113,6 +113,10 @@ Route::post('/messages', [DiscussionHubPageController::class, 'storeMessage'])
         ->middleware('verified')
         ->name('messages.attachment');
 
+    Route::get('/replies/{reply}/attachment', [AttachmentController::class, 'downloadReply'])
+        ->middleware('verified')
+        ->name('replies.attachment');
+
     Route::get('/topics/{topic}/export', [DiscussionHubPageController::class, 'exportTopic'])
         ->middleware('verified')
         ->name('topics.export');
@@ -120,7 +124,14 @@ Route::post('/messages', [DiscussionHubPageController::class, 'storeMessage'])
     Route::get('/marks', [DashboardController::class, 'marks'])
     ->middleware('verified')
     ->name('marks.index');
-    
+
+    Route::get('/participation-criteria', [\App\Http\Controllers\ParticipationCriteriaController::class, 'edit'])
+        ->middleware('verified')
+        ->name('participation-criteria.edit');
+    Route::post('/participation-criteria', [\App\Http\Controllers\ParticipationCriteriaController::class, 'update'])
+        ->middleware('verified')
+        ->name('participation-criteria.update');
+
     Route::get('/quizzes', [DiscussionHubPageController::class, 'quizzes'])
         ->middleware('verified')
         ->name('quizzes.index');
@@ -180,12 +191,18 @@ use App\Http\Controllers\QuizEngineController;
 
 Route::middleware('auth')->group(function () {
     Route::get('/quiz/schedule', [QuizController::class, 'create'])->name('quiz.schedule');
+    Route::get('/quizzes/{id}/edit', [QuizController::class, 'edit'])->name('quiz.edit');
     Route::get('/quiz/drafts', [QuizController::class, 'drafts'])->name('quiz.drafts');
     Route::post('/quiz/draft', [QuizController::class, 'saveDraft'])->name('quiz.draft.save');
     Route::delete('/quiz/draft/{id}', [QuizController::class, 'deleteDraft'])->name('quiz.draft.delete');
+    Route::delete('/quiz/{quiz}', [QuizController::class, 'destroy'])->name('quiz.destroy');
     Route::get('/quiz/{id}/results', function ($id) {
         return view('quizzes.results', ['quizID' => $id]);
     })->name('quiz.results');
+    Route::get('/quiz/{id}/results/export-pdf', [QuizEngineController::class, 'exportResultsPdf'])->name('quiz.results.export');
+    Route::get('/quiz/{quizID}/results/{resultID}/review', [QuizEngineController::class, 'reviewSubmission'])->name('quiz.results.review');
+    Route::patch('/quiz/results/{resultID}/answers/{answerID}/marks', [QuizEngineController::class, 'updateAnswerMarks'])->name('quiz.results.review.marks');
+    Route::patch('/quiz/results/{resultID}/questions/{questionID}/marks', [QuizEngineController::class, 'updateQuestionMarks'])->name('quiz.results.review.question-marks');
     Route::post('/quiz/schedule-submit', [QuizController::class, 'scheduleAssessment']);
    Route::get('/quiz/{id}/take', function ($id) {
     $quiz = \App\Models\Quiz::findOrFail($id);
@@ -207,6 +224,8 @@ Route::post('/web/quiz/submit',      [QuizEngineController::class, 'submit'])->m
 Route::post('/web/quiz/auto-submit', [QuizEngineController::class, 'autoSubmit'])->middleware('auth');
 Route::get('/web/quiz/{id}/results', [QuizEngineController::class, 'results'])->middleware('auth');
 Route::get('/quiz/active-now', [QuizEngineController::class, 'activeNow'])->middleware('auth');
+Route::get('/quiz/result/{resultId}/grade', [QuizEngineController::class, 'gradeView'])->middleware('auth')->name('quiz.grade');
+Route::post('/quiz/result/{resultId}/grade', [QuizEngineController::class, 'gradeSubmit'])->middleware('auth')->name('quiz.grade.save');
 
 });
 
@@ -226,7 +245,7 @@ use App\Http\Controllers\AdminGroupController;
 use App\Http\Controllers\AdminDashboardController;
 
 
-Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(function () {
+Route::middleware(['auth', 'admin', \App\Http\Middleware\TriggerInactivitySweep::class])->prefix('admin')->name('admin.')->group(function () {
     Route::get('/dashboard', [AdminDashboardController::class, 'index'])->name('dashboard');
     Route::get('/groups', [AdminGroupController::class, 'index'])->name('groups.index');
     Route::post('/groups', [AdminGroupController::class, 'store'])->name('groups.store');
@@ -247,6 +266,8 @@ Route::post('/lecturer-staff/{user}/demote', [AdminLecturerStaffController::clas
     Route::delete('/student-ids/{studentId}', [\App\Http\Controllers\AdminStudentIdController::class, 'destroy'])->name('student-ids.destroy');
     Route::get('/blacklist', [\App\Http\Controllers\Admin\AdminBlacklistController::class, 'index'])->name('blacklist');
 Route::post('/blacklist', [\App\Http\Controllers\Admin\AdminBlacklistController::class, 'store'])->name('blacklist.store');
+Route::get('/blacklist/settings', [\App\Http\Controllers\Admin\AdminBlacklistSettingsController::class, 'edit'])->name('blacklist.settings');
+Route::post('/blacklist/settings', [\App\Http\Controllers\Admin\AdminBlacklistSettingsController::class, 'update'])->name('blacklist.settings.update');
 Route::delete('/blacklist/{blacklist}', [\App\Http\Controllers\Admin\AdminBlacklistController::class, 'destroy'])->name('blacklist.destroy');
 Route::post('/warning', [\App\Http\Controllers\Admin\AdminWarningController::class, 'store'])->name('warning.store');
 
@@ -274,4 +295,5 @@ Route::patch('/notifications/read-all', [DiscussionHubPageController::class, 'ma
     Route::get('/group-messages/{message}/attachment', [AttachmentController::class, 'downloadMessage'])->name('student.messages.attachment');
     Route::patch('/group-messages/{message}', [GroupChatController::class, 'update'])->middleware('blacklist')->name('student.messages.update');
     Route::delete('/group-messages/{message}', [GroupChatController::class, 'destroy'])->name('student.messages.destroy');
+    Route::post('/group-messages/{message}/flag', [GroupChatController::class, 'flag'])->name('student.messages.flag');
 });

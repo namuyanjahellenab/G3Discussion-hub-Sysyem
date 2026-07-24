@@ -5,40 +5,104 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Message;
 use App\Models\Post;
-use App\Models\PostFlag;
 use App\Models\Reply;
-use App\Models\ReplyFlag;
 use App\Models\Warning;
 use App\Services\ParticipationService;
 use Illuminate\Http\Request;
+use Illuminate\Pagination\LengthAwarePaginator;
 
 class AdminFlaggedContentController extends Controller
 {
     public function index(Request $request)
     {
-        // Filter chips are built from whatever Reason values flaggers have
-        // actually typed (Reason is freeform text, not a fixed enum) — "All"
-        // plus each distinct reason on record, rather than inventing
-        // categories the schema doesn't enforce.
-        $reasonFilter = $request->get('reason');
-        $availableReasons = PostFlag::whereNotNull('Reason')->distinct()->pluck('Reason')
-            ->merge(ReplyFlag::whereNotNull('Reason')->distinct()->pluck('Reason'))
-            ->filter()
-            ->unique()
-            ->values();
-
-        $flaggedPosts = Post::where('IsFlagged', true)
+        // Posts and Replies are two different Eloquent models, but the admin
+        // just wants one "Flagged Posts and Replies" queue ranked by when
+        // each was flagged - normalize both into a common shape, merge, sort,
+        // then paginate the merged collection by hand (a plain Eloquent
+        // paginate() can only ever page a single query).
+        // IsFlagged only flips true once the escalation threshold (2+ distinct
+        // flaggers, or ML spam detection) is met - orWhereHas('flags') also
+        // surfaces a single student's report immediately instead of making
+        // the admin wait for a second person to flag the same thing.
+        $posts = Post::where('IsFlagged', true)
+            ->orWhereHas('flags')
             ->with(['author', 'topic.group', 'flags'])
-            ->when($reasonFilter, fn ($q) => $q->whereHas('flags', fn ($fq) => $fq->where('Reason', $reasonFilter)))
-            ->latest('CreatedAt')
-            ->paginate(20, ['*'], 'posts_page');
+            ->get()
+            ->map(fn (Post $post) => [
+                'type' => 'Post',
+                'id' => $post->PostID,
+                'content' => $post->Content,
+                'author_name' => $post->author?->UserName ?? 'Unknown User',
+                'author_id' => $post->author?->UserID,
+                'context' => $post->topic?->Title ?? 'Deleted topic',
+                'group_name' => $post->topic?->group?->GroupName,
+                'flag_count' => $post->flags->count(),
+                'reason' => $post->FlaggedReason,
+                'date' => $post->CreatedAt,
+                'dismiss_route' => route('admin.flagged-content.dismiss', $post->PostID),
+                'destroy_route' => route('admin.flagged-content.destroy', $post->PostID),
+            ]);
 
-        $flaggedReplies = Reply::where('IsFlagged', true)
+        $replies = Reply::where('IsFlagged', true)
+            ->orWhereHas('flags')
             ->with(['author', 'post.topic.group', 'flags'])
-            ->when($reasonFilter, fn ($q) => $q->whereHas('flags', fn ($fq) => $fq->where('Reason', $reasonFilter)))
-            ->latest('CreatedAt')
-            ->paginate(20, ['*'], 'replies_page');
+            ->get()
+            ->map(fn (Reply $reply) => [
+                'type' => 'Reply',
+                'id' => $reply->ReplyID,
+                'content' => $reply->ReplyContent,
+                'author_name' => $reply->author?->UserName ?? 'Unknown User',
+                'author_id' => $reply->author?->UserID,
+                'context' => $reply->post?->topic?->Title ?? 'Deleted topic',
+                'group_name' => $reply->post?->topic?->group?->GroupName,
+                'flag_count' => $reply->flags->count(),
+                'reason' => $reply->flags->pluck('Reason')->filter()->first(),
+                'date' => $reply->CreatedAt,
+                'dismiss_route' => route('admin.flagged-content.replies.dismiss', $reply->ReplyID),
+                'destroy_route' => route('admin.flagged-content.replies.destroy', $reply->ReplyID),
+            ]);
 
+        // A student reporting a chat message (Message::flagBy) is the same
+        // kind of human report as flagging a post/reply, so it belongs in
+        // the same queue with the same actions (Dismiss/Warn/Delete) - not
+        // only in the separate spam table below. Excludes is_spam=true here
+        // even if it's ALSO been reported, since that one is still being
+        // held back from the group and stays solely in the spam table until
+        // resolved there, instead of appearing (and being actionable) twice.
+        $reportedMessages = Message::where('IsFlagged', true)
+            ->where('is_spam', false)
+            ->with(['user', 'conversation.group', 'flags'])
+            ->get()
+            ->map(fn (Message $message) => [
+                'type' => 'Message',
+                'id' => $message->MessageID,
+                'content' => $message->body,
+                'author_name' => $message->user?->UserName ?? 'Unknown User',
+                'author_id' => $message->user_id,
+                'context' => 'Group Chat',
+                'group_name' => $message->conversation?->group?->GroupName,
+                'flag_count' => $message->flags->count(),
+                'reason' => $message->FlaggedReason,
+                'date' => $message->CreatedAt,
+                'dismiss_route' => route('admin.flagged-content.messages.dismiss', $message->MessageID),
+                'destroy_route' => route('admin.flagged-content.messages.destroy', $message->MessageID),
+            ]);
+
+        $merged = $posts->concat($replies)->concat($reportedMessages)->sortByDesc('date')->values();
+
+        $page = (int) $request->get('flagged_page', 1);
+        $perPage = 20;
+        $flaggedItems = new LengthAwarePaginator(
+            $merged->forPage($page, $perPage),
+            $merged->count(),
+            $perPage,
+            $page,
+            ['path' => $request->url(), 'pageName' => 'flagged_page']
+        );
+
+        // Only is_spam here - a manually-reported (IsFlagged, not spam)
+        // message is already in $reportedMessages/$flaggedItems above, so it
+        // isn't duplicated (and double-actionable) in both tables.
         $flaggedMessages = Message::where('is_spam', true)
             ->with('user')
             ->latest('CreatedAt')
@@ -51,7 +115,7 @@ class AdminFlaggedContentController extends Controller
             ->pluck('active_count', 'UserID');
 
         return view('admin.flagged-content.index', compact(
-            'flaggedPosts', 'flaggedReplies', 'flaggedMessages', 'availableReasons', 'reasonFilter', 'warningCounts'
+            'flaggedItems', 'flaggedMessages', 'warningCounts'
         ));
     }
 
@@ -106,7 +170,24 @@ class AdminFlaggedContentController extends Controller
 
     public function dismissMessage(Message $message)
     {
-        $message->update(['is_spam' => false]);
+        // Only a message held back as is_spam was ever kept OUT of the
+        // group in the first place (GroupChatController::index() hides
+        // is_spam=true messages from everyone but the sender) - a manually
+        // reported message was never hidden, so there's nothing to "send"
+        // for that case, only the report itself to clear.
+        $wasHeldBack = (bool) $message->is_spam;
+
+        $message->flags()->delete();
+        $message->update(['is_spam' => false, 'IsFlagged' => false, 'FlaggedReason' => null]);
+
+        if ($wasHeldBack) {
+            $message->load('user');
+            try {
+                broadcast(new \App\Events\ChatMessageSent($message));
+            } catch (\Throwable $e) {
+                report($e);
+            }
+        }
 
         return back()->with('success', 'Message unflagged.');
     }

@@ -51,6 +51,19 @@ public class AttachmentCache {
         return localFileFor(fullUrl).isFile();
     }
 
+    /** Attachment filenames often keep raw spaces (default Windows
+     *  screenshot names, e.g. "Screenshot 2026-03-25 200428.jpg") - browsers
+     *  silently percent-encode those before requesting, but URI.create()/
+     *  new Image(String) don't, so an unencoded URL here throws or fails to
+     *  load with nothing visible to explain why. Rebuilding through the
+     *  multi-arg URI constructor re-encodes just the illegal characters in
+     *  each component. */
+    public static URI toSafeUri(String fullUrl) throws Exception {
+        URL parsed = new URL(fullUrl);
+        return new URI(parsed.getProtocol(), parsed.getUserInfo(), parsed.getHost(), parsed.getPort(),
+            parsed.getPath(), parsed.getQuery(), parsed.getRef());
+    }
+
     /** Kicks off a background download to store this attachment locally if
      *  it isn't already cached. Fire-and-forget, best-effort - "cache it if
      *  we can while we're already online viewing it" - so it never blocks
@@ -64,7 +77,7 @@ public class AttachmentCache {
         File target = localFileFor(fullUrl);
         try {
             Files.createDirectories(CACHE_DIR);
-            URL url = URI.create(fullUrl).toURL();
+            URL url = toSafeUri(fullUrl).toURL();
             HttpURLConnection conn = (HttpURLConnection) url.openConnection();
             conn.setConnectTimeout(5000);
             conn.setReadTimeout(10000);

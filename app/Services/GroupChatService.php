@@ -24,7 +24,8 @@ class GroupChatService
         array $excludeIds = [],
         ?int $conversationId = null,
         ?string $attachmentPath = null,
-        ?string $attachmentType = null
+        ?string $attachmentType = null,
+        ?int $parentMessageId = null
     ): Message {
         abort_unless(
             GroupStudent::where('GroupID', $groupId)->where('UserID', $userId)->exists(),
@@ -53,10 +54,20 @@ class GroupChatService
 
         $isSpam = app(MlGatewayClient::class)->isSpam($body);
 
+        // The tagged message must belong to this same conversation - a stale
+        // reference (e.g. the message got deleted, or belongs to a different
+        // thread) is dropped rather than blocking the send outright.
+        if ($parentMessageId !== null && !Message::where('MessageID', $parentMessageId)
+                ->where('ConversationID', $conversation->ConversationID)
+                ->exists()) {
+            $parentMessageId = null;
+        }
+
         $message = Message::create([
             'ConversationID' => $conversation->ConversationID,
             'TopicID' => null,
             'user_id' => $userId,
+            'ParentMessageID' => $parentMessageId,
             'body' => $body,
             'is_spam' => $isSpam,
             'Attachment' => $attachmentPath,
@@ -64,6 +75,12 @@ class GroupChatService
         ]);
 
         $message->load('user');
+
+        // Group chat messages count toward PostCount in participation
+        // scoring (see ParticipationService::recalculate) - without this,
+        // sending chat messages never moved a student's marks at all, only
+        // topic posts/replies did.
+        app(ParticipationService::class)->recalculate($userId, $groupId);
 
         // The message is already durably saved above - a live-push failure
         // (e.g. the Reverb server isn't running, as in local dev without it
@@ -88,10 +105,18 @@ class GroupChatService
         return $message;
     }
 
+    // A restricted thread is private to whoever set up the exclusion - only
+    // its creator ever becomes a member, so nobody else (whether excluded or
+    // simply not the one who restricted anyone) can see it exists, read it,
+    // or learn who was excluded from it. Matching an existing thread is
+    // scoped to this same sender for that reason - otherwise a second
+    // student picking the identical exclude list would silently be folded
+    // into the first student's private thread instead of getting their own.
     private function findOrCreateRestrictedConversation(int $groupId, int $senderId, Collection $excludeIds): Conversation
     {
         $candidates = Conversation::where('group_id', $groupId)
             ->where('Type', 'restricted')
+            ->where('CreatedBy', $senderId)
             ->get();
 
         foreach ($candidates as $candidate) {
@@ -109,19 +134,11 @@ class GroupChatService
             'group_id' => $groupId,
         ]);
 
-        $activeMembers = GroupStudent::where('GroupID', $groupId)
-            ->where('Status', 'active')
-            ->pluck('UserID');
-
-        foreach ($activeMembers as $memberId) {
-            if (!$excludeIds->contains($memberId)) {
-                ConversationMember::create([
-                    'ConversationID' => $conversation->ConversationID,
-                    'UserID' => $memberId,
-                    'JoinedAt' => now(),
-                ]);
-            }
-        }
+        ConversationMember::create([
+            'ConversationID' => $conversation->ConversationID,
+            'UserID' => $senderId,
+            'JoinedAt' => now(),
+        ]);
 
         foreach ($excludeIds as $excludedUserId) {
             ConversationExclusion::create([

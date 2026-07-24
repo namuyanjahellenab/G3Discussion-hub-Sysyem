@@ -2,7 +2,7 @@
 
 @section('content')
 <style>
-    .content-workspace { padding: 28px; max-width: 820px; }
+    .content-workspace { padding: 28px; }
     .page-header { margin-bottom: 24px; display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
     .page-header p.eyebrow { text-transform: uppercase; color: var(--text-muted); font-size: 0.75rem; font-weight: 600; letter-spacing: 0.5px; margin: 0 0 4px 0; }
     .page-header h1 { font-size: 24px; font-weight: 800; margin: 0; }

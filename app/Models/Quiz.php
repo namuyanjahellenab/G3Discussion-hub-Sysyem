@@ -13,7 +13,8 @@ class Quiz extends Model {
 ];
 
     protected $fillable = [
-        'LecturerID', 'GroupID', 'Title', 'StartTime', 'Duration', 'TargetCategory', 'Status'
+        'LecturerID', 'GroupID', 'Title', 'StartTime', 'Duration', 'TargetCategory', 'Status',
+        'CreatedAt', 'UpdatedAt'
     ];
 
     public function questions() {

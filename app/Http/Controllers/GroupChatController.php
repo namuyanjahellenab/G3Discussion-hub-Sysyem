@@ -18,6 +18,16 @@ class GroupChatController extends Controller
     {
         $userId = auth()->id();
 
+        // A student who has left (or never joined) this group must not be
+        // able to view its chat just by knowing/guessing the URL - without
+        // this, the auto-provisioning just below would even silently make
+        // them a ConversationMember of a group they're not part of.
+        abort_unless(
+            GroupStudent::where('GroupID', $groupId)->where('UserID', $userId)->exists(),
+            403,
+            'You are not a member of this group.'
+        );
+
         // Ensure a main group-wide conversation exists
         $mainConversation = Conversation::firstOrCreate(
             ['group_id' => $groupId, 'Type' => 'group'],
@@ -66,7 +76,7 @@ class GroupChatController extends Controller
                 $q->where('is_spam', false)->orWhere('user_id', $userId);
             })
             ->orderBy('CreatedAt')
-            ->with('user') // requires user() belongsTo on Message, add if missing
+            ->with(['user', 'parentMessage.user'])
             ->get();
 
         $groupMembers = GroupStudent::where('GroupID', $groupId)
@@ -106,9 +116,32 @@ class GroupChatController extends Controller
             ReadState::markRead($userId, 'Conversation', $activeConversation->ConversationID, $maxMessageId);
         }
 
+        // Mirrors forum/group.blade.php's per-topic unread badges, but for
+        // the "Your Groups" switcher above - otherwise switching groups from
+        // inside the chat page gives no clue which other group has new
+        // messages waiting, only threads within the group already open.
+        $otherGroupIds = $userGroups->pluck('GroupID')->reject(fn ($id) => (string) $id === (string) $groupId);
+        $otherMainConversations = Conversation::whereIn('group_id', $otherGroupIds)
+            ->where('Type', 'group')
+            ->pluck('ConversationID', 'group_id');
+
+        $otherLastRead = ReadState::where('UserID', $userId)
+            ->where('EntityType', 'Conversation')
+            ->whereIn('EntityID', $otherMainConversations->values())
+            ->pluck('LastReadItemId', 'EntityID');
+
+        $groupUnreadCounts = [];
+        foreach ($otherMainConversations as $gid => $convId) {
+            $lastRead = $otherLastRead[$convId] ?? 0;
+            $groupUnreadCounts[$gid] = Message::where('ConversationID', $convId)
+                ->where('is_spam', false)
+                ->where('MessageID', '>', $lastRead)
+                ->count();
+        }
+
         return view('student.messages', compact(
             'groupId', 'mainConversation', 'restrictedThreads',
-            'activeConversation', 'messages', 'groupMembers', 'userGroups',
+            'activeConversation', 'messages', 'groupMembers', 'userGroups', 'groupUnreadCounts',
             'threadUnreadCounts', 'lastReadMessageId'
         ));
     }
@@ -121,6 +154,7 @@ class GroupChatController extends Controller
             'exclude.*' => 'exists:User,UserID',
             'conversation_id' => 'nullable|exists:conversation,ConversationID',
             'attachment' => ['nullable', 'file', 'mimes:pdf,doc,docx,ppt,pptx,png,jpg,jpeg,zip', 'max:20480'],
+            'parent_message_id' => 'nullable|exists:message,MessageID',
         ]);
 
         if (blank($request->input('body')) && !$request->hasFile('attachment')) {
@@ -153,8 +187,10 @@ class GroupChatController extends Controller
             $request->input('exclude', []),
             $request->input('conversation_id'),
             $attachmentPath,
-            $attachmentType
+            $attachmentType,
+            $request->input('parent_message_id')
         );
+        $chatMessage->load('parentMessage.user');
 
         $wantsJson = $request->wantsJson() || $request->header('Accept') === 'application/json';
 
@@ -223,5 +259,25 @@ class GroupChatController extends Controller
         }
 
         return back();
+    }
+
+    /**
+     * Report a group chat message for moderator review - the manual
+     * counterpart to is_spam (the ML gateway's automatic detection). Mirrors
+     * DiscussionHubPageController::flagPost()/flagReply().
+     */
+    public function flag(Request $request, Message $message)
+    {
+        abort_unless($message->user_id !== auth()->id(), 403, 'You cannot report your own message.');
+
+        $request->validate(['Reason' => 'nullable|string|max:250']);
+
+        $message->flagBy(auth()->id(), $request->input('Reason'));
+
+        if ($request->wantsJson() || $request->header('Accept') === 'application/json') {
+            return response()->json(['success' => true]);
+        }
+
+        return back()->with('status', 'Message reported. A moderator will review it.');
     }
 }

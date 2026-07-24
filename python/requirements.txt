@@ -6,7 +6,18 @@ Werkzeug==3.0.1
 scikit-learn==1.6.0
 PyMySQL==1.2.0
 python-dotenv==1.0.1
-xhtml2pdf==0.2.17
+Pillow==12.3.0
+
+# pdf.py's PDF export - locally, after installing this, also run once:
+#   playwright install chromium
+# (downloads the actual browser binary Playwright drives; not covered by pip
+# alone). In production this step is skipped - see python/Dockerfile, which
+# starts from Microsoft's own Playwright image with Chromium already baked in.
+playwright==1.61.0
+
+# Production WSGI server - Flask's own built-in server (used by
+# `python app.py` locally) warns against production use and is single-threaded.
+gunicorn==23.0.0
 
 # Test-only dependency (test_app.py / `pytest` in the README) - not
 # imported by the running gateway itself.

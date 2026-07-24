@@ -990,6 +990,12 @@ public function storeTopic(Request $request)
         'FlaggedReason' => $isSpam ? 'Auto-flagged by spam detection' : null,
     ]);
 
+    // Starting a new topic is itself a Post (its initial content) and must
+    // count toward PostCount the same as any other post - this was the only
+    // post-creation path that never called this, so a student's "Posts"
+    // figure on the Marks screen never moved when they created new topics.
+    $this->updateParticipationScore(Auth::id(), $topic->GroupID);
+
     if ($request->input('audience') === 'custom') {
         foreach (collect($request->input('exclude', []))->unique() as $excludedUserId) {
             TopicExclusion::create(['TopicID' => $topic->TopicID, 'UserID' => $excludedUserId]);
@@ -1090,6 +1096,12 @@ public function storeReply(Request $request, Post $post)
         $attachmentType = $stored['type'];
     }
 
+    // Mirrors storeTopic()/storeMessage() - this was the one content-creation
+    // path with no spam check at all, so a reply the ML gateway would flag
+    // never got IsFlagged set and could never surface in the admin's
+    // Flagged Content queue no matter how spammy it was.
+    $isSpam = app(MlGatewayClient::class)->moderateContent($request->input('ReplyContent'))['isSpam'];
+
     Reply::create([
         'PostID' => $post->PostID,
         'UserID' => Auth::id(),
@@ -1097,6 +1109,7 @@ public function storeReply(Request $request, Post $post)
         'ParentReplyID' => $request->input('parent_reply_id'),
         'Attachment' => $attachmentPath,
         'AttachmentType' => $attachmentType,
+        'IsFlagged' => $isSpam,
     ]);
 
     // Notify the topic's original poster — this is what "My Questions" reads

@@ -13,6 +13,7 @@ import javafx.scene.control.*;
 import javafx.stage.Stage;
 
 import java.io.BufferedReader;
+import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.net.HttpURLConnection;
@@ -87,8 +88,17 @@ public class LoginController {
                         checkGroupsAndNavigate();
                     }
                 } else {
+                    InputStream errorStream = conn.getErrorStream();
+                    String body = "";
+                    if (errorStream != null) {
+                        try (Scanner s = new Scanner(errorStream, StandardCharsets.UTF_8).useDelimiter("\\A")) {
+                            body = s.hasNext() ? s.next() : "";
+                        }
+                    }
+                    String serverMessage = extractJsonValue(body, "message");
+
                     Platform.runLater(() -> {
-                        errorLabel.setText("Invalid credentials.");
+                        errorLabel.setText(serverMessage.isEmpty() ? "Invalid credentials." : serverMessage);
                         errorLabel.setVisible(true);
                     });
                 }
@@ -211,13 +221,67 @@ public class LoginController {
         }
     }
 
+    /**
+     * Sends the same reset-link email the web's "Forgot Password?" form
+     * does (POST /api/forgot-password -> AuthController::apiForgotPassword,
+     * which just calls Password::sendResetLink()) - the desktop has no way
+     * to render the "choose a new password" form itself (no browser tab to
+     * put it in), so the emailed link is still what the student clicks to
+     * actually finish resetting it, same as the web flow.
+     */
     @FXML
     public void onForgotPassword() {
-        Alert alert = new Alert(Alert.AlertType.INFORMATION);
-        alert.setTitle("Forgot Password");
-        alert.setHeaderText(null);
-        alert.setContentText("Please use the web app to reset your password.");
-        alert.showAndWait();
+        TextInputDialog dialog = new TextInputDialog(emailField.getText());
+        dialog.setTitle("Forgot Password");
+        dialog.setHeaderText("Enter your account email");
+        dialog.setContentText("Email:");
+        dialog.showAndWait().ifPresent(email -> {
+            String trimmed = email.trim();
+            if (trimmed.isEmpty()) return;
+            sendForgotPasswordRequest(trimmed);
+        });
+    }
+
+    private void sendForgotPasswordRequest(String email) {
+        new Thread(() -> {
+            try {
+                URL url = URI.create("http://localhost:8000/api/forgot-password").toURL();
+                HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+                conn.setRequestMethod("POST");
+                conn.setRequestProperty("Content-Type", "application/json");
+                conn.setRequestProperty("Accept", "application/json");
+                conn.setDoOutput(true);
+
+                String payload = "{\"email\": \"" + email.replace("\"", "\\\"") + "\"}";
+                try (OutputStream os = conn.getOutputStream()) {
+                    os.write(payload.getBytes(StandardCharsets.UTF_8));
+                }
+
+                int code = conn.getResponseCode();
+                InputStream stream = code == 200 ? conn.getInputStream() : conn.getErrorStream();
+                String body;
+                try (Scanner s = new Scanner(stream, StandardCharsets.UTF_8).useDelimiter("\\A")) {
+                    body = s.hasNext() ? s.next() : "";
+                }
+                String message = extractJsonValue(body, "message");
+
+                Platform.runLater(() -> {
+                    Alert alert = new Alert(code == 200 ? Alert.AlertType.INFORMATION : Alert.AlertType.WARNING);
+                    alert.setTitle("Forgot Password");
+                    alert.setHeaderText(null);
+                    alert.setContentText(code == 200
+                        ? "If that email is registered, a reset link has been sent. Open it in your browser to choose a new password."
+                        : (message.isEmpty() ? "Could not send the reset link. Check the email and try again." : message));
+                    alert.showAndWait();
+                });
+            } catch (Exception e) {
+                Platform.runLater(() -> {
+                    Alert alert = new Alert(Alert.AlertType.ERROR, "Couldn't reach the server — check your connection.");
+                    alert.setHeaderText(null);
+                    alert.showAndWait();
+                });
+            }
+        }).start();
     }
 
 }

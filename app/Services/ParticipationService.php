@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\Message;
 use App\Models\Participation;
 use App\Models\ParticipationCriteria;
 use App\Models\Post;
@@ -19,18 +20,33 @@ class ParticipationService
      * time it's recalculated, instead of requiring an explicit "subtract N
      * points" step wherever content gets flagged or deleted.
      *
-     * PostCount covers every Post row (topic-starting posts and group-chat
-     * messages alike — both use the Post model). ReplyCount covers Reply
-     * rows, i.e. actual Q&A answers in a topic thread.
+     * PostCount covers every Post row (topic-starting posts and replies-as-
+     * posts) plus every group-chat Message sent in this group's own
+     * conversations - despite living in a separate table/model today, a
+     * chat message is still "posting" for participation-scoring purposes.
+     * ReplyCount covers Reply rows, i.e. actual Q&A answers in a topic
+     * thread.
      */
     public function recalculate(int $userId, int $groupId): Participation
     {
         $criteria = ParticipationCriteria::forGroup($groupId);
 
-        $postCount = Post::where('UserID', $userId)
+        // Counts whatever Post/Reply/Message rows for this user in this
+        // group still exist in the database, full stop - no rejoin-based
+        // cutoff. A row that's actually been deleted is simply absent from
+        // these counts already; nothing further to exclude.
+        $topicPostCount = Post::where('UserID', $userId)
             ->where('IsFlagged', false)
             ->whereHas('topic', fn ($q) => $q->where('GroupID', $groupId))
             ->count();
+
+        $chatMessageCount = Message::where('user_id', $userId)
+            ->where('is_spam', false)
+            ->where('IsFlagged', false)
+            ->whereHas('conversation', fn ($q) => $q->where('group_id', $groupId))
+            ->count();
+
+        $postCount = $topicPostCount + $chatMessageCount;
 
         $replyCount = Reply::where('UserID', $userId)
             ->where('IsFlagged', false)
@@ -49,7 +65,7 @@ class ParticipationService
 
         return Participation::updateOrCreate(
             ['UserID' => $userId, 'GroupID' => $groupId],
-            ['PostCount' => $postCount, 'ReplyCount' => $replyCount, 'ParticipationScore' => $score]
+            ['PostCount' => $postCount, 'ReplyCount' => $replyCount, 'AcceptedCount' => $acceptedCount, 'ParticipationScore' => $score]
         );
     }
 
@@ -98,6 +114,7 @@ class ParticipationService
                 'raw_score' => $raw,
                 'post_count' => $p->PostCount ?? 0,
                 'reply_count' => $p->ReplyCount ?? 0,
+                'accepted_count' => $p->AcceptedCount ?? 0,
             ];
         });
     }

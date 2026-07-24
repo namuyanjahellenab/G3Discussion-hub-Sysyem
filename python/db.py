@@ -30,7 +30,6 @@ def _db_connect() -> Connection:
 
 
 def _run_query(sql: str, params: tuple | None = None) -> list[dict[str, Any]] | None:
-    # Run a SELECT and return its rows, or None if the DB is unreachable/errors.
     try:
         conn = _db_connect()
     except Exception:
@@ -77,14 +76,12 @@ def _fetch_user_recent_text(user_id: Any) -> list[str] | None:
 
 
 def _fetch_trending_groups() -> list[dict[str, Any]] | None:
-    # Every group with at least one real member, ranked by member count +
-    # weighted recent activity (posts + replies in the last
-    # TRENDING_WINDOW_DAYS days). Membership status of the *requesting* user
-    # is irrelevant here - trending is an objective, platform-wide signal,
-    # not a personalized "you haven't joined this yet" suggestion. But a
-    # group nobody has actually joined isn't "trending" just because it has
-    # a stray post in it, so MemberCount > 0 is a hard requirement, not just
-    # a non-zero combined score.
+    # Ranks every group by member count plus weighted recent activity
+    # (posts + replies in the last TRENDING_WINDOW_DAYS days). This is an
+    # objective, platform-wide signal - it ignores whether the requesting
+    # user has joined the group, unlike a personalized recommendation.
+    # A group with zero members still doesn't count as trending, even if
+    # it somehow has a stray post, so MemberCount > 0 is required.
     return _run_query(
         """
         SELECT g.GroupID AS GroupID, g.GroupName AS GroupName,
@@ -105,7 +102,7 @@ def _fetch_trending_groups() -> list[dict[str, Any]] | None:
 
 
 def _fetch_topic_export_data(topic_id: Any) -> dict[str, Any] | None:
-    # Topic + its posts (each with nested replies), for PDF export. None = DB unreachable.
+    # Topic + its posts, each with nested replies, for PDF export.
     topic_rows = _run_query(
         "SELECT t.TopicID, t.Title, g.GroupName FROM `Topic` t "
         "LEFT JOIN `Group` g ON g.GroupID = t.GroupID WHERE t.TopicID = %s",
@@ -118,7 +115,7 @@ def _fetch_topic_export_data(topic_id: Any) -> dict[str, Any] | None:
 
     # %% is required here - pymysql treats a bare % in DATE_FORMAT as a param placeholder.
     posts = _run_query(
-        "SELECT p.PostID, p.Content, p.Attachment, u.UserName AS AuthorName, "
+        "SELECT p.PostID, p.Content, p.Attachment, p.AttachmentType, u.UserName AS AuthorName, "
         "DATE_FORMAT(p.CreatedAt, '%%Y-%%m-%%d %%H:%%i') AS PostedAt "
         "FROM `Post` p LEFT JOIN `User` u ON u.UserID = p.UserID "
         "WHERE p.TopicID = %s ORDER BY p.CreatedAt",
@@ -132,7 +129,7 @@ def _fetch_topic_export_data(topic_id: Any) -> dict[str, Any] | None:
     if post_ids:
         placeholders = ",".join(["%s"] * len(post_ids))
         replies = _run_query(
-            "SELECT r.PostID, r.ReplyContent, u.UserName AS AuthorName, "
+            "SELECT r.PostID, r.ReplyContent, r.Attachment, r.AttachmentType, u.UserName AS AuthorName, "
             "DATE_FORMAT(r.CreatedAt, '%%Y-%%m-%%d %%H:%%i') AS PostedAt "
             "FROM `Reply` r LEFT JOIN `User` u ON u.UserID = r.UserID "
             f"WHERE r.PostID IN ({placeholders}) ORDER BY r.CreatedAt",
@@ -150,7 +147,7 @@ def _fetch_topic_export_data(topic_id: Any) -> dict[str, Any] | None:
 
 
 def _fetch_topic_share_data(topic_id: Any) -> dict[str, Any] | None:
-    # Topic title + reply count, for building a social-share snippet. None = DB unreachable.
+    # Topic title + reply count, for building a social-share snippet.
     topic_rows = _run_query("SELECT Title FROM `Topic` WHERE TopicID = %s", (topic_id,))
     if topic_rows is None:
         return None

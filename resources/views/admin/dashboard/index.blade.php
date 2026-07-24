@@ -1,15 +1,26 @@
 @extends('layouts.app')
 
 @section('content')
+<style>
+    /* Same date-badge treatment as the lecturer dashboard - shows today's
+       date, refreshed on every page load since it's rendered server-side. */
+    .date-badge { display: flex; align-items: center; gap: 8px; background: var(--surface-card); border: 1px solid var(--surface-border); border-radius: var(--radius-md); padding: 10px 16px; font-size: 13px; font-weight: 600; color: var(--text-heading); box-shadow: var(--shadow-soft); }
+    .date-badge i { color: var(--luna-mid); }
+</style>
 <div class="container-fluid px-4">
     <div class="d-flex justify-content-between align-items-start mb-4 flex-wrap gap-2">
         <div>
             <h2 class="fw-bold mb-1">Admin Panel</h2>
             <p class="text-muted mb-0">Global system overview and real-time community activity.</p>
         </div>
-        <a href="{{ route('admin.statistics.export') }}" class="btn btn-outline-secondary btn-sm">
-            <i class="fa-solid fa-arrow-down-to-line"></i> Export Data
-        </a>
+        <div class="d-flex align-items-center gap-2">
+            <div class="date-badge">
+                <i class="fa-regular fa-calendar"></i> {{ now()->format('l, M j, Y') }}
+            </div>
+            <a href="{{ route('admin.statistics.export') }}" class="btn btn-outline-secondary btn-sm">
+                <i class="fa-solid fa-arrow-down-to-line"></i> Export Data
+            </a>
+        </div>
     </div>
 
     <div class="row g-3 mb-4">
@@ -64,7 +75,7 @@
                             <i class="fa-solid fa-bullhorn"></i>
                         </div>
                         <div class="fw-bold text-dark small">ANNOUNCEMENTS</div>
-                        <div class="text-muted" style="font-size:0.75rem;">Broadcast system updates.</div>
+                        <div class="text-muted" style="font-size:0.75rem;">{{ number_format($announcementsCount) }} posted so far</div>
                     </div>
                 </div>
             </a>

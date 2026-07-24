@@ -3,6 +3,9 @@
     if (window.location.pathname.includes('/take')) return;
 
     let popupShown = false;
+    let blurDiv = null;
+    let overlay = null;
+    let popupCloseTimer = null;
 
     async function checkForActiveQuiz() {
         try {
@@ -14,13 +17,27 @@
             if (data.quiz && !popupShown) {
                 popupShown = true;
                 showQuizPopup(data.quiz);
+            } else if (!data.quiz && popupShown) {
+                // The quiz's time window (StartTime + Duration) has passed -
+                // the server itself has already stopped considering it
+                // active, so the popup must vanish immediately instead of
+                // sitting there blocking the page for a quiz that's no
+                // longer joinable.
+                closeQuizPopup();
             }
         } catch (e) {}
     }
 
+    function closeQuizPopup() {
+        if (popupCloseTimer) { clearTimeout(popupCloseTimer); popupCloseTimer = null; }
+        if (overlay) { overlay.remove(); overlay = null; }
+        if (blurDiv) { blurDiv.remove(); blurDiv = null; }
+        popupShown = false;
+    }
+
     function showQuizPopup(quiz) {
         // Blur layer behind popup
-        const blurDiv = document.createElement('div');
+        blurDiv = document.createElement('div');
         blurDiv.id = 'quizBlurLayer';
         blurDiv.style.cssText = `
             position: fixed; inset: 0; z-index: 99998;
@@ -37,7 +54,7 @@
         // would otherwise leave the entire page permanently unclickable.
 
         // Popup overlay
-        const overlay = document.createElement('div');
+        overlay = document.createElement('div');
         overlay.id = 'quizOverlay';
         overlay.style.cssText = `
             position: fixed; inset: 0; z-index: 99999;
@@ -89,6 +106,15 @@
         `;
 
         document.body.appendChild(overlay);
+
+        // Close precisely when the quiz's own time window ends, rather than
+        // waiting for the next 15s poll to merely notice via /quiz/active-now.
+        // The poll keeps running regardless, as a fallback (e.g. if a
+        // lecturer edits the quiz's timing after this popup already opened).
+        const expiryMs = new Date(quiz.StartTime).getTime() + quiz.Duration * 60000;
+        const remainingMs = Math.max(expiryMs - Date.now(), 0);
+        if (popupCloseTimer) clearTimeout(popupCloseTimer);
+        popupCloseTimer = setTimeout(closeQuizPopup, remainingMs);
     }
 
     // Poll every 15 seconds

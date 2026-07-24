@@ -1,11 +1,11 @@
-# Social-share URL/text construction for a topic - Flask owns this so Laravel/Blade never builds share URLs itself.
+# Builds social-share URLs and text for a topic.
+# Flask owns this so Laravel/Blade never has to construct share URLs itself.
 
 from typing import Any
 from urllib.parse import quote
 
 
 def _build_share_links(topic_id: Any, title: str, reply_count: int, base_url: str) -> dict[str, Any]:
-    # Build a canonical share URL, a pre-filled text snippet, and ready-to-use links.
     share_url = f"{base_url}/topics/{topic_id}"
     reply_word = "reply" if reply_count == 1 else "replies"
     share_text = f'Check out "{title}" ({reply_count} {reply_word}) on Discussion Hub'

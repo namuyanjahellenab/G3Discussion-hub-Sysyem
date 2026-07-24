@@ -22,31 +22,31 @@ class MarksService
             ->curvedScoresForUser($userId)
             ->keyBy('group_id');
 
+        // Current memberships only - a group they're not (or no longer) a
+        // member of has no card on their own Marks screen at all. Within a
+        // current membership, every quiz result still in the database
+        // counts, full stop - no rejoin-based cutoff.
+        $currentGroupIds = $participationByGroup->keys();
+
         $quizResults = QuizResult::where('UserID', $userId)
             ->with('quiz.group')
             ->orderByDesc('SubmissionTime')
             ->get()
-            ->filter(fn ($r) => $r->quiz?->group !== null)
+            ->filter(fn ($r) => $r->quiz?->group !== null && $currentGroupIds->contains($r->quiz->group->GroupID))
             ->groupBy(fn ($r) => $r->quiz->group->GroupID);
 
-        // A group the student has quiz results in but no (or a fresh,
-        // zero-score) participation row still needs to show up, and vice
-        // versa - union both sources rather than driving off just one.
-        $groupIds = $participationByGroup->keys()->merge($quizResults->keys())->unique();
-
-        return $groupIds->map(function ($groupId) use ($participationByGroup, $quizResults) {
+        return $currentGroupIds->map(function ($groupId) use ($participationByGroup, $quizResults) {
             $participation = $participationByGroup->get($groupId);
             $results = $quizResults->get($groupId, collect());
             $quizAverage = $results->isNotEmpty() ? round($results->avg('Score'), 1) : null;
 
             return [
                 'group_id' => $groupId,
-                'group_name' => $participation['group_name']
-                    ?? $results->first()?->quiz?->group?->GroupName
-                    ?? 'Group',
+                'group_name' => $participation['group_name'] ?? 'Group',
                 'participation' => $participation['participation'] ?? 0.0,
                 'post_count' => $participation['post_count'] ?? 0,
                 'reply_count' => $participation['reply_count'] ?? 0,
+                'accepted_count' => $participation['accepted_count'] ?? 0,
                 'quiz_average' => $quizAverage,
                 'quizzes_taken' => $results->count(),
                 'quizzes' => $results->map(fn ($r) => [

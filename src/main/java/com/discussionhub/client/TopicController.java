@@ -61,7 +61,9 @@ public class TopicController {
     @FXML private Label threadMetaLabel;
     @FXML private VBox mainPostCard;
     @FXML private VBox repliesBox;
+    @FXML private HBox replyContextRow;
     @FXML private Label replyContextLabel;
+    @FXML private Button cancelReplyButton;
     @FXML private TextArea replyInput;
     @FXML private Label attachedFileLabel;
     @FXML private Button removeAttachmentButton;
@@ -764,7 +766,18 @@ public class TopicController {
             // visible replies area on its own. preserveRatio keeps it from
             // distorting; clicking still opens the untouched full-size
             // original via openAttachment().
-            String imageSource = isCached ? cachedFile.toURI().toString() : fullUrl;
+            String imageSource;
+            if (isCached) {
+                imageSource = cachedFile.toURI().toString();
+            } else {
+                String encoded;
+                try {
+                    encoded = com.discussionhub.client.utils.AttachmentCache.toSafeUri(fullUrl).toString();
+                } catch (Exception e) {
+                    encoded = fullUrl;
+                }
+                imageSource = encoded;
+            }
             ImageView imageView = new ImageView(new Image(imageSource, 260, 220, true, true, true));
             imageView.setPreserveRatio(true);
             imageView.setFitWidth(260);
@@ -811,7 +824,7 @@ public class TopicController {
             }
             if (bytes == null) {
                 try {
-                    HttpURLConnection conn = (HttpURLConnection) URI.create(fullUrl).toURL().openConnection();
+                    HttpURLConnection conn = (HttpURLConnection) com.discussionhub.client.utils.AttachmentCache.toSafeUri(fullUrl).toURL().openConnection();
                     conn.setRequestMethod("GET");
                     if (conn.getResponseCode() == 200) {
                         bytes = conn.getInputStream().readAllBytes();
@@ -846,7 +859,7 @@ public class TopicController {
             if (cachedFile.isFile()) {
                 java.awt.Desktop.getDesktop().open(cachedFile);
             } else {
-                java.awt.Desktop.getDesktop().browse(URI.create(fullUrl));
+                java.awt.Desktop.getDesktop().browse(com.discussionhub.client.utils.AttachmentCache.toSafeUri(fullUrl));
             }
         } catch (Exception e) {
             System.err.println("[Topic] Couldn't open attachment: " + e.getMessage());
@@ -862,15 +875,17 @@ public class TopicController {
 
     private void startReplyTo(int replyId, String authorName) {
         replyToId = replyId;
-        replyContextLabel.setText("Replying to " + authorName + "  (✕ to cancel)");
-        replyContextLabel.setVisible(true);
-        replyContextLabel.setManaged(true);
-        replyContextLabel.setOnMouseClicked(e -> {
-            replyToId = null;
-            replyContextLabel.setVisible(false);
-            replyContextLabel.setManaged(false);
-        });
+        replyContextLabel.setText("↩ Replying to " + authorName);
+        replyContextRow.setVisible(true);
+        replyContextRow.setManaged(true);
         replyInput.requestFocus();
+    }
+
+    @FXML
+    protected void onCancelReply() {
+        replyToId = null;
+        replyContextRow.setVisible(false);
+        replyContextRow.setManaged(false);
     }
 
     @FXML
@@ -929,9 +944,7 @@ public class TopicController {
                 Platform.runLater(() -> {
                     replyInput.setDisable(false);
                     replyInput.clear();
-                    replyToId = null;
-                    replyContextLabel.setVisible(false);
-                    replyContextLabel.setManaged(false);
+                    onCancelReply();
                     onRemoveAttachment();
                     refresh();
                 });
@@ -947,9 +960,7 @@ public class TopicController {
                     alert.showAndWait();
                 } else {
                     replyInput.clear();
-                    replyToId = null;
-                    replyContextLabel.setVisible(false);
-                    replyContextLabel.setManaged(false);
+                    onCancelReply();
                     onRemoveAttachment();
                     refresh();
                 }
@@ -1066,7 +1077,7 @@ public class TopicController {
         Button whatsapp = shareLink("💬 WhatsApp", links.getString("whatsapp"));
         Button twitter = shareLink("𝕏 Twitter / X", links.getString("twitter"));
         Button facebook = shareLink("📘 Facebook", links.getString("facebook"));
-        Button email = shareLink("✉ Email", links.getString("email"));
+        Button email = emailShareButton("✉ Email", links.getString("email"));
 
         Button copyLink = new Button("🔗 Copy Link");
         copyLink.setMaxWidth(Double.MAX_VALUE);
@@ -1100,6 +1111,32 @@ public class TopicController {
                 java.awt.Desktop.getDesktop().browse(URI.create(url));
             } catch (Exception ex) {
                 System.err.println("[Topic] Couldn't open share link: " + ex.getMessage());
+            }
+        });
+        return b;
+    }
+
+    /** Email needs Desktop.Action.MAIL (the actual mailto: handler), not
+     *  browse() - browse() only happens to work for mailto: links on Windows
+     *  because ShellExecute dispatches by URI scheme regardless, which isn't
+     *  a guarantee on other platforms. */
+    private Button emailShareButton(String label, String url) {
+        Button b = new Button(label);
+        b.getStyleClass().add("btn-primary");
+        b.setMaxWidth(Double.MAX_VALUE);
+        b.setOnAction(e -> {
+            try {
+                if (!java.awt.Desktop.isDesktopSupported()
+                        || !java.awt.Desktop.getDesktop().isSupported(java.awt.Desktop.Action.MAIL)) {
+                    throw new UnsupportedOperationException("no default mail client configured");
+                }
+                java.awt.Desktop.getDesktop().mail(URI.create(url));
+            } catch (Exception ex) {
+                System.err.println("[Topic] Couldn't open mail client: " + ex.getMessage());
+                Alert alert = new Alert(Alert.AlertType.WARNING,
+                    "Couldn't open your email client — no default mail app is configured on this computer.");
+                alert.setHeaderText(null);
+                alert.showAndWait();
             }
         });
         return b;

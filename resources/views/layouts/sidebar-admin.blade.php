@@ -68,14 +68,14 @@
         <li class="{{ request()->routeIs('admin.statistics') ? 'active' : '' }}">
             <a href="{{ route('admin.statistics') }}"><i class="fa-solid fa-chart-simple"></i> Statistics</a>
         </li>
-        <li class="{{ request()->routeIs('admin.blacklist') ? 'active' : '' }}">
+        <li class="{{ request()->routeIs('admin.blacklist*') ? 'active' : '' }}">
             <a href="{{ route('admin.blacklist') }}"><i class="fa-solid fa-ban"></i> Blacklist</a>
         </li>
         <li class="{{ request()->routeIs('admin.flagged-content.*') ? 'active' : '' }}">
-            <a href="{{ route('admin.flagged-content.index') }}">
+            <a href="{{ route('admin.flagged-content.index') }}" id="flagged-content-link">
                 <i class="fa-solid fa-flag"></i> Flagged Content
                 @if($pendingFlagCount ?? 0)
-                    <span style="margin-left: auto; background: var(--accent-danger); color: #fff; font-size: 0.68rem; font-weight: 700; padding: 1px 7px; border-radius: 999px;">{{ $pendingFlagCount }}</span>
+                    <span id="flagged-content-badge" data-count="{{ $pendingFlagCount }}" style="margin-left: auto; background: var(--accent-danger); color: #fff; font-size: 0.68rem; font-weight: 700; padding: 1px 7px; border-radius: 999px;">{{ $pendingFlagCount }}</span>
                 @endif
             </a>
         </li>
@@ -100,3 +100,25 @@
 @once
     @include('layouts.sidebar-notifications-script')
 @endonce
+
+<script>
+    (function () {
+        var badge = document.getElementById('flagged-content-badge');
+        var link = document.getElementById('flagged-content-link');
+        if (!badge || !link) return;
+
+        var seenKey = 'flaggedContentSeenCount';
+        var currentCount = parseInt(badge.getAttribute('data-count'), 10) || 0;
+        var seenCount = parseInt(localStorage.getItem(seenKey), 10) || 0;
+
+        // Already seen this many (or more) flags - keep the badge hidden.
+        if (seenCount >= currentCount) {
+            badge.style.display = 'none';
+        }
+
+        link.addEventListener('click', function () {
+            localStorage.setItem(seenKey, currentCount);
+            badge.style.display = 'none';
+        });
+    })();
+</script>
