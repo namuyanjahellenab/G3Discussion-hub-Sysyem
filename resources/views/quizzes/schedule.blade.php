@@ -467,11 +467,6 @@
                 <div>
                     <label class="field-label" for="TargetCategory">Subject Category Selector</label>
                     <select id="TargetCategory" class="form-select">
-                        <option value="">-- Select Category --</option>
-                        <option value="Science">Science</option>
-                        <option value="Math">Math</option>
-                        <option value="English">English</option>
-                        <option value="History">History</option>
                         <option value="All Students">All Students</option>
                     </select>
                 </div>
