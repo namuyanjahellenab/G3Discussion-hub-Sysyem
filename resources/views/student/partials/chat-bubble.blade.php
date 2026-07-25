@@ -7,7 +7,7 @@
     <div class="chat-bubble__content">
         <div class="chat-bubble__meta">
             <strong>{{ $msg->user->UserName ?? 'Unknown' }}</strong>
-            <span>{{ \Carbon\Carbon::parse($msg->CreatedAt)->diffForHumans() }}</span>
+            <span class="live-timestamp" data-timestamp="{{ \Carbon\Carbon::parse($msg->CreatedAt)->timestamp }}">{{ \Carbon\Carbon::parse($msg->CreatedAt)->diffForHumans() }}</span>
         </div>
         @if($msg->parentMessage)
             <div class="quote-strip">
