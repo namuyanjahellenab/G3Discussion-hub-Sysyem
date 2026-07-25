@@ -14,7 +14,7 @@
 # SIGINT/SIGTERM/SIGTSTP unconditionally on non-Windows), which are only
 # defined once this extension is loaded - without it Reverb crashes
 # immediately with "Undefined constant" on every boot.
-nixPkgs = ["...", "nodejs_20", "php82Extensions.pdo_mysql", "php82Extensions.gd", "php82Extensions.bcmath", "php82Extensions.fileinfo", "php82Extensions.pcntl"]
+nixPkgs = ["...", "nodejs_20", "php82Extensions.pdo_mysql", "php82Extensions.gd", "php82Extensions.bcmath", "php82Extensions.fileinfo", "php82Extensions.pcntl", "composer"]
 
 [phases.install]
 cmds = [
