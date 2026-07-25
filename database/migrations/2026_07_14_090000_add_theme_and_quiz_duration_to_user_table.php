@@ -11,7 +11,7 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::table('user', function (Blueprint $table) {
+        Schema::table('User', function (Blueprint $table) {
             $table->string('ThemeColor', 20)->default('luna')->after('Role');
             $table->unsignedInteger('DefaultQuizDurationMinutes')->nullable()->after('ThemeColor');
         });
@@ -22,7 +22,7 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::table('user', function (Blueprint $table) {
+        Schema::table('User', function (Blueprint $table) {
             $table->dropColumn(['ThemeColor', 'DefaultQuizDurationMinutes']);
         });
     }

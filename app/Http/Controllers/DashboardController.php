@@ -175,16 +175,16 @@ public function marks()
  */
 protected function participationSnapshot($userId)
 {
-    $validPosts = DB::table('post')
+    $validPosts = DB::table('Post')
         ->where('UserID', $userId)
         ->where('IsFlagged', 0)
         ->count();
 
-    $replies = DB::table('reply')
+    $replies = DB::table('Reply')
         ->where('UserID', $userId)
         ->count();
 
-    $acceptedAnswers = DB::table('reply')
+    $acceptedAnswers = DB::table('Reply')
         ->where('UserID', $userId)
         ->where('IsAccepted', 1)
         ->count();
@@ -194,7 +194,7 @@ protected function participationSnapshot($userId)
         ? round($curvedScores->avg('participation'), 1)
         : 0.0;
 
-    $quizAverage = DB::table('quizresult')
+    $quizAverage = DB::table('QuizResult')
         ->where('UserID', $userId)
         ->avg('Score');
 

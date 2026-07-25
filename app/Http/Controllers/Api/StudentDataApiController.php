@@ -158,7 +158,7 @@ class StudentDataApiController extends Controller
             ? round($curvedScores->avg('participation'), 1)
             : 0.0;
 
-        $quizAverage = DB::table('quizresult')->where('UserID', $userId)->avg('Score');
+        $quizAverage = DB::table('QuizResult')->where('UserID', $userId)->avg('Score');
 
         return [
             'participation' => $participationScore,

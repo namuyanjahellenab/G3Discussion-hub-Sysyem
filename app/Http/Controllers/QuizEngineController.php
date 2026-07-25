@@ -455,7 +455,7 @@ public function myReview($quizID)
 
     $questions = Question::where('QuizID', $quizID)->get();
 
-    $myAnswers = DB::table('answer')
+    $myAnswers = DB::table('Answer')
         ->where('ResultID', $result->ResultID)
         ->where('UserID', $userId)
         ->get()
@@ -479,7 +479,7 @@ public function myReviewApi($quizID)
 
     $questions = Question::where('QuizID', $quizID)->get();
 
-    $myAnswers = DB::table('answer')
+    $myAnswers = DB::table('Answer')
         ->where('ResultID', $result->ResultID)
         ->where('UserID', $userId)
         ->get()

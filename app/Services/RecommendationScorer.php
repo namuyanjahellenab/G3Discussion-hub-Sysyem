@@ -64,13 +64,13 @@ class RecommendationScorer
     {
         $topicIds = $candidateTopics->pluck('TopicID');
 
-        $replyStats = DB::table('reply')
-            ->join('post', 'reply.PostID', '=', 'post.PostID')
-            ->whereIn('post.TopicID', $topicIds)
+        $replyStats = DB::table('Reply')
+            ->join('Post', 'Reply.PostID', '=', 'Post.PostID')
+            ->whereIn('Post.TopicID', $topicIds)
             ->select(
-                'post.TopicID',
+                'Post.TopicID',
                 DB::raw('COUNT(*) as reply_count'),
-                DB::raw('COUNT(DISTINCT reply.UserID) as distinct_repliers')
+                DB::raw('COUNT(DISTINCT Reply.UserID) as distinct_repliers')
             )
             ->groupBy('Post.TopicID')
             ->get()

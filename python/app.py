@@ -1,7 +1,7 @@
 # ML gateway for the Discussion Hub Laravel app.
 # Endpoints: /classify, /recommend-topics, /trending-groups, /export-topic-pdf, /topic-share-links
-# Classification/ranking uses TF-IDF + cosine similarity against a catalog rebuilt from live Topic data.
-# Helpers are imported by name so tests can keep monkeypatching them directly.
+# Classification and ranking use TF-IDF plus cosine similarity against a catalog rebuilt from live Topic data.
+# Helpers are imported by name so tests can mock or patch them directly.
 
 import logging
 import os
@@ -29,8 +29,11 @@ app = Flask(__name__)
 
 @app.route("/classify", methods=["POST"])
 def classify() -> ResponseReturnValue:
-    # _classify_content covers both the spam short-circuit and whether the
-    # message is educational/on-topic for an academic discussion board.
+    # Classifies an incoming message. First checks for spam and whether the
+    # message is educational or on topic for an academic discussion board.
+    # If it is not spam, assigns it a predicted topic category and score.
+    # _classify_content covers both the spam short circuit and the
+    # educational check in a single call.
     if not _is_authorized(request):
         return jsonify({"error": "unauthorized"}), 401
 
@@ -62,10 +65,11 @@ def classify() -> ResponseReturnValue:
 
 @app.route("/recommend-topics", methods=["POST"])
 def recommend_topics() -> ResponseReturnValue:
-    # Rank specific candidate topics for a user by relevance, scoring each
-    # topic's own title text against the user's interests/activity, so
-    # topics sharing a category no longer collapse onto one identical,
-    # duplicated score.
+    # Ranks a set of candidate topics for a user by relevance. Builds a
+    # query from the user's stated interests, recent messages, and recent
+    # activity pulled from the database, then scores each topic's own
+    # title text against that query so topics sharing a category no
+    # longer collapse onto one identical, duplicated score.
     if not _is_authorized(request):
         return jsonify({"error": "unauthorized"}), 401
 
@@ -87,7 +91,7 @@ def recommend_topics() -> ResponseReturnValue:
     # The title is repeated 3x rather than dropping Category entirely.
     # Most topics in a group share the same category, so weighting it
     # equally with a short title let that one repeated word dominate the
-    # score - collapsing unrelated topics in the same category onto nearly
+    # score, collapsing unrelated topics in the same category onto nearly
     # identical results. Category still gives every topic a baseline score
     # (so an unrelated title doesn't score a flat 0), but a title that
     # actually matches the query now outweighs it, as intended.
@@ -105,8 +109,9 @@ def recommend_topics() -> ResponseReturnValue:
 
 @app.route("/trending-groups", methods=["POST"])
 def trending_groups() -> ResponseReturnValue:
-    # Every group ranked by member count + weighted recent activity, joined
-    # or not - an objective "what's popular right now" signal, not a
+    # Ranks every group by member count plus weighted recent activity,
+    # regardless of whether the requesting user has joined. This is meant
+    # to be an objective "what's popular right now" signal, not a
     # personalized "you haven't joined this" suggestion.
     if not _is_authorized(request):
         return jsonify({"error": "unauthorized"}), 401
@@ -133,6 +138,9 @@ def trending_groups() -> ResponseReturnValue:
 
 @app.route("/export-topic-pdf", methods=["POST"])
 def export_topic_pdf() -> ResponseReturnValue:
+    # Builds a downloadable PDF of a topic and its posts. Fetches the topic
+    # data from the database, renders it to PDF bytes, and returns the file
+    # as an attachment with a slugified filename based on the topic title.
     if not _is_authorized(request):
         return jsonify({"error": "unauthorized"}), 401
 
@@ -163,6 +171,9 @@ def export_topic_pdf() -> ResponseReturnValue:
 
 @app.route("/topic-share-links", methods=["POST"])
 def topic_share_links() -> ResponseReturnValue:
+    # Builds shareable links for a topic (for example social platforms or
+    # a direct link) using the topic title and reply count fetched from
+    # the database, combined with the caller supplied base URL.
     if not _is_authorized(request):
         return jsonify({"error": "unauthorized"}), 401
 

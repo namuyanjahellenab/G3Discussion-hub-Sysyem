@@ -1,7 +1,8 @@
-# PDF export for a topic + its posts/replies, generated entirely in Python -
-# rendered by headless Chromium via Playwright (the same engine/print
-# pipeline a real browser's "Print to PDF" uses), for far more accurate
-# CSS/layout fidelity than a non-browser HTML-to-PDF converter gives.
+# PDF export for a topic plus its posts and replies, generated entirely in
+# Python and rendered by headless Chromium via Playwright (the same engine
+# and print pipeline a real browser's "Print to PDF" uses), for far more
+# accurate CSS and layout fidelity than a non browser HTML to PDF converter
+# gives.
 
 import base64
 import io
@@ -33,9 +34,9 @@ _MIME_TYPES = {
 }
 
 # The PDF only ever displays an embedded image at up to 320x260 (see the
-# .attachment-image CSS rule below) - embedding the original, possibly
-# multi-megabyte upload at full resolution just bloats the PDF for no
-# visual benefit. Downscaled + re-compressed the same way
+# .attachment-image CSS rule below), so embedding the original, possibly
+# multi megabyte upload at full resolution just bloats the PDF for no
+# visual benefit. Downscaled and re-compressed the same way
 # AttachmentUploader.php already shrinks images on upload, just done again
 # here in case an old attachment predates that (or came in larger).
 _PDF_IMAGE_MAX_DIMENSION = 480
@@ -43,8 +44,8 @@ _PDF_IMAGE_JPEG_QUALITY = 70
 
 
 def _display_attachment_name(attachment_path: str) -> str:
-    # Mirrors AttachmentUploader::displayName() (PHP) - strips the
-    # "{uniqid}--" collision-avoidance prefix so the PDF shows the same
+    # Mirrors AttachmentUploader::displayName() (PHP). Strips the
+    # "{uniqid}--" collision avoidance prefix so the PDF shows the same
     # clean original filename the web/desktop apps already show.
     base = attachment_path.rsplit("/", 1)[-1]
     return base.split("--", 1)[-1] if "--" in base else base
@@ -52,8 +53,8 @@ def _display_attachment_name(attachment_path: str) -> str:
 
 def _attachment_image_data_uri(attachment_path: str, attachment_type: str | None, base_url: str) -> str | None:
     # Returns a data: URI the PDF can render inline, or None if this
-    # attachment isn't an embeddable image or couldn't be fetched - callers
-    # fall back to a plain text mention in either case, so one missing/
+    # attachment isn't an embeddable image or couldn't be fetched. Callers
+    # fall back to a plain text mention in either case, so one missing or
     # unreachable image never breaks the whole export.
     if attachment_type != "image" or not base_url:
         return None
@@ -79,9 +80,10 @@ def _attachment_image_data_uri(attachment_path: str, attachment_type: str | None
                 )
 
             # Always re-encoded as JPEG, same as AttachmentUploader.php's own
-            # resize step - one predictable, small, well-compressed format
-            # regardless of what was uploaded, instead of carrying PNG/GIF/
-            # WebP's usually-larger encoding into the PDF for no visual gain.
+            # resize step, giving one predictable, small, well-compressed
+            # format regardless of what was uploaded, instead of carrying
+            # PNG/GIF/WebP's usually larger encoding into the PDF for no
+            # visual gain.
             if image.mode not in ("RGB", "L"):
                 flattened = Image.new("RGB", image.size, "#FFFFFF")
                 flattened.paste(image, mask=image.split()[-1] if image.mode == "RGBA" else None)
@@ -92,15 +94,15 @@ def _attachment_image_data_uri(attachment_path: str, attachment_type: str | None
             encoded = base64.b64encode(buffer.getvalue()).decode("ascii")
         return f"data:image/jpeg;base64,{encoded}"
     except (OSError, ValueError) as e:
-        # OSError also covers urllib.error.URLError (its subclass) - a
-        # network failure and a corrupt/unreadable image both land here.
+        # OSError also covers urllib.error.URLError (its subclass). A
+        # network failure and a corrupt or unreadable image both land here.
         _logger.warning("PDF export: could not fetch/resize attachment %s: %s", attachment_path, e)
         return None
 
 
 def _attach_display_fields(item: dict[str, Any], base_url: str) -> None:
     # Enriches a post/reply dict in place with the two fields the template
-    # actually renders, so the template itself never touches the network/filesystem.
+    # actually renders, so the template itself never touches the network or filesystem.
     if not item.get("Attachment"):
         return
     item["AttachmentName"] = _display_attachment_name(item["Attachment"])
@@ -109,8 +111,8 @@ def _attach_display_fields(item: dict[str, Any], base_url: str) -> None:
 
 def _slugify(text: str) -> str:
     # Turns a topic title into a safe PDF filename fragment, e.g.
-    # "Merge Sort Help!" -> "merge-sort-help". Falls back to "discussion"
-    # if nothing alphanumeric survives (e.g. an emoji-only title).
+    # "Merge Sort Help!" becomes "merge sort help". Falls back to
+    # "discussion" if nothing alphanumeric survives (e.g. an emoji only title).
     slug = re.sub(r"[^a-z0-9]+", "-", text.lower()).strip("-")
     return slug or "discussion"
 
@@ -129,7 +131,7 @@ def _build_topic_pdf(topic: dict[str, Any], posts: list[dict[str, Any]], base_ur
     )
 
     # Fresh, disposable headless Chromium per export, printed to PDF the same
-    # way Chrome's own "Print to PDF" would - the inner try/finally keeps a
+    # way Chrome's own "Print to PDF" would. The inner try/finally keeps a
     # failed export from ever leaving an orphaned Chromium process behind.
     try:
         with sync_playwright() as p:
@@ -146,7 +148,7 @@ def _build_topic_pdf(topic: dict[str, Any], posts: list[dict[str, Any]], base_ur
                 browser.close()
         return pdf_bytes
     except Exception as e:
-        # Broad on purpose - a launch failure or malformed page shouldn't
+        # Broad on purpose. A launch failure or malformed page shouldn't
         # crash the Flask worker over one bad export.
         _logger.warning("PDF export: Chromium rendering failed: %s", e)
         return None

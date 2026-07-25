@@ -8,7 +8,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class GroupStudent extends Model
 {
    
-    protected $table = 'groupstudent';
+    protected $table = 'GroupStudent';
     protected $primaryKey = 'StudentID';
     const CREATED_AT = 'CreatedAt';
     const UPDATED_AT = 'UpdatedAt';

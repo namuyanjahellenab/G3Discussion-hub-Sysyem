@@ -11,14 +11,14 @@ return new class extends Migration
      */
     public function up(): void
 {
-    Schema::table('message', function (Blueprint $table) {
+    Schema::table('Message', function (Blueprint $table) {
         $table->unsignedBigInteger('TopicID')->nullable()->change();
     });
 }
 
 public function down(): void
 {
-    Schema::table('message', function (Blueprint $table) {
+    Schema::table('Message', function (Blueprint $table) {
         $table->unsignedBigInteger('TopicID')->nullable(false)->change();
     });
 }

@@ -1,6 +1,6 @@
 # Database access layer for the ML gateway.
 # Reuses the same DB_* variables from Laravel's .env.
-# Returns None if the DB is unreachable/query failed, [] if the query succeeded but found nothing.
+# Returns None if the DB is unreachable or the query failed, [] if the query succeeded but found nothing.
 
 import logging
 import os
@@ -16,7 +16,7 @@ _logger = logging.getLogger(__name__)
 
 
 def _db_connect() -> Connection:
-    # Opens a fresh connection using Laravel's own DB_* env vars - raises on
+    # Opens a fresh connection using Laravel's own DB_* env vars. Raises on
     # failure, which every caller below catches and treats as "unreachable".
     return pymysql.connect(
         host=os.environ.get("DB_HOST", "127.0.0.1"),
@@ -30,6 +30,10 @@ def _db_connect() -> Connection:
 
 
 def _run_query(sql: str, params: tuple | None = None) -> list[dict[str, Any]] | None:
+    # Runs a single query and always closes the connection afterward.
+    # Any connection or execution failure is logged and reported as None,
+    # so callers can distinguish "DB unreachable" from "query returned
+    # zero rows."
     try:
         conn = _db_connect()
     except Exception:
@@ -47,7 +51,7 @@ def _run_query(sql: str, params: tuple | None = None) -> list[dict[str, Any]] | 
 
 
 def _fetch_live_categories() -> list[dict[str, Any]] | None:
-    # Category -> concatenated real Topic titles, for enriching the catalog.
+    # Category to concatenated real Topic titles, for enriching the catalog.
     return _run_query(
         "SELECT Category, GROUP_CONCAT(Title SEPARATOR ' ') AS Text FROM `Topic` "
         "WHERE Category IS NOT NULL AND Category <> '' GROUP BY Category"
@@ -55,7 +59,8 @@ def _fetch_live_categories() -> list[dict[str, Any]] | None:
 
 
 def _fetch_user_recent_text(user_id: Any) -> list[str] | None:
-    # A user's own recent Post/Reply text, most-recent-first. None = DB unreachable, [] = no history yet.
+    # A user's own recent Post/Reply text, most recent first. None means
+    # the DB was unreachable, [] means the user simply has no history yet.
     if not user_id:
         return None
     posts = _run_query(
@@ -78,7 +83,7 @@ def _fetch_user_recent_text(user_id: Any) -> list[str] | None:
 def _fetch_trending_groups() -> list[dict[str, Any]] | None:
     # Ranks every group by member count plus weighted recent activity
     # (posts + replies in the last TRENDING_WINDOW_DAYS days). This is an
-    # objective, platform-wide signal - it ignores whether the requesting
+    # objective, platform wide signal. It ignores whether the requesting
     # user has joined the group, unlike a personalized recommendation.
     # A group with zero members still doesn't count as trending, even if
     # it somehow has a stray post, so MemberCount > 0 is required.
@@ -88,7 +93,7 @@ def _fetch_trending_groups() -> list[dict[str, Any]] | None:
                COUNT(DISTINCT gs.StudentID) AS MemberCount,
                COUNT(DISTINCT p.PostID) + COUNT(DISTINCT r.ReplyID) AS RecentActivity
         FROM `Group` g
-        LEFT JOIN `groupstudent` gs ON gs.GroupID = g.GroupID
+        LEFT JOIN `GroupStudent` gs ON gs.GroupID = g.GroupID
         LEFT JOIN `Topic` t ON t.GroupID = g.GroupID
         LEFT JOIN `Post` p ON p.TopicID = t.TopicID AND p.CreatedAt >= NOW() - INTERVAL %s DAY
         LEFT JOIN `Reply` r ON r.PostID = p.PostID AND r.CreatedAt >= NOW() - INTERVAL %s DAY
@@ -102,7 +107,7 @@ def _fetch_trending_groups() -> list[dict[str, Any]] | None:
 
 
 def _fetch_topic_export_data(topic_id: Any) -> dict[str, Any] | None:
-    # Topic + its posts, each with nested replies, for PDF export.
+    # Topic plus its posts, each with nested replies, for PDF export.
     topic_rows = _run_query(
         "SELECT t.TopicID, t.Title, g.GroupName FROM `Topic` t "
         "LEFT JOIN `Group` g ON g.GroupID = t.GroupID WHERE t.TopicID = %s",
@@ -113,7 +118,7 @@ def _fetch_topic_export_data(topic_id: Any) -> dict[str, Any] | None:
     if not topic_rows:
         return {"topic": None, "posts": []}
 
-    # %% is required here - pymysql treats a bare % in DATE_FORMAT as a param placeholder.
+    # %% is required here since pymysql treats a bare % in DATE_FORMAT as a param placeholder.
     posts = _run_query(
         "SELECT p.PostID, p.Content, p.Attachment, p.AttachmentType, u.UserName AS AuthorName, "
         "DATE_FORMAT(p.CreatedAt, '%%Y-%%m-%%d %%H:%%i') AS PostedAt "
@@ -147,7 +152,7 @@ def _fetch_topic_export_data(topic_id: Any) -> dict[str, Any] | None:
 
 
 def _fetch_topic_share_data(topic_id: Any) -> dict[str, Any] | None:
-    # Topic title + reply count, for building a social-share snippet.
+    # Topic title plus reply count, for building a social share snippet.
     topic_rows = _run_query("SELECT Title FROM `Topic` WHERE TopicID = %s", (topic_id,))
     if topic_rows is None:
         return None

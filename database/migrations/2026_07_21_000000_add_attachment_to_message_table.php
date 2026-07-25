@@ -10,7 +10,7 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::table('message', function (Blueprint $table) {
+        Schema::table('Message', function (Blueprint $table) {
             $table->string('Attachment')->nullable()->after('body');
             $table->string('AttachmentType')->nullable()->after('Attachment');
         });
@@ -20,7 +20,7 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::table('message', function (Blueprint $table) {
+        Schema::table('Message', function (Blueprint $table) {
             $table->dropColumn(['Attachment', 'AttachmentType']);
         });
     }

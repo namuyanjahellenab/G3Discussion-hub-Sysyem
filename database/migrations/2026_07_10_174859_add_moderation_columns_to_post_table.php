@@ -8,7 +8,7 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::table('post', function (Blueprint $table) {
+        Schema::table('Post', function (Blueprint $table) {
             $table->boolean('IsFlagged')->default(false)->after('AttachmentType');
             $table->string('FlaggedReason', 250)->nullable()->after('IsFlagged');
         });
@@ -16,7 +16,7 @@ return new class extends Migration
 
     public function down(): void
     {
-        Schema::table('post', function (Blueprint $table) {
+        Schema::table('Post', function (Blueprint $table) {
             $table->dropColumn(['IsFlagged', 'FlaggedReason']);
         });
     }

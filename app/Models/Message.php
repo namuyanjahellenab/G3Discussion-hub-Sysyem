@@ -9,7 +9,7 @@ class Message extends Model
  const CREATED_AT = 'CreatedAt';
     const UPDATED_AT = 'UpdatedAt';
 
-   protected $table = 'message';
+   protected $table = 'Message';
 protected $primaryKey = 'MessageID';
 
 protected $fillable = ['TopicID', 'user_id', 'ConversationID', 'ParentMessageID', 'body', 'is_spam', 'IsFlagged', 'FlaggedReason', 'Attachment', 'AttachmentType'];

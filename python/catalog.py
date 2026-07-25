@@ -16,13 +16,13 @@ _catalog_cache: dict[str, Any] = {"built_at": 0.0, "catalog": None}
 
 
 def _clamp_score(score: float) -> float:
-    # Keeps a similarity/ratio score within [0, 1], since floating-point
+    # Keeps a similarity or ratio score within [0, 1], since floating point
     # rounding can occasionally push a perfect match slightly past 1.0.
     return max(0.0, min(float(score), 1.0))
 
 
 def _build_catalog() -> list[dict[str, str]]:
-    # Enriching the catalog means querying the database, which would be
+    # Building the catalog means querying the database, which would be
     # wasteful on every single /classify call. Caching the result for
     # CATALOG_TTL_SECONDS lets many requests reuse it before it's rebuilt.
     now = time.time()
@@ -49,7 +49,7 @@ def _build_catalog() -> list[dict[str, str]]:
 
 def _rank_against_catalog(query_text: str, catalog: list[dict[str, str]]) -> list[tuple[dict[str, str], float]]:
     # Scores query_text against every catalog entry by cosine similarity.
-    # Returns (entry, score) pairs in the catalog's original order; the
+    # Returns (entry, score) pairs in the catalog's original order. The
     # caller decides how to pick the best match.
     corpus = [item["Text"] for item in catalog] + [query_text]
     vectorizer = TfidfVectorizer(stop_words="english")
@@ -70,11 +70,11 @@ def _rank_texts(query_text: str, texts: list[str]) -> list[float]:
 
 
 def _classify_category(text: str) -> tuple[str, float]:
-    # Returns the best-matching category for text, or DEFAULT_CATEGORY at
+    # Returns the best matching category for text, or DEFAULT_CATEGORY at
     # score 0.0 if even the closest match is too weak to trust (below
     # SIMILARITY_FLOOR), or if there's no catalog to compare against at all
     # yet (a fresh install with no categorized topics, or the DB being
-    # unreachable) - same fallback value either way, just reached without
+    # unreachable). Same fallback value either way, just reached without
     # ever calling into TF-IDF/cosine similarity on an empty catalog.
     catalog = _build_catalog()
     if not catalog:

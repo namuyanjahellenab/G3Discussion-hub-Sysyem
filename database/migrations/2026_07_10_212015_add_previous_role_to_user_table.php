@@ -11,14 +11,14 @@ return new class extends Migration
      */
     public function up(): void
 {
-    Schema::table('user', function (Blueprint $table) {
+    Schema::table('User', function (Blueprint $table) {
         $table->string('PreviousRole')->nullable()->after('Role');
     });
 }
 
 public function down(): void
 {
-    Schema::table('user', function (Blueprint $table) {
+    Schema::table('User', function (Blueprint $table) {
         $table->dropColumn('PreviousRole');
     });
 }};

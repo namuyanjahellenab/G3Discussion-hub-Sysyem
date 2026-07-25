@@ -8,17 +8,17 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::table('blacklist', function (Blueprint $table) {
+        Schema::table('Blacklist', function (Blueprint $table) {
             $table->enum('Type', ['Auto', 'Manual'])->default('Manual')->after('Reason');
             $table->unsignedBigInteger('IssuedBy')->nullable()->after('Type');
 
-            $table->foreign('IssuedBy')->references('UserID')->on('user')->nullOnDelete();
+            $table->foreign('IssuedBy')->references('UserID')->on('User')->nullOnDelete();
         });
     }
 
     public function down(): void
     {
-        Schema::table('blacklist', function (Blueprint $table) {
+        Schema::table('Blacklist', function (Blueprint $table) {
             $table->dropForeign(['IssuedBy']);
             $table->dropColumn(['Type', 'IssuedBy']);
         });

@@ -8,7 +8,7 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::table('reply', function (Blueprint $table) {
+        Schema::table('Reply', function (Blueprint $table) {
             $table->string('Attachment')->nullable()->after('ParentReplyID');
             $table->string('AttachmentType')->nullable()->after('Attachment');
         });
@@ -16,7 +16,7 @@ return new class extends Migration
 
     public function down(): void
     {
-        Schema::table('reply', function (Blueprint $table) {
+        Schema::table('Reply', function (Blueprint $table) {
             $table->dropColumn(['Attachment', 'AttachmentType']);
         });
     }

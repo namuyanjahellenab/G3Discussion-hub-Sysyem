@@ -8,7 +8,7 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::table('reply', function (Blueprint $table) {
+        Schema::table('Reply', function (Blueprint $table) {
             $table->unsignedBigInteger('ParentReplyID')->nullable()->after('PostID');
             $table->foreign('ParentReplyID')->references('ReplyID')->on('Reply')->onDelete('set null');
         });
@@ -16,7 +16,7 @@ return new class extends Migration
 
     public function down(): void
     {
-        Schema::table('reply', function (Blueprint $table) {
+        Schema::table('Reply', function (Blueprint $table) {
             $table->dropForeign(['ParentReplyID']);
             $table->dropColumn('ParentReplyID');
         });

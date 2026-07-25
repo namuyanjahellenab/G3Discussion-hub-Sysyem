@@ -9,7 +9,7 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::table('participation', function (Blueprint $table) {
+        Schema::table('Participation', function (Blueprint $table) {
             $table->foreignId('GroupID')->nullable()->after('UserID')->constrained('Group', 'GroupID')->onDelete('cascade');
         });
 
@@ -17,9 +17,9 @@ return new class extends Migration
         // which group they belonged to. Drop them rather than guess — the
         // next post/reply a user makes will recreate an accurate, properly
         // group-scoped row via ParticipationService::recalculate().
-        DB::table('participation')->whereNull('GroupID')->delete();
+        DB::table('Participation')->whereNull('GroupID')->delete();
 
-        Schema::table('participation', function (Blueprint $table) {
+        Schema::table('Participation', function (Blueprint $table) {
             $table->foreignId('GroupID')->nullable(false)->change();
             $table->unique(['UserID', 'GroupID']);
         });
@@ -27,7 +27,7 @@ return new class extends Migration
 
     public function down(): void
     {
-        Schema::table('participation', function (Blueprint $table) {
+        Schema::table('Participation', function (Blueprint $table) {
             $table->dropUnique(['UserID', 'GroupID']);
             $table->dropConstrainedForeignId('GroupID');
         });

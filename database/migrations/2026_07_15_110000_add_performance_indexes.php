@@ -18,30 +18,30 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::table('notification', function (Blueprint $table) {
+        Schema::table('Notification', function (Blueprint $table) {
             $table->index(['UserID', 'Status']);
         });
 
-        Schema::table('post', function (Blueprint $table) {
+        Schema::table('Post', function (Blueprint $table) {
             $table->index('CreatedAt');
         });
 
-        Schema::table('reply', function (Blueprint $table) {
+        Schema::table('Reply', function (Blueprint $table) {
             $table->index('CreatedAt');
         });
     }
 
     public function down(): void
     {
-        Schema::table('notification', function (Blueprint $table) {
+        Schema::table('Notification', function (Blueprint $table) {
             $table->dropIndex(['UserID', 'Status']);
         });
 
-        Schema::table('post', function (Blueprint $table) {
+        Schema::table('Post', function (Blueprint $table) {
             $table->dropIndex(['CreatedAt']);
         });
 
-        Schema::table('reply', function (Blueprint $table) {
+        Schema::table('Reply', function (Blueprint $table) {
             $table->dropIndex(['CreatedAt']);
         });
     }

@@ -16,14 +16,14 @@ return new class extends Migration
         // detection, set in GroupChatService::send). IsFlagged/FlaggedReason
         // on the message itself is a derived cache of message_flags, exactly
         // like Post.IsFlagged/Reply.IsFlagged already work.
-        Schema::table('message', function (Blueprint $table) {
+        Schema::table('Message', function (Blueprint $table) {
             $table->boolean('IsFlagged')->default(false)->after('is_spam');
             $table->string('FlaggedReason', 250)->nullable()->after('IsFlagged');
         });
 
         Schema::create('message_flags', function (Blueprint $table) {
             $table->id('MessageFlagID');
-            $table->foreignId('MessageID')->constrained('message', 'MessageID')->onDelete('cascade');
+            $table->foreignId('MessageID')->constrained('Message', 'MessageID')->onDelete('cascade');
             $table->foreignId('FlaggedByUserID')->constrained('User', 'UserID')->onDelete('cascade');
             $table->string('Reason', 250)->nullable();
             $table->timestamp('CreatedAt')->useCurrent();
@@ -38,7 +38,7 @@ return new class extends Migration
     {
         Schema::dropIfExists('message_flags');
 
-        Schema::table('message', function (Blueprint $table) {
+        Schema::table('Message', function (Blueprint $table) {
             $table->dropColumn(['IsFlagged', 'FlaggedReason']);
         });
     }

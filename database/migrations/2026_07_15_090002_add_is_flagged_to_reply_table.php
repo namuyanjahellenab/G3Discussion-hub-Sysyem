@@ -8,14 +8,14 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::table('reply', function (Blueprint $table) {
+        Schema::table('Reply', function (Blueprint $table) {
             $table->boolean('IsFlagged')->default(false)->after('IsAccepted');
         });
     }
 
     public function down(): void
     {
-        Schema::table('reply', function (Blueprint $table) {
+        Schema::table('Reply', function (Blueprint $table) {
             $table->dropColumn('IsFlagged');
         });
     }

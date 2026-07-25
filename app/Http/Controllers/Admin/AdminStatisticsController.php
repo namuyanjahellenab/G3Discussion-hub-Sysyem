@@ -163,7 +163,7 @@ class AdminStatisticsController extends Controller
         });
     $blacklistedCount = Blacklist::active()
     ->when($groupId, function ($q) use ($groupId) {
-        $q->whereIn('UserID', DB::table('groupstudent')->where('GroupID', $groupId)->pluck('UserID'));
+        $q->whereIn('UserID', DB::table('GroupStudent')->where('GroupID', $groupId)->pluck('UserID'));
     })
     ->distinct('UserID')
     ->count('UserID');
@@ -261,11 +261,11 @@ class AdminStatisticsController extends Controller
         // QuizCompletion below intersects against - only ever real Role=
         // Student accounts, even if groupstudent ever gained a non-student
         // row.
-        $studentIdsByGroup = DB::table('groupstudent')
-            ->join('User', 'User.UserID', '=', 'groupstudent.UserID')
+        $studentIdsByGroup = DB::table('GroupStudent')
+            ->join('User', 'User.UserID', '=', 'GroupStudent.UserID')
             ->where('User.Role', 'Student')
-            ->whereIn('groupstudent.GroupID', $groupIds)
-            ->select('groupstudent.GroupID as GroupID', 'groupstudent.UserID as UserID')
+            ->whereIn('GroupStudent.GroupID', $groupIds)
+            ->select('GroupStudent.GroupID as GroupID', 'GroupStudent.UserID as UserID')
             ->get()
             ->groupBy('GroupID')
             ->map(fn ($rows) => $rows->pluck('UserID'));
@@ -327,13 +327,13 @@ class AdminStatisticsController extends Controller
         // in sync by students:process-inactivity/User::recordActivity. Using
         // that same Status field here instead keeps this table's numbers from
         // ever contradicting the cards.
-        $activeUsersByGroup = DB::table('groupstudent')
-            ->join('User', 'User.UserID', '=', 'groupstudent.UserID')
+        $activeUsersByGroup = DB::table('GroupStudent')
+            ->join('User', 'User.UserID', '=', 'GroupStudent.UserID')
             ->where('User.Role', 'Student')
             ->where('User.Status', 'Active')
-            ->whereIn('groupstudent.GroupID', $groupIds)
-            ->selectRaw('groupstudent.GroupID as GroupID, COUNT(*) as total')
-            ->groupBy('groupstudent.GroupID')
+            ->whereIn('GroupStudent.GroupID', $groupIds)
+            ->selectRaw('GroupStudent.GroupID as GroupID, COUNT(*) as total')
+            ->groupBy('GroupStudent.GroupID')
             ->pluck('total', 'GroupID');
 
         $stats = [];
