@@ -1,6 +1,7 @@
 package com.discussionhub.client;
 
 import com.discussionhub.client.utils.WindowUtil;
+import com.discussionhub.client.utils.AppConfig;
 
 import com.discussionhub.client.database.DatabaseManager;
 import com.discussionhub.client.utils.DeltaSyncService;
@@ -49,7 +50,7 @@ public class GroupSelectionController {
     private void loadGroups() {
         new Thread(() -> {
             try {
-                URL url = URI.create("http://localhost:8000/api/groups/for-selection").toURL();
+                URL url = URI.create(AppConfig.API_URL + "/groups/for-selection").toURL();
                 HttpURLConnection conn = (HttpURLConnection) url.openConnection();
                 conn.setRequestMethod("GET");
                 conn.setRequestProperty("Authorization", "Bearer " + SessionManager.token);
@@ -170,7 +171,7 @@ public class GroupSelectionController {
         new Thread(() -> {
             for (int groupId : toJoin) {
                 try {
-                    URL url = URI.create("http://localhost:8000/api/groups/" + groupId + "/join").toURL();
+                    URL url = URI.create(AppConfig.API_URL + "/groups/" + groupId + "/join").toURL();
                     HttpURLConnection conn = (HttpURLConnection) url.openConnection();
                     conn.setRequestMethod("POST");
                     conn.setRequestProperty("Authorization", "Bearer " + SessionManager.token);

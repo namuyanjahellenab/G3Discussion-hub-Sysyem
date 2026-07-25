@@ -11,6 +11,7 @@ import com.pusher.client.channel.PrivateChannelEventListener;
 import com.pusher.client.channel.PusherEvent;
 import com.pusher.client.util.HttpChannelAuthorizer;
 import com.discussionhub.client.utils.WindowUtil;
+import com.discussionhub.client.utils.AppConfig;
 import javafx.animation.Animation;
 import javafx.animation.KeyFrame;
 import javafx.animation.Timeline;
@@ -66,15 +67,18 @@ import java.util.Set;
 // members" composer panel rather than a modal dialog.
 public class GroupChatController {
 
-    private static final String BASE_URL = "http://127.0.0.1:8000";
+    private static final String BASE_URL = AppConfig.BASE_URL;
 
     // Must match REVERB_APP_KEY / REVERB_HOST / REVERB_PORT in the server's
-    // .env - this is the same local Reverb server the web client's
+    // .env - this is the same Reverb server the web client's
     // resources/js/echo.js connects to, just over the raw Pusher-protocol
-    // client instead of Laravel Echo.
-    private static final String REVERB_APP_KEY = "discussionhublocalkey";
-    private static final String REVERB_HOST = "127.0.0.1";
-    private static final int REVERB_WS_PORT = 8080;
+    // client instead of Laravel Echo. NOTE: Reverb is not yet deployed as
+    // its own Railway service, so these still resolve to a local dev
+    // server via AppConfig - realtime push will silently fail to connect
+    // until that's stood up; the 10s poll fallback covers the gap.
+    private static final String REVERB_APP_KEY = AppConfig.REVERB_APP_KEY;
+    private static final String REVERB_HOST = AppConfig.REVERB_HOST;
+    private static final int REVERB_WS_PORT = AppConfig.REVERB_WS_PORT;
 
     @FXML private Label titleLabel;
     @FXML private Label subtitleLabel;
@@ -243,7 +247,7 @@ public class GroupChatController {
             .setHost(REVERB_HOST)
             .setWsPort(REVERB_WS_PORT)
             .setWssPort(REVERB_WS_PORT)
-            .setUseTLS(false)
+            .setUseTLS(AppConfig.REVERB_USE_TLS)
             .setChannelAuthorizer(authorizer);
 
         pusher = new Pusher(REVERB_APP_KEY, options);

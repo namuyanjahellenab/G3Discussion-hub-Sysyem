@@ -1,6 +1,7 @@
 package com.discussionhub.client;
 
 import com.discussionhub.client.utils.WindowUtil;
+import com.discussionhub.client.utils.AppConfig;
 
 import com.discussionhub.client.database.DatabaseManager;
 import com.discussionhub.client.quiz.QuizPopupService;
@@ -51,7 +52,7 @@ public class LoginController {
 
         new Thread(() -> {
             try {
-                URL url = URI.create("http://localhost:8000/api/login").toURL();
+                URL url = URI.create(AppConfig.API_URL + "/login").toURL();
                 HttpURLConnection conn = (HttpURLConnection) url.openConnection();
                 conn.setRequestMethod("POST");
                 conn.setRequestProperty("Content-Type", "application/json");
@@ -121,7 +122,7 @@ public class LoginController {
     private void checkGroupsAndNavigate() {
         boolean hasAtLeastOneGroup = false;
         try {
-            URL url = URI.create("http://localhost:8000/api/groups").toURL();
+            URL url = URI.create(AppConfig.API_URL + "/groups").toURL();
             HttpURLConnection conn = (HttpURLConnection) url.openConnection();
             conn.setRequestMethod("GET");
             conn.setRequestProperty("Authorization", "Bearer " + SessionManager.token);
@@ -245,7 +246,7 @@ public class LoginController {
     private void sendForgotPasswordRequest(String email) {
         new Thread(() -> {
             try {
-                URL url = URI.create("http://localhost:8000/api/forgot-password").toURL();
+                URL url = URI.create(AppConfig.API_URL + "/forgot-password").toURL();
                 HttpURLConnection conn = (HttpURLConnection) url.openConnection();
                 conn.setRequestMethod("POST");
                 conn.setRequestProperty("Content-Type", "application/json");

@@ -1,6 +1,7 @@
-# Used by Railway (Nixpacks builder) for the two Laravel services (web +
-# queue worker) - both point their Root Directory at the repo root and share
-# this same build, differing only in each service's Start Command override.
+# Used by Railway (Nixpacks builder) for the three Laravel services (web,
+# queue worker, and Reverb) - all three point their Root Directory at the
+# repo root and share this same build, differing only in each service's
+# Start Command override.
 #
 # Left untouched here: the [start] phase. Nixpacks' PHP provider still
 # auto-detects Laravel and generates its own Nginx+PHP-FPM start command from
@@ -9,7 +10,11 @@
 # build that a bare PHP-only detection wouldn't know about.
 
 [phases.setup]
-nixPkgs = ["...", "nodejs_20", "php82Extensions.pdo_mysql", "php82Extensions.gd", "php82Extensions.bcmath", "php82Extensions.fileinfo"]
+# pcntl is required by Reverb's StartServer command (it references
+# SIGINT/SIGTERM/SIGTSTP unconditionally on non-Windows), which are only
+# defined once this extension is loaded - without it Reverb crashes
+# immediately with "Undefined constant" on every boot.
+nixPkgs = ["...", "nodejs_20", "php82Extensions.pdo_mysql", "php82Extensions.gd", "php82Extensions.bcmath", "php82Extensions.fileinfo", "php82Extensions.pcntl"]
 
 [phases.install]
 cmds = [

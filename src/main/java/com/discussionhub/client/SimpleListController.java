@@ -5,6 +5,7 @@ import com.discussionhub.client.utils.WindowUtil;
 import com.discussionhub.client.database.DatabaseManager;
 import com.discussionhub.client.utils.DeltaSyncService;
 import com.discussionhub.client.utils.NetworkUtil;
+import com.discussionhub.client.utils.AppConfig;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
@@ -29,7 +30,7 @@ import java.nio.charset.StandardCharsets;
 // this into their own dedicated screen (QuizzesController, RecommendController).
 public class SimpleListController {
 
-    private static final String BASE_URL = "http://127.0.0.1:8000";
+    private static final String BASE_URL = AppConfig.BASE_URL;
 
     @FXML private Label titleLabel;
     @FXML private Label syncStatusLabel;

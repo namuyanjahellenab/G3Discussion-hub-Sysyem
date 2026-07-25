@@ -16,8 +16,7 @@ import java.util.regex.Pattern;
 
 public class DeltaSyncService {
 
-    // TODO: confirm base path/port against the real Laravel deployment
-    private static final String BASE_URL = "http://127.0.0.1:8000/api";
+    private static final String BASE_URL = AppConfig.API_URL;
     private static final String PUSH_PATH = "/sync/push";
     private static final String PULL_PATH = "/sync/pull";
 

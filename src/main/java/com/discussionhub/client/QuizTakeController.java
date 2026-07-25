@@ -3,6 +3,7 @@ package com.discussionhub.client;
 import com.discussionhub.client.database.DatabaseManager;
 import com.discussionhub.client.utils.DeltaSyncService;
 import com.discussionhub.client.utils.WindowUtil;
+import com.discussionhub.client.utils.AppConfig;
 import javafx.animation.KeyFrame;
 import javafx.animation.Timeline;
 import javafx.application.Platform;
@@ -52,7 +53,7 @@ import java.util.Map;
 // question-nav dots.
 public class QuizTakeController {
 
-    private static final String BASE_URL = "http://127.0.0.1:8000";
+    private static final String BASE_URL = AppConfig.BASE_URL;
 
     // Web paginates 3 questions per page (see QUESTIONS_PER_PAGE in
     // quiz-take.blade.php's JS) rather than one question per screen.

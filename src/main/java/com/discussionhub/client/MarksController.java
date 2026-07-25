@@ -4,6 +4,7 @@ import com.discussionhub.client.database.DatabaseManager;
 import com.discussionhub.client.utils.DeltaSyncService;
 import com.discussionhub.client.utils.TextUtil;
 import com.discussionhub.client.utils.WindowUtil;
+import com.discussionhub.client.utils.AppConfig;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
@@ -33,7 +34,7 @@ import java.nio.charset.StandardCharsets;
 // flat stat tiles in a row and no right panel at all.
 public class MarksController {
 
-    private static final String BASE_URL = "http://127.0.0.1:8000";
+    private static final String BASE_URL = AppConfig.BASE_URL;
 
     @FXML private Label syncStatusLabel;
     @FXML private VBox groupsBox;

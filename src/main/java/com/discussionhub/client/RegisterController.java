@@ -1,6 +1,7 @@
 package com.discussionhub.client;
 
 import com.discussionhub.client.utils.WindowUtil;
+import com.discussionhub.client.utils.AppConfig;
 
 import com.discussionhub.client.database.DatabaseManager;
 import com.discussionhub.client.utils.DeltaSyncService;
@@ -126,7 +127,7 @@ public class RegisterController {
 
         new Thread(() -> {
             try {
-                URL url = URI.create("http://localhost:8000/api/register").toURL();
+                URL url = URI.create(AppConfig.API_URL + "/register").toURL();
                 HttpURLConnection conn = (HttpURLConnection) url.openConnection();
                 conn.setRequestMethod("POST");
                 conn.setRequestProperty("Content-Type", "application/json");

@@ -1,6 +1,7 @@
 package com.discussionhub.client;
 
 import com.discussionhub.client.utils.WindowUtil;
+import com.discussionhub.client.utils.AppConfig;
 
 import com.discussionhub.client.database.DatabaseManager;
 import com.discussionhub.client.utils.DeltaSyncService;
@@ -33,7 +34,7 @@ import java.util.Map;
 // Appearance (theme swatches), and Sessions (logout / logout everywhere).
 public class SettingsController {
 
-    private static final String BASE_URL = "http://127.0.0.1:8000";
+    private static final String BASE_URL = AppConfig.BASE_URL;
     private static final Map<String, String> THEMES = new LinkedHashMap<>();
     static {
         THEMES.put("luna", "#26658C");

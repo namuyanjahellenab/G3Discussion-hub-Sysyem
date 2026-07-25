@@ -18,7 +18,7 @@ public class NetworkUtil {
     // full auth stack before rejecting the method - measured at 1.5-4s under
     // the dev server, which blew past the timeout below and reported a
     // false OFFLINE even with the server fully up.
-    private static final String PROBE_URL = "http://127.0.0.1:8000/api/ping";
+    private static final String PROBE_URL = AppConfig.PROBE_URL;
     private static final int CONNECT_TIMEOUT_MS = 2500;
     private static final int READ_TIMEOUT_MS = 2500;
 
