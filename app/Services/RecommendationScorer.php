@@ -72,7 +72,7 @@ class RecommendationScorer
                 DB::raw('COUNT(*) as reply_count'),
                 DB::raw('COUNT(DISTINCT reply.UserID) as distinct_repliers')
             )
-            ->groupBy('post.TopicID')
+            ->groupBy('Post.TopicID')
             ->get()
             ->keyBy('TopicID');
 
