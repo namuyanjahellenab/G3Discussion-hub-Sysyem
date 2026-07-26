@@ -2,6 +2,7 @@
 
 <?import javafx.scene.control.*?>
 <?import javafx.scene.layout.*?>
+<?import javafx.scene.image.*?>
 <?import javafx.geometry.Insets?>
 
 <!-- Shared left navigation column, included via <fx:include> on every
@@ -29,7 +30,9 @@
     <VBox fx:id="collapsiblePanel" styleClass="sidebar-panel" prefWidth="220" minWidth="220" spacing="2" style="-fx-padding: 56 0 18 0;">
 
         <HBox fx:id="brandRow" alignment="CENTER_LEFT" spacing="6" style="-fx-padding: 0 14 16 14; -fx-border-color: transparent transparent -surface-border transparent; -fx-border-width: 0 0 1 0;">
-            <Label fx:id="brandIconLabel" text="💬" styleClass="heading-text" style="-fx-font-size: 16;"/>
+            <ImageView fx:id="brandIconImage" fitWidth="20" fitHeight="20" preserveRatio="true">
+                <Image url="@/icons/app-icon.png"/>
+            </ImageView>
             <Label fx:id="brandTextLabel" text="DISCUSSION HUB" styleClass="heading-text" style="-fx-font-size: 12.5;" wrapText="true"/>
             <Region HBox.hgrow="ALWAYS"/>
             <StackPane fx:id="bellWrapper" onMouseClicked="#onBellClicked" style="-fx-cursor: hand; -fx-padding: 4;">

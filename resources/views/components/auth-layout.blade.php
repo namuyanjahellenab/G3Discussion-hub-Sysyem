@@ -6,6 +6,7 @@
     <meta name="csrf-token" content="{{ csrf_token() }}">
 
     <title>{{ config('app.name', 'Discussion Hub') }}</title>
+    <link rel="icon" href="{{ asset('favicon.ico') }}">
 
     {{-- Fonts, Bootstrap, and Font Awesome are all bundled via app.css/Vite
          below, not CDN links. --}}

@@ -6,6 +6,7 @@
         <meta name="csrf-token" content="{{ csrf_token() }}">
 
         <title>{{ config('app.name', 'Discussion Hub') }}</title>
+        <link rel="icon" href="{{ asset('favicon.ico') }}">
 
         {{-- Inlined ahead of every stylesheet link so the LUNA custom
              properties (and the Bootstrap --bs-primary/--bs-primary-rgb

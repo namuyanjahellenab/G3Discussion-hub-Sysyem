@@ -50,7 +50,6 @@ public class SidebarController {
     @FXML private VBox collapsiblePanel;
     @FXML private HBox brandRow;
     @FXML private Button toggleBtn;
-    @FXML private Label brandIconLabel;
     @FXML private Label brandTextLabel;
     @FXML private StackPane bellWrapper;
     @FXML private Label notificationBadge;

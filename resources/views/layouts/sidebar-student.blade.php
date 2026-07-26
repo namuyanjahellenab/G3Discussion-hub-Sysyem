@@ -31,7 +31,7 @@
 
 <div class="sidebar-panel">
     <div class="sidebar-brand" style="display: flex; align-items: center;">
-        <i class="fa-solid fa-comments"></i><span>DISCUSSION HUB</span>
+        <img src="{{ asset('images/logo.png') }}" alt="Discussion Hub" style="width: 20px; height: 20px; object-fit: contain;"><span>DISCUSSION HUB</span>
 
         <div id="notification-bell-wrapper">
             <i class="fa-solid fa-bell" id="notification-bell"></i>
