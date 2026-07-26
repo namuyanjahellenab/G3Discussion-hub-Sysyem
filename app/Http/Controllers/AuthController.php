@@ -45,7 +45,7 @@ class AuthController extends Controller
     if ($activeBlacklist) {
         Log::warning('Login failed: User blacklisted', ['user_id' => $user->UserID]);
         return back()
-            ->withErrors(['email' => "This account is restricted until {$activeBlacklist->EndDate->format('d M Y')}. Reason: {$activeBlacklist->Reason}. Please contact an administrator if you believe this is a mistake."])
+            ->withErrors(['email' => "This account is restricted until {$activeBlacklist->EndDate->setTimezone('Africa/Kampala')->format('d M Y')}. Reason: {$activeBlacklist->Reason}. Please contact an administrator if you believe this is a mistake."])
             ->withInput($request->only('email'));
     }
 
@@ -175,7 +175,7 @@ public function apiLogin(Request $request)
     $activeBlacklist = Blacklist::where('UserID', $user->UserID)->active()->latest('CreatedAt')->first();
     if ($activeBlacklist) {
         return response()->json([
-            'message' => "Account is restricted until {$activeBlacklist->EndDate->format('d M Y')}. Reason: {$activeBlacklist->Reason}.",
+            'message' => "Account is restricted until {$activeBlacklist->EndDate->setTimezone('Africa/Kampala')->format('d M Y')}. Reason: {$activeBlacklist->Reason}.",
         ], 403);
     }
 

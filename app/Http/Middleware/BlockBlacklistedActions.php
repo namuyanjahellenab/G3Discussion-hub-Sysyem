@@ -21,7 +21,7 @@ class BlockBlacklistedActions
             $activeBlacklist = Blacklist::where('UserID', $user->UserID)->active()->latest('CreatedAt')->first();
 
             if ($activeBlacklist) {
-                $message = "Your account is restricted until {$activeBlacklist->EndDate->format('d M Y')} ({$activeBlacklist->Reason}). You can't post, send, or view messages while restricted.";
+                $message = "Your account is restricted until {$activeBlacklist->EndDate->setTimezone('Africa/Kampala')->format('d M Y')} ({$activeBlacklist->Reason}). You can't post, send, or view messages while restricted.";
 
                 if ($request->expectsJson()) {
                     // 422 rather than 403: some of the existing composer JS only

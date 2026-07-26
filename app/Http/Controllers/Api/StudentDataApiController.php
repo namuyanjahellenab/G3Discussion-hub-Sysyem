@@ -139,7 +139,7 @@ class StudentDataApiController extends Controller
                         'content' => $acceptedReply->ReplyContent,
                         'author_name' => $acceptedReply->author->UserName ?? 'Unknown',
                     ] : null,
-                    'created_at' => optional($topic->CreatedAt)->format('Y-m-d H:i'),
+                    'created_at' => optional($topic->CreatedAt)->setTimezone('Africa/Kampala')->format('Y-m-d H:i'),
                 ];
             });
 
@@ -242,7 +242,7 @@ class StudentDataApiController extends Controller
             'snapshot' => $this->participationSnapshot($user->UserID),
             'upcoming_quiz' => $upcomingQuiz ? [
                 'title' => $upcomingQuiz->Title,
-                'start_time' => $upcomingQuiz->StartTime->format('d M Y, h:i A'),
+                'start_time' => $upcomingQuiz->StartTime->setTimezone('Africa/Kampala')->format('d M Y, h:i A'),
                 'duration_minutes' => $upcomingQuiz->Duration,
             ] : null,
             'latest_announcement' => $latestAnnouncement ? [
@@ -338,7 +338,7 @@ class StudentDataApiController extends Controller
         $shape = fn ($q) => [
             'id' => $q->QuizID,
             'title' => $q->Title,
-            'start_time' => optional($q->StartTime)->format('Y-m-d H:i'),
+            'start_time' => optional($q->StartTime)->setTimezone('Africa/Kampala')->format('Y-m-d H:i'),
             'duration_minutes' => $q->Duration,
             'starts_in' => optional($q->StartTime)->diffForHumans(),
             'closed_ago' => $q->StartTime->copy()->addMinutes($q->Duration)->diffForHumans(),
@@ -352,7 +352,7 @@ class StudentDataApiController extends Controller
                 'quiz_id' => $r->QuizID,
                 'title' => $r->quiz->Title ?? 'Unknown quiz',
                 'score' => $r->Score,
-                'submitted_at' => optional($r->SubmissionTime)->format('Y-m-d H:i'),
+                'submitted_at' => optional($r->SubmissionTime)->setTimezone('Africa/Kampala')->format('Y-m-d H:i'),
                 'submitted_ago' => optional($r->SubmissionTime)->diffForHumans(),
             ])->values(),
             'total_score' => $completed->sum('Score'),

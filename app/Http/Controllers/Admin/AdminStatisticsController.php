@@ -204,7 +204,7 @@ class AdminStatisticsController extends Controller
             $stats[$group->GroupID]['FlaggedContent'],
         ]);
 
-        $filename = 'group_participation_summary_' . now()->format('Y_m_d') . '.csv';
+        $filename = 'group_participation_summary_' . now()->setTimezone('Africa/Kampala')->format('Y_m_d') . '.csv';
         $headers = [
             'Content-Type' => 'text/csv',
             'Content-Disposition' => "attachment; filename=\"$filename\"",

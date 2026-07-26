@@ -89,7 +89,7 @@ class AdminBlacklistController extends Controller
             'UserID'  => $validated['UserID'],
             // Not naming the specific admin, matching how Warning notices
             // and the admin activity log itself only ever say "Admin"/"Auto".
-            'Message' => "Your account has been restricted by an administrator until " . \Carbon\Carbon::parse($validated['EndDate'])->format('d M Y') . ". Reason: {$validated['Reason']}. You will not be able to post or send messages until then.",
+            'Message' => "Your account has been restricted by an administrator until " . \Carbon\Carbon::parse($validated['EndDate'])->setTimezone('Africa/Kampala')->format('d M Y') . ". Reason: {$validated['Reason']}. You will not be able to post or send messages until then.",
             'Status'  => false,
             'Type'    => 'Blacklist',
         ]);

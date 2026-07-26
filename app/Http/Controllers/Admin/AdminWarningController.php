@@ -39,7 +39,7 @@ class AdminWarningController extends Controller
             // student-facing message never names an admin either.
             Notification::create([
                 'UserID'  => $validated['UserID'],
-                'Message' => "You've received warning #{$nextWarningNo} from an administrator: \"{$validated['Reason']}\". This warning stays on your record until {$expiryDate->format('d M Y')}.",
+                'Message' => "You've received warning #{$nextWarningNo} from an administrator: \"{$validated['Reason']}\". This warning stays on your record until {$expiryDate->setTimezone('Africa/Kampala')->format('d M Y')}.",
                 'Status'  => false,
                 'Type'    => 'Warning',
             ]);
@@ -90,7 +90,7 @@ class AdminWarningController extends Controller
 
         Notification::create([
             'UserID'  => $userId,
-            'Message' => "Your account has been automatically restricted until {$endDate->format('d M Y')} for reaching " . self::WARNING_THRESHOLD . ' active warnings. You will not be able to post or send messages until then.',
+            'Message' => "Your account has been automatically restricted until {$endDate->setTimezone('Africa/Kampala')->format('d M Y')} for reaching " . self::WARNING_THRESHOLD . ' active warnings. You will not be able to post or send messages until then.',
             'Status'  => false,
             'Type'    => 'Blacklist',
         ]);

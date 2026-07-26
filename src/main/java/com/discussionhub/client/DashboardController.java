@@ -134,15 +134,15 @@ public class DashboardController {
             + (isOnline ? "#3F9C6B" : "#D9483D") + ";");
 
         String lastSync = dbManager.getLastSyncTimestamp();
-        String displaySync = lastSync;
-        if (lastSync != null) {
+        String displaySync = (lastSync == null || lastSync.equals("1970-01-01T00:00:00")) ? "never" : lastSync;
+        if (!"never".equals(displaySync)) {
             try {
                 displaySync = LAST_SYNC_DISPLAY_FORMAT.format(Instant.parse(lastSync));
             } catch (Exception ignored) {
                 // Fall back to the raw stored value if it's ever not a parseable instant.
             }
         }
-        lastSyncLabel.setText("Last synced: " + (displaySync != null ? displaySync : "never"));
+        lastSyncLabel.setText("Last synced: " + displaySync);
 
         int pendingCount = dbManager.getPendingChanges().size();
         pendingCountLabel.setText(pendingCount + (pendingCount == 1 ? " item" : " items")
