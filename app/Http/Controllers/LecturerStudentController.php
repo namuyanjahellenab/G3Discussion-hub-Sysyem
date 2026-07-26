@@ -20,7 +20,8 @@ class LecturerStudentController extends Controller
         abort_unless(in_array(Auth::user()->Role, ['Lecturer', 'Administrator'], true), 403);
 
         $groups = Group::orderBy('GroupName')
-            ->withCount(['students as member_count' => fn ($q) => $q->where('Status', 'active')])
+            ->withCount(['students as member_count' => fn ($q) => $q->where('Status', 'active')
+                ->whereHas('user', fn ($u) => $u->where('Role', 'Student'))])
             ->get();
 
         $selectedGroupId = $request->integer('group') ?: optional($groups->first())->GroupID;
@@ -63,6 +64,7 @@ class LecturerStudentController extends Controller
     private function rosterFor(int $groupId)
     {
         return GroupStudent::where('GroupID', $groupId)
+            ->whereHas('user', fn ($q) => $q->where('Role', 'Student'))
             ->with('user')
             ->get()
             ->sortBy(fn ($m) => $m->user?->UserName ?? '')
