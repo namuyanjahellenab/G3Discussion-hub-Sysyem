@@ -69,6 +69,12 @@ class AdminStatisticsController extends Controller
             ->when($groupId, fn ($q) => $q->whereHas('groupMemberships', fn ($q2) => $q2->where('GroupID', $groupId)))
             ->count();
 
+        // Also live, not cached - a promoted lecturer toggling between their
+        // Lecturer and Admin dashboards (DashboardController::switchToAdmin/
+        // switchToLecturer) flips User.Role right away, and this count would
+        // otherwise still show the pre-toggle number for up to 2 minutes.
+        $stats['totalAdmins'] = User::where('Role', 'Administrator')->count();
+
         // Group Participation Summary is read live rather than out of the
         // cached snapshot above, same reasoning as postsToday/activeStudents -
         // TotalStudents/AverageScore change the moment a student joins a
@@ -177,17 +183,16 @@ class AdminStatisticsController extends Controller
         // Reads User.Status, which the students:process-inactivity scheduled
         // command keeps in sync (Active/Inactive/Blacklisted) — distinct from
         // activeUsersToday above, which measures same-day posting activity.
-        // activeStudents/inactiveStudents/totalStudents/totalLecturers are
-        // deliberately NOT computed here - they're read live in index()
-        // instead (same reason as postsToday below), since this whole array
-        // gets cached for 2 minutes.
+        // activeStudents/inactiveStudents/totalStudents/totalLecturers/
+        // totalAdmins are deliberately NOT computed here - they're read live
+        // in index() instead (same reason as postsToday below), since this
+        // whole array gets cached for 2 minutes.
         $totalUsers = User::count();
-        $totalAdmins = User::where('Role', 'Administrator')->count();
 
         return compact(
             'openQuestions', 'quizzesRun',
             'postsPerDay', 'topMembers', 'blacklistedCount',
-            'totalUsers', 'totalAdmins'
+            'totalUsers'
         );
     }
 
@@ -196,15 +201,19 @@ class AdminStatisticsController extends Controller
         $groupId = $request->get('group_id');
         $groups = $groupId ? Group::where('GroupID', $groupId)->get() : Group::all();
 
-        $stats = $this->batchGroupStats($groups);
-        $rows = $groups->map(fn ($group) => [
-            $group->GroupName,
-            $stats[$group->GroupID]['TotalPosts'],
-            $stats[$group->GroupID]['ActiveUsers'],
-            $stats[$group->GroupID]['FlaggedContent'],
-        ]);
+        // batchGroupStats() is a fresh, uncached set of queries (same as
+        // index()'s $stats['groupSummary'], which is deliberately read live
+        // rather than out of that method's 2-minute cache) - so this export
+        // always reflects the database at the moment it's downloaded, not a
+        // stale snapshot. Same columns and AverageScore-descending order as
+        // the on-screen Group Participation Summary table, so the file
+        // matches exactly what the admin is looking at.
+        $rows = collect($this->batchGroupStats($groups))
+            ->values()
+            ->sortByDesc('AverageScore')
+            ->values();
 
-        $filename = 'group_participation_summary_' . now()->format('Y_m_d') . '.csv';
+        $filename = 'group_participation_summary_' . now()->format('Y_m_d_His') . '.csv';
         $headers = [
             'Content-Type' => 'text/csv',
             'Content-Disposition' => "attachment; filename=\"$filename\"",
@@ -212,9 +221,20 @@ class AdminStatisticsController extends Controller
 
         $callback = function () use ($rows) {
             $handle = fopen('php://output', 'w');
-            fputcsv($handle, ['Group', 'Total Posts', 'Active Users', 'Flagged Content']);
+            fputcsv($handle, [
+                'Group', 'Total Students', 'Active Students', 'Total Posts',
+                'Students Participation', 'Quiz Participation', 'Average Score',
+            ]);
             foreach ($rows as $row) {
-                fputcsv($handle, $row);
+                fputcsv($handle, [
+                    $row['GroupName'],
+                    $row['TotalStudents'],
+                    $row['ActiveUsers'],
+                    $row['TotalPosts'],
+                    $row['StudentsParticipation'],
+                    $row['QuizCompletion'] . '%',
+                    number_format($row['AverageScore'], 2),
+                ]);
             }
             fclose($handle);
         };

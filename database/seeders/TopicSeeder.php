@@ -51,7 +51,6 @@ class TopicSeeder extends Seeder
                     [
                         'CreatedBy' => $systemUser->UserID,
                         'Category' => $groupName,
-                        'is_resolved' => false,
                     ]
                 );
             }

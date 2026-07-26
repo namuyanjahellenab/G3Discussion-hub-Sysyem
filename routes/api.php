@@ -62,8 +62,8 @@ Route::middleware(['auth:sanctum', 'throttle:forum-posts'])->post('/topics/{id}/
 
     $message = Message::create([
         'topic_id' => $id,
-        'user_id' => $request->user()->id,
-        'body' => $request->body,
+        'UserID' => $request->user()->id,
+        'Body' => $request->body,
     ]);
 
     return response()->json($message, 201);

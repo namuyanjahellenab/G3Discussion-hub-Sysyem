@@ -27,7 +27,7 @@ class AdminGroupController extends Controller
             'Description' => 'required|string|max:500',
         ]);
 
-        $validated['CreatedBy'] = auth()->user()->UserName;
+        $validated['CreatedBy'] = auth()->user()->UserID;
 
         $group = Group::create($validated);
 

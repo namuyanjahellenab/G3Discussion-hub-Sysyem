@@ -4,8 +4,10 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use App\Models\Quiz;
 use App\Models\Question;
+use App\Models\QuestionOption;
 use App\Models\Notification;
 use App\Models\User;
+use App\Models\GroupStudent;
 use Carbon\Carbon;
 
 class QuizController extends Controller
@@ -13,14 +15,19 @@ class QuizController extends Controller
     // Loads the quiz scheduling screen — optionally pre-filled from a saved draft
 public function create(Request $request)
 {
-    $groups = \App\Models\Group::orderBy('GroupName')->get();
+    // Same "groups this lecturer has joined" scope DashboardController::
+    // lecturerDashboard() uses - a lecturer joins a group the same way a
+    // student does (GroupController::join), and can only schedule a quiz
+    // for one they're actually a member of.
+    $groups = \App\Models\Group::whereIn('GroupID', GroupStudent::where('UserID', auth()->id())->pluck('GroupID'))
+        ->orderBy('GroupName')->get();
 
     $draft = null;
     if ($request->filled('draft')) {
         $draft = Quiz::where('QuizID', $request->input('draft'))
             ->where('LecturerID', auth()->id())
             ->where('Status', 'draft')
-            ->with('questions')
+            ->with('questions.questionOptions')
             ->first();
     }
 
@@ -30,11 +37,12 @@ public function create(Request $request)
     // Loads an already-scheduled quiz into the same builder screen for editing
     public function edit($id)
     {
-        $groups = \App\Models\Group::orderBy('GroupName')->get();
+        $groups = \App\Models\Group::whereIn('GroupID', GroupStudent::where('UserID', auth()->id())->pluck('GroupID'))
+            ->orderBy('GroupName')->get();
 
         $draft = Quiz::where('QuizID', $id)
             ->where('LecturerID', auth()->id())
-            ->with('questions')
+            ->with('questions.questionOptions')
             ->firstOrFail();
 
         return view('quizzes.schedule', compact('groups', 'draft'));
@@ -49,7 +57,6 @@ public function create(Request $request)
     'Title'          => 'required|string|max:255',
     'StartTime'      => 'required|date',
     'Duration'       => 'required|integer|min:1',
-    'TargetCategory' => 'nullable|string|max:100',
     'GroupID'        => 'required|integer|exists:Group,GroupID',
     'Questions'      => 'required|array|min:1',
             'Questions.*.QuestionText'  => 'required|string',
@@ -58,6 +65,21 @@ public function create(Request $request)
             'Questions.*.CorrectAnswer'=> 'nullable|string',
             'Questions.*.Marks'        => 'required|numeric|min:0',
         ]);
+
+        // The dropdown on quizzes.schedule already only lists groups this
+        // lecturer has joined, but that's just a UI convenience - without
+        // this check a resubmitted/tampered request could still schedule
+        // (and notify students of) a quiz for a group the lecturer was
+        // never actually part of.
+        $lecturerIsGroupMember = GroupStudent::where('GroupID', $request->GroupID)
+            ->where('UserID', auth()->id())
+            ->exists();
+
+        if (!$lecturerIsGroupMember) {
+            return response()->json([
+                'message' => 'You can only schedule a quiz for a group you have joined.',
+            ], 403);
+        }
 
         // Step 2 — Save the quiz — finalize an existing draft in place if one
         // was passed, otherwise create a brand new quiz.
@@ -75,7 +97,6 @@ public function create(Request $request)
             'Title'          => $request->Title,
             'StartTime'      => Carbon::parse($request->StartTime, 'Africa/Kampala')->setTimezone('UTC'),
             'Duration'       => $request->Duration,
-            'TargetCategory' => $request->TargetCategory,
             'Status'         => 'scheduled',
         ];
 
@@ -88,14 +109,25 @@ public function create(Request $request)
 
         // Step 3 — Save the questions
         foreach ($request->Questions as $q) {
-            Question::create([
+            $question = Question::create([
                 'QuizID'        => $quiz->QuizID,
                 'QuestionText'  => $q['QuestionText'],
                 'QuestionType'  => $q['QuestionType'],
-               'Options'       => $q['Options'] ?? null,
                 'CorrectAnswer' => $q['CorrectAnswer'] ?? null,
                 'Marks'         => $q['Marks'],
             ]);
+
+            foreach (array_values($q['Options'] ?? []) as $position => $optionText) {
+                if ($optionText === null || $optionText === '') {
+                    continue;
+                }
+
+                QuestionOption::create([
+                    'QuestionID' => $question->QuestionID,
+                    'OptionText' => $optionText,
+                    'Position'   => $position,
+                ]);
+            }
         }
 
         // Step 4 — Notify all active students in the target group
@@ -118,6 +150,7 @@ $students = User::whereHas('groupMemberships', function ($q) use ($request) {
         foreach ($students as $student) {
             Notification::create([
                 'UserID'  => $student->UserID,
+                'GroupID' => $request->GroupID,
                 'Message' => $notifMessage,
                 'Status'  => false,
                 'Type'    => 'Quiz Announcement',
@@ -140,7 +173,6 @@ $students = User::whereHas('groupMemberships', function ($q) use ($request) {
             'Title'          => 'nullable|string|max:255',
             'StartTime'      => 'nullable|date',
             'Duration'       => 'nullable|integer|min:1',
-            'TargetCategory' => 'nullable|string|max:100',
             'GroupID'        => 'nullable|integer|exists:Group,GroupID',
             'Questions'      => 'nullable|array',
             'Questions.*.QuestionText'  => 'nullable|string',
@@ -173,7 +205,6 @@ $students = User::whereHas('groupMemberships', function ($q) use ($request) {
                 ? Carbon::parse($request->StartTime, 'Africa/Kampala')->setTimezone('UTC')
                 : null,
             'Duration'       => $request->input('Duration'),
-            'TargetCategory' => $request->input('TargetCategory'),
             'Status'         => 'draft',
             'UpdatedAt'      => now(),
         ];
@@ -190,14 +221,25 @@ $students = User::whereHas('groupMemberships', function ($q) use ($request) {
                 continue;
             }
 
-            Question::create([
+            $question = Question::create([
                 'QuizID'        => $quiz->QuizID,
                 'QuestionText'  => $q['QuestionText'],
                 'QuestionType'  => $q['QuestionType'] ?? 'MCQ',
-                'Options'       => $q['Options'] ?? null,
                 'CorrectAnswer' => $q['CorrectAnswer'] ?? null,
                 'Marks'         => $q['Marks'] ?? 0,
             ]);
+
+            foreach (array_values($q['Options'] ?? []) as $position => $optionText) {
+                if ($optionText === null || $optionText === '') {
+                    continue;
+                }
+
+                QuestionOption::create([
+                    'QuestionID' => $question->QuestionID,
+                    'OptionText' => $optionText,
+                    'Position'   => $position,
+                ]);
+            }
         }
 
         return response()->json([

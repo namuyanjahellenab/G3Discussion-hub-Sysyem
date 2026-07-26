@@ -110,7 +110,7 @@
     <div class="stats-grid">
         <div class="stat-card">
             <div class="label">Groups Joined</div>
-            <div class="value">{{ $joined_groups->count() }}</div>
+            <div class="value">{{ $joinedGroups->count() }}</div>
         </div>
         <div class="stat-card">
             <div class="label">Unread Notifications</div>
@@ -134,7 +134,7 @@
                     <a href="{{ route('groups.index') }}">See all</a>
                 </div>
                 <div class="groups-grid">
-                    @forelse($joined_groups as $group)
+                    @forelse($joinedGroups as $group)
                         <div class="group-card">
                             <div class="group-card-icon"><i class="fa-solid fa-users"></i></div>
                             <h5>{{ $group->GroupName }}</h5>

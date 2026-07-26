@@ -35,7 +35,7 @@ class GroupChatService
 
         if ($conversationId) {
             $conversation = Conversation::where('ConversationID', $conversationId)
-                ->where('group_id', $groupId)
+                ->where('GroupID', $groupId)
                 ->firstOrFail();
 
             abort_unless(
@@ -48,7 +48,7 @@ class GroupChatService
             $sortedExcludeIds = collect($excludeIds)->map(fn ($id) => (int) $id)->sort()->values();
 
             $conversation = $sortedExcludeIds->isEmpty()
-                ? Conversation::firstOrCreate(['group_id' => $groupId, 'Type' => 'group'], ['CreatedBy' => $userId])
+                ? Conversation::firstOrCreate(['GroupID' => $groupId, 'Type' => 'group'], ['CreatedBy' => $userId])
                 : $this->findOrCreateRestrictedConversation($groupId, $userId, $sortedExcludeIds);
         }
 
@@ -66,10 +66,10 @@ class GroupChatService
         $message = Message::create([
             'ConversationID' => $conversation->ConversationID,
             'TopicID' => null,
-            'user_id' => $userId,
+            'UserID' => $userId,
             'ParentMessageID' => $parentMessageId,
-            'body' => $body,
-            'is_spam' => $isSpam,
+            'Body' => $body,
+            'IsSpam' => $isSpam,
             'Attachment' => $attachmentPath,
             'AttachmentType' => $attachmentType,
         ]);
@@ -114,7 +114,7 @@ class GroupChatService
     // into the first student's private thread instead of getting their own.
     private function findOrCreateRestrictedConversation(int $groupId, int $senderId, Collection $excludeIds): Conversation
     {
-        $candidates = Conversation::where('group_id', $groupId)
+        $candidates = Conversation::where('GroupID', $groupId)
             ->where('Type', 'restricted')
             ->where('CreatedBy', $senderId)
             ->get();
@@ -131,7 +131,7 @@ class GroupChatService
         $conversation = Conversation::create([
             'Type' => 'restricted',
             'CreatedBy' => $senderId,
-            'group_id' => $groupId,
+            'GroupID' => $groupId,
         ]);
 
         ConversationMember::create([

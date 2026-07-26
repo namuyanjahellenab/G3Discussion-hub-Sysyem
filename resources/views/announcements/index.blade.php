@@ -28,10 +28,6 @@
         <a href="{{ route('announcements.create') }}" class="btn btn-primary"><i class="fa-solid fa-bullhorn"></i> New Announcement</a>
     </div>
 
-    @if(session('status'))
-        <div class="alert alert-success">{{ session('status') }}</div>
-    @endif
-
     @forelse($announcements as $announcement)
         <div class="announcement-card">
             <div class="announcement-meta">

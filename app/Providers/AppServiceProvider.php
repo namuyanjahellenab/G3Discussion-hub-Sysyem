@@ -93,7 +93,7 @@ class AppServiceProvider extends ServiceProvider
             // change this badge immediately, not up to 60 seconds late.
             $pendingFlagCount = Post::where('IsFlagged', true)->count()
                 + Reply::where('IsFlagged', true)->count()
-                + Message::where('is_spam', true)->orWhere('IsFlagged', true)->count();
+                + Message::where('IsSpam', true)->orWhere('IsFlagged', true)->count();
 
             $view->with('pendingFlagCount', $pendingFlagCount);
         });

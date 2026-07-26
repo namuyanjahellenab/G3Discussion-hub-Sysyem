@@ -8,6 +8,8 @@ class ReadState extends Model
 {
     protected $table = 'read_states';
     protected $primaryKey = 'ReadStateID';
+    const CREATED_AT = 'CreatedAt';
+    const UPDATED_AT = 'UpdatedAt';
 
     protected $fillable = ['UserID', 'EntityType', 'EntityID', 'LastReadItemId'];
 

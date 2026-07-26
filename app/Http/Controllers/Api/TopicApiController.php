@@ -51,7 +51,7 @@ class TopicApiController extends Controller
 
         $statusLabels = ['answered' => 'Answered', 'discussion' => 'Discussion', 'open' => 'Open'];
 
-        return response()->json([
+        return response()->json(\App\Support\ApiResponseCasing::withPascalAliases([
             'topic' => [
                 'id' => $topic->TopicID,
                 'title' => $topic->Title,
@@ -104,7 +104,7 @@ class TopicApiController extends Controller
                 'posts_count' => $t->posts_count,
                 'created_at' => $t->CreatedAt->diffForHumans(),
             ])->values(),
-        ]);
+        ]));
     }
 
     public function storeReply(Request $request, Post $post)
@@ -226,7 +226,7 @@ class TopicApiController extends Controller
         $shareLinks = app(MlGatewayClient::class)->topicShareLinks($topic->TopicID, $baseUrl)
             ?? $this->buildFallbackShareLinks($topic);
 
-        return response()->json($shareLinks);
+        return response()->json(\App\Support\ApiResponseCasing::withPascalAliases($shareLinks));
     }
 
     private function buildFallbackShareLinks(Topic $topic): array

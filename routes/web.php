@@ -89,6 +89,17 @@ Route::delete('/replies/{reply}', [DiscussionHubPageController::class, 'deleteRe
         ->middleware('verified')
         ->name('dashboard');
 
+    // For a lecturer promoted to Admin (User.PreviousRole = 'Lecturer') -
+    // these actually flip User.Role between 'Administrator' and 'Lecturer',
+    // then send them to whichever dashboard now matches. POST because they
+    // mutate the account's Role, not just navigate.
+    Route::post('/dashboard/switch-to-admin', [DashboardController::class, 'switchToAdmin'])
+        ->middleware('verified')
+        ->name('dashboard.switch-to-admin');
+    Route::post('/dashboard/switch-to-lecturer', [DashboardController::class, 'switchToLecturer'])
+        ->middleware('verified')
+        ->name('dashboard.switch-to-lecturer');
+
     Route::get('/forum', [DiscussionHubPageController::class, 'forum'])
         ->middleware('verified')
         ->name('forum.index');
@@ -163,6 +174,14 @@ Route::post('/messages', [DiscussionHubPageController::class, 'storeMessage'])
     Route::get('/announcements/create', [DashboardController::class, 'createAnnouncement'])
         ->middleware('verified')
         ->name('announcements.create');
+
+    Route::get('/lecturer/students', [\App\Http\Controllers\LecturerStudentController::class, 'index'])
+        ->middleware('verified')
+        ->name('lecturer.students.index');
+
+    Route::get('/lecturer/students/poll', [\App\Http\Controllers\LecturerStudentController::class, 'poll'])
+        ->middleware('verified')
+        ->name('lecturer.students.poll');
 
     Route::post('/announcements', [DashboardController::class, 'storeAnnouncement'])
         ->middleware('verified')

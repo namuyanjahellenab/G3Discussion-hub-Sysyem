@@ -114,6 +114,17 @@ class GroupController extends Controller
             ]);
         }
 
+        // A "New quiz scheduled"/"Quiz updated" notification sent while this
+        // student was still a member is no longer relevant once they've
+        // left - QuizEngineController::isGroupMember() would reject them
+        // from actually taking it anyway, so leaving it in their
+        // notification list only leads to a confusing "Cannot Load Quiz -
+        // You are not a member of this quiz's group" if they click it.
+        Notification::where('UserID', $user->UserID)
+            ->where('GroupID', $group->GroupID)
+            ->where('Type', 'Quiz Announcement')
+            ->delete();
+
         // Deleting the loaded model (not a bulk query delete) fires
         // GroupStudent's own deleted-event hook, which busts
         // Group::activeMembers()'s cache for this group.

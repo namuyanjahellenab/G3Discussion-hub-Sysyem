@@ -33,10 +33,6 @@
         <a href="{{ route('quiz.schedule') }}" class="btn btn-primary"><i class="fa-solid fa-plus"></i> New Quiz</a>
     </div>
 
-    @if(session('status'))
-        <div class="alert alert-success" style="margin-bottom: 20px;">{{ session('status') }}</div>
-    @endif
-
     <div class="panel">
         @forelse($drafts as $draft)
             <div class="draft-row">

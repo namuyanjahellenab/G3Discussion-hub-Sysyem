@@ -65,20 +65,20 @@ class AdminFlaggedContentController extends Controller
         // A student reporting a chat message (Message::flagBy) is the same
         // kind of human report as flagging a post/reply, so it belongs in
         // the same queue with the same actions (Dismiss/Warn/Delete) - not
-        // only in the separate spam table below. Excludes is_spam=true here
+        // only in the separate spam table below. Excludes IsSpam=true here
         // even if it's ALSO been reported, since that one is still being
         // held back from the group and stays solely in the spam table until
         // resolved there, instead of appearing (and being actionable) twice.
         $reportedMessages = Message::where('IsFlagged', true)
-            ->where('is_spam', false)
+            ->where('IsSpam', false)
             ->with(['user', 'conversation.group', 'flags'])
             ->get()
             ->map(fn (Message $message) => [
                 'type' => 'Message',
                 'id' => $message->MessageID,
-                'content' => $message->body,
+                'content' => $message->Body,
                 'author_name' => $message->user?->UserName ?? 'Unknown User',
-                'author_id' => $message->user_id,
+                'author_id' => $message->UserID,
                 'context' => 'Group Chat',
                 'group_name' => $message->conversation?->group?->GroupName,
                 'flag_count' => $message->flags->count(),
@@ -100,10 +100,10 @@ class AdminFlaggedContentController extends Controller
             ['path' => $request->url(), 'pageName' => 'flagged_page']
         );
 
-        // Only is_spam here - a manually-reported (IsFlagged, not spam)
+        // Only IsSpam here - a manually-reported (IsFlagged, not spam)
         // message is already in $reportedMessages/$flaggedItems above, so it
         // isn't duplicated (and double-actionable) in both tables.
-        $flaggedMessages = Message::where('is_spam', true)
+        $flaggedMessages = Message::where('IsSpam', true)
             ->with('user')
             ->latest('CreatedAt')
             ->limit(20)
@@ -170,15 +170,15 @@ class AdminFlaggedContentController extends Controller
 
     public function dismissMessage(Message $message)
     {
-        // Only a message held back as is_spam was ever kept OUT of the
+        // Only a message held back as IsSpam was ever kept OUT of the
         // group in the first place (GroupChatController::index() hides
-        // is_spam=true messages from everyone but the sender) - a manually
+        // IsSpam=true messages from everyone but the sender) - a manually
         // reported message was never hidden, so there's nothing to "send"
         // for that case, only the report itself to clear.
-        $wasHeldBack = (bool) $message->is_spam;
+        $wasHeldBack = (bool) $message->IsSpam;
 
         $message->flags()->delete();
-        $message->update(['is_spam' => false, 'IsFlagged' => false, 'FlaggedReason' => null]);
+        $message->update(['IsSpam' => false, 'IsFlagged' => false, 'FlaggedReason' => null]);
 
         if ($wasHeldBack) {
             $message->load('user');

@@ -43,7 +43,7 @@ class StudentDataApiController extends Controller
             ->limit(5)
             ->get();
 
-        return response()->json([
+        return response()->json(\App\Support\ApiResponseCasing::withPascalAliases([
             'joined_groups' => $joinedGroups->map(fn ($g) => [
                 'id' => $g->GroupID,
                 'name' => $g->GroupName,
@@ -58,7 +58,7 @@ class StudentDataApiController extends Controller
                 'category' => $t->classification->PredictedCategory ?? $t->Category,
                 'time' => $t->CreatedAt->diffForHumans(),
             ])->values(),
-        ]);
+        ]));
     }
 
     // Mirrors DiscussionHubPageController::pollNotifications() exactly (same
@@ -71,9 +71,11 @@ class StudentDataApiController extends Controller
 
         $unreadCount = Notification::where('UserID', $userId)
             ->where('Status', false)
+            ->excludingStaleGroupNotifications()
             ->count();
 
         $latest = Notification::where('UserID', $userId)
+            ->excludingStaleGroupNotifications()
             ->orderByDesc('CreatedAt')
             ->take(10)
             ->get()
@@ -85,11 +87,11 @@ class StudentDataApiController extends Controller
                 'time' => $n->CreatedAt->diffForHumans(),
             ]);
 
-        return response()->json([
+        return response()->json(\App\Support\ApiResponseCasing::withPascalAliases([
             'success' => true,
             'unread_count' => $unreadCount,
             'notifications' => $latest,
-        ]);
+        ]));
     }
 
     public function markNotificationRead(Request $request, Notification $notification)
@@ -143,7 +145,7 @@ class StudentDataApiController extends Controller
                 ];
             });
 
-        return response()->json($myTopics);
+        return response()->json(\App\Support\ApiResponseCasing::withPascalAliases($myTopics));
     }
 
     // Single-number Dashboard summary tile - the full per-group breakdown
@@ -174,7 +176,7 @@ class StudentDataApiController extends Controller
     {
         $groups = app(MarksService::class)->marksBreakdownForUser($request->user()->UserID);
 
-        return response()->json(['groups' => $groups]);
+        return response()->json(\App\Support\ApiResponseCasing::withPascalAliases(['groups' => $groups]));
     }
 
     // Mirrors DashboardController::index() on the web side - joined groups,
@@ -187,6 +189,7 @@ class StudentDataApiController extends Controller
         $groupIds = $joinedGroups->pluck('GroupID');
 
         $notifications = Notification::where('UserID', $user->UserID)
+            ->excludingStaleGroupNotifications()
             ->orderBy('Status')->latest('CreatedAt')->get();
 
         $upcomingQuiz = Quiz::whereIn('GroupID', $groupIds)
@@ -206,9 +209,9 @@ class StudentDataApiController extends Controller
         // not just threads within whichever group is currently open (its
         // local SQLite cache has no way to know that on its own for a group
         // it hasn't opened yet).
-        $mainConversationsByGroup = Conversation::whereIn('group_id', $groupIds)
+        $mainConversationsByGroup = Conversation::whereIn('GroupID', $groupIds)
             ->where('Type', 'group')
-            ->pluck('ConversationID', 'group_id');
+            ->pluck('ConversationID', 'GroupID');
 
         $lastReadByConversation = ReadState::where('UserID', $user->UserID)
             ->where('EntityType', 'Conversation')
@@ -219,12 +222,12 @@ class StudentDataApiController extends Controller
         foreach ($mainConversationsByGroup as $gid => $convId) {
             $lastRead = $lastReadByConversation[$convId] ?? 0;
             $groupUnreadCounts[$gid] = Message::where('ConversationID', $convId)
-                ->where('is_spam', false)
+                ->where('IsSpam', false)
                 ->where('MessageID', '>', $lastRead)
                 ->count();
         }
 
-        return response()->json([
+        return response()->json(\App\Support\ApiResponseCasing::withPascalAliases([
             'joined_groups' => $joinedGroups->map(fn ($g) => [
                 'id' => $g->GroupID,
                 'name' => $g->GroupName,
@@ -249,7 +252,7 @@ class StudentDataApiController extends Controller
                 'message' => $latestAnnouncement->Message,
                 'group_name' => $latestAnnouncement->group->GroupName ?? null,
             ] : null,
-        ]);
+        ]));
     }
 
     public function recommend(Request $request)
@@ -292,7 +295,7 @@ class StudentDataApiController extends Controller
         // response instead of adding a second endpoint, since $interests was
         // already computed above for the ML ranking call and simply never
         // returned.
-        return response()->json([
+        return response()->json(\App\Support\ApiResponseCasing::withPascalAliases([
             'interests' => $interests,
             'topics' => $topics->map(fn ($topic) => [
                 'id' => $topic->TopicID,
@@ -303,7 +306,7 @@ class StudentDataApiController extends Controller
                 'group_name' => $topic->group->GroupName ?? 'General',
                 'created_at' => optional($topic->CreatedAt)->diffForHumans(),
             ])->values(),
-        ]);
+        ]));
     }
 
     public function quizzes(Request $request)
@@ -344,7 +347,7 @@ class StudentDataApiController extends Controller
             'closed_ago' => $q->StartTime->copy()->addMinutes($q->Duration)->diffForHumans(),
         ];
 
-        return response()->json([
+        return response()->json(\App\Support\ApiResponseCasing::withPascalAliases([
             'available' => $available->map($shape)->values(),
             'upcoming' => $upcoming->map($shape)->values(),
             'missed' => $missed->map($shape)->values(),
@@ -356,6 +359,6 @@ class StudentDataApiController extends Controller
                 'submitted_ago' => optional($r->SubmissionTime)->diffForHumans(),
             ])->values(),
             'total_score' => $completed->sum('Score'),
-        ]);
+        ]));
     }
 }

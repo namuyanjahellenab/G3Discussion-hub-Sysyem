@@ -58,10 +58,6 @@
         <p>Set how many marks students earn for posting, replying, and getting an answer accepted.</p>
     </div>
 
-    @if (session('status'))
-        <div class="alert-success">{{ session('status') }}</div>
-    @endif
-
     <div class="criteria-card">
         <form method="GET" action="{{ route('participation-criteria.edit') }}" id="groupSwitchForm">
             <div class="field">

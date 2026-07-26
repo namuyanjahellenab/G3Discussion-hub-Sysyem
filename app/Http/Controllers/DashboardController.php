@@ -30,6 +30,11 @@ class DashboardController extends Controller
     }
 
     if ($user->Role === 'Administrator') {
+        // Role only ever becomes 'Administrator' for a promoted lecturer
+        // once they explicitly click "Go to Admin Dashboard"
+        // (switchToAdmin()) - promote() itself leaves Role untouched, so a
+        // just-promoted lecturer's Role is still 'Lecturer' and they hit the
+        // branch above instead, landing on their own dashboard by default.
         return redirect()->route('admin.dashboard');
     }
 
@@ -37,7 +42,7 @@ class DashboardController extends Controller
         return redirect()->route('groups.select');
     }
 
-    $joined_groups = $user->groups()
+    $joinedGroups = $user->groups()
         ->withCount(['students as member_count'])
         ->get()
         ->map(function ($group) {
@@ -45,13 +50,14 @@ class DashboardController extends Controller
             return $group;
         });
 
-    $groupIds = $joined_groups->pluck('GroupID');
+    $groupIds = $joinedGroups->pluck('GroupID');
 
     $sharedUserIds = GroupStudent::whereIn('GroupID', $groupIds)
         ->pluck('UserID')
         ->unique();
 
     $notifications = Notification::where('UserID', $user->UserID)
+        ->excludingStaleGroupNotifications()
         ->orderBy('Status')
         ->latest('CreatedAt')
         ->get();
@@ -149,7 +155,7 @@ class DashboardController extends Controller
         ->get();
 
     return view('dashboard.index', compact(
-        'joined_groups', 'notifications', 'recentActivity', 'notificationsCount',
+        'joinedGroups', 'notifications', 'recentActivity', 'notificationsCount',
         'snapshot', 'upcomingQuiz', 'ongoingQuiz', 'latestAnnouncement', 'activeBlacklist', 'activeWarnings'
     ))
         ->with('showSidebar', true)
@@ -209,20 +215,57 @@ protected function participationSnapshot($userId)
     ];
 }
 
+    /**
+     * A lecturer promoted to Admin keeps PreviousRole = 'Lecturer' on file
+     * (only the main admin's own "Demote" action clears it - see
+     * AdminLecturerStaffController::demote()), which is what lets them
+     * toggle back and forth between the two dashboards themselves via these
+     * two actions. Each one actually flips User.Role in the database (not
+     * just a view swap), so index()'s own Role-based routing, the 'admin'
+     * middleware, and AdminStatisticsController's totalAdmins/totalLecturers
+     * counts all immediately agree with whichever side they're on - nothing
+     * needed to special-case that separately.
+     */
+    public function switchToAdmin()
+    {
+        $user = Auth::user();
+        abort_unless($user->PreviousRole !== null, 403);
+
+        $user->update(['Role' => 'Administrator']);
+
+        return redirect()->route('admin.dashboard');
+    }
+
+    public function switchToLecturer()
+    {
+        $user = Auth::user();
+        abort_unless($user->PreviousRole !== null, 403);
+
+        $user->update(['Role' => 'Lecturer']);
+
+        return redirect()->route('dashboard');
+    }
+
     protected function lecturerDashboard()
     {
         $lecturerId = Auth::id();
 
-        // A lecturer's "courses" are the groups they've scheduled a quiz for —
-        // there's no direct Group<->Lecturer link in the schema, so this is
-        // the only available signal. If a lecturer hasn't scheduled a quiz
-        // yet, their groups/students/discussions will show as 0 here even if
-        // they're active in the group's forum.
-        $groupIds = Quiz::where('LecturerID', $lecturerId)->where('Status', 'scheduled')->distinct('GroupID')->pluck('GroupID');
+        // There's no direct Group<->Lecturer link in the schema. A lecturer
+        // joins a group the same way a student does (GroupController::join,
+        // via the "Groups" browse/join page), which writes a GroupStudent
+        // row for them - so "groups the lecturer has joined" is exactly
+        // their own GroupStudent memberships.
+        $groupIds = GroupStudent::where('UserID', $lecturerId)->pluck('GroupID')->unique()->values();
 
         $activeCoursesCount = $groupIds->count();
 
+        // Excludes the lecturer's own membership row (UserID != $lecturerId)
+        // - otherwise the lecturer would count themselves as one of their
+        // own students. distinct('UserID') across the whole $groupIds set
+        // (not per-group) keeps a student in two joined groups from being
+        // counted twice here.
         $totalStudents = GroupStudent::whereIn('GroupID', $groupIds)
+            ->where('UserID', '!=', $lecturerId)
             ->where('Status', 'active')
             ->distinct('UserID')
             ->count('UserID');
@@ -243,7 +286,7 @@ protected function participationSnapshot($userId)
             ->get();
 
         $courses = Group::whereIn('GroupID', $groupIds)
-            ->withCount(['students as student_count' => fn($q) => $q->where('Status', 'active')])
+            ->withCount(['students as student_count' => fn($q) => $q->where('Status', 'active')->where('UserID', '!=', $lecturerId)])
             ->get();
 
         return view('lecturer.dash', compact(

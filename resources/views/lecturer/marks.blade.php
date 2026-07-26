@@ -260,10 +260,6 @@
         </div>
     </div>
 
-    @if(session('success'))
-        <div class="alert alert-success" style="margin-bottom: 20px;">{{ session('success') }}</div>
-    @endif
-
     <div class="stats-grid">
         <div class="card stat-card">
             <div class="label">Total Quizzes</div>

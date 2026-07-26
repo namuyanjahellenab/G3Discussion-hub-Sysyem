@@ -936,7 +936,7 @@ public function createTopic(Group $group)
     // after the cache read, so the cached list itself stays shared.
     $groupMembers = $group->activeMembers()->where('UserID', '!=', Auth::id())->values();
 
-    return view('topics.create', compact('group', 'groupMembers'))->with('showSidebar', false);
+    return view('topics.create', compact('group', 'groupMembers'))->with('showSidebar', true);
 }
 
 public function storeTopic(Request $request)
@@ -1279,9 +1279,11 @@ public function pollNotifications(Request $request)
 
     $unreadCount = Notification::where('UserID', $userId)
         ->where('Status', false)
+        ->excludingStaleGroupNotifications()
         ->count();
 
     $latest = Notification::where('UserID', $userId)
+        ->excludingStaleGroupNotifications()
         ->orderByDesc('CreatedAt')
         ->take(10)
         ->get()

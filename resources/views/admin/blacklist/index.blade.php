@@ -26,10 +26,6 @@
         </div>
     </div>
 
-    @if(session('success'))
-        <div class="alert alert-success">{{ session('success') }}</div>
-    @endif
-
     <div class="blacklist-layout">
         <div class="card blacklist-table-card mb-4">
             <div class="card-body blacklist-table-card-body">
