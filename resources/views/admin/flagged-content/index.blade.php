@@ -49,7 +49,7 @@
                                 </td>
                                 <td class="col-flaggedby">{{ $item['flag_count'] }} {{ Str::plural('member', $item['flag_count']) }}</td>
                                 <td class="col-reason">{{ $item['reason'] ?: 'Not specified' }}</td>
-                                <td class="col-date">{{ $item['date']->format('d M Y') }}</td>
+                                <td class="col-date">{{ $item['date']->setTimezone('Africa/Kampala')->format('d M Y') }}</td>
                                 <td class="flagged-content-action-col">
                                     <div class="flagged-action-icons">
                                         <form method="POST" action="{{ $item['dismiss_route'] }}">
@@ -113,7 +113,7 @@
                                 <td class="flagged-content-excerpt col-content">{{ \Illuminate\Support\Str::limit($message->body, 120) }}</td>
                                 <td class="col-author">{{ $message->user?->UserName ?? 'Unknown User' }}</td>
                                 <td class="col-reason">{{ $message->FlaggedReason ?: ($message->is_spam ? 'Automatic spam detection' : 'Not specified') }}</td>
-                                <td class="col-date">{{ $message->CreatedAt->format('d M Y') }}</td>
+                                <td class="col-date">{{ $message->CreatedAt->setTimezone('Africa/Kampala')->format('d M Y') }}</td>
                                 <td class="flagged-content-action-col">
                                     <div class="flagged-action-icons">
                                         <form method="POST" action="{{ route('admin.flagged-content.messages.dismiss', $message->MessageID) }}">

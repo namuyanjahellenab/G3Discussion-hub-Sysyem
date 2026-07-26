@@ -32,6 +32,9 @@ import java.net.HttpURLConnection;
 import java.net.URI;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
+import java.time.Instant;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -42,6 +45,11 @@ import java.util.List;
 public class DashboardController {
 
     private static final String BASE_URL = AppConfig.BASE_URL;
+
+    // Display-only conversion: the stored/synced value stays UTC (DatabaseManager's
+    // sync watermark), this just formats the "Last synced" label in local EAT time.
+    private static final DateTimeFormatter LAST_SYNC_DISPLAY_FORMAT =
+            DateTimeFormatter.ofPattern("d MMM yyyy, h:mm a").withZone(ZoneId.of("Africa/Kampala"));
 
     @FXML private Label userInitialsLabel;
     @FXML private Label userNameLabel;
@@ -126,7 +134,15 @@ public class DashboardController {
             + (isOnline ? "#3F9C6B" : "#D9483D") + ";");
 
         String lastSync = dbManager.getLastSyncTimestamp();
-        lastSyncLabel.setText("Last synced: " + (lastSync != null ? lastSync : "never"));
+        String displaySync = lastSync;
+        if (lastSync != null) {
+            try {
+                displaySync = LAST_SYNC_DISPLAY_FORMAT.format(Instant.parse(lastSync));
+            } catch (Exception ignored) {
+                // Fall back to the raw stored value if it's ever not a parseable instant.
+            }
+        }
+        lastSyncLabel.setText("Last synced: " + (displaySync != null ? displaySync : "never"));
 
         int pendingCount = dbManager.getPendingChanges().size();
         pendingCountLabel.setText(pendingCount + (pendingCount == 1 ? " item" : " items")

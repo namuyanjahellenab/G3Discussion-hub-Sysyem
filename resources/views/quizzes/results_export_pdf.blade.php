@@ -28,7 +28,7 @@
     <div class="header">
         <h2>{{ $quiz->Title ?? 'Quiz Results' }}</h2>
         <div class="meta">Total Marks: {{ number_format($totalMarks, 2) }} | Quiz ID: {{ $quiz->QuizID }}</div>
-        <div class="meta">Generated: {{ now()->format('Y-m-d H:i') }}</div>
+        <div class="meta">Generated: {{ now()->setTimezone('Africa/Kampala')->format('Y-m-d H:i') }}</div>
     </div>
 
     <table class="stats">
@@ -66,7 +66,7 @@
                                 <span class="badge badge-manual">Manual</span>
                             @endif
                         </td>
-                        <td>{{ $r->SubmissionTime ? \Carbon\Carbon::parse($r->SubmissionTime)->format('d M Y, H:i') : '—' }}</td>
+                        <td>{{ $r->SubmissionTime ? \Carbon\Carbon::parse($r->SubmissionTime)->setTimezone('Africa/Kampala')->format('d M Y, H:i') : '—' }}</td>
                     </tr>
                 @endforeach
             </tbody>

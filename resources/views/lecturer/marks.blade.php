@@ -306,7 +306,7 @@
                         <div>
                             <div class="title">{{ $quiz->Title }}</div>
                             <div class="meta">
-                                {{ $quiz->StartTime->format('d M Y, h:i A') }}
+                                {{ $quiz->StartTime->setTimezone('Africa/Kampala')->format('d M Y, h:i A') }}
                                 &middot; {{ $quiz->Duration }} min
                             </div>
                         </div>

@@ -15,7 +15,7 @@
         </div>
         <div class="d-flex align-items-center gap-2">
             <div class="date-badge">
-                <i class="fa-regular fa-calendar"></i> {{ now()->format('l, M j, Y') }}
+                <i class="fa-regular fa-calendar"></i> {{ now()->setTimezone('Africa/Kampala')->format('l, M j, Y') }}
             </div>
             <a href="{{ route('admin.statistics.export') }}" class="btn btn-outline-secondary btn-sm">
                 <i class="fa-solid fa-arrow-down-to-line"></i> Export Data
@@ -140,7 +140,7 @@
             <ul class="list-group list-group-flush">
                 @forelse($recentTopics as $topic)
                     <li class="list-group-item d-flex align-items-center gap-2">
-                        <span class="badge bg-secondary-subtle fw-semibold" title="{{ $topic->CreatedAt->format('M j, Y g:i A') }}" style="font-size: 0.72rem;">{{ $topic->CreatedAt->diffForHumans() }}</span>
+                        <span class="badge bg-secondary-subtle fw-semibold" title="{{ $topic->CreatedAt->setTimezone('Africa/Kampala')->format('M j, Y g:i A') }}" style="font-size: 0.72rem;">{{ $topic->CreatedAt->diffForHumans() }}</span>
                         <span>
                             <strong>{{ $topic->creator->UserName ?? 'Unknown' }}</strong>
                             posted a new topic: <em>"{{ $topic->Title }}"</em>

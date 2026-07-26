@@ -93,7 +93,7 @@
             <p class="sub">Here's what's happening across your {{ $activeCoursesCount }} active {{ Str::plural('course', $activeCoursesCount) }} today.</p>
         </div>
         <div class="date-badge">
-            <i class="fa-regular fa-calendar"></i> {{ now()->format('l, M j, Y') }}
+            <i class="fa-regular fa-calendar"></i> {{ now()->setTimezone('Africa/Kampala')->format('l, M j, Y') }}
         </div>
     </div>
 

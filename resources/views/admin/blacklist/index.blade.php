@@ -59,8 +59,8 @@
                                         </div>
                                     </td>
                                     <td>{{ $entry->Reason }}</td>
-                                    <td>{{ $entry->StartDate->format('d M Y') }}</td>
-                                    <td>{{ $entry->EndDate->format('d M Y') }}</td>
+                                    <td>{{ $entry->StartDate->setTimezone('Africa/Kampala')->format('d M Y') }}</td>
+                                    <td>{{ $entry->EndDate->setTimezone('Africa/Kampala')->format('d M Y') }}</td>
                                     <td>
                                         <span class="badge {{ $entry->Type === 'Auto' ? 'bg-warning' : 'bg-primary' }}">
                                             {{ $entry->Type }}
@@ -132,7 +132,7 @@
                             <span class="badge {{ $tagClass }}">{{ $event['tag'] }}</span>
                             <span class="text-body">{{ $event['text'] }}</span>
                         </div>
-                        <div class="text-muted small">{{ $event['time']->format('d M Y') }}</div>
+                        <div class="text-muted small">{{ $event['time']->setTimezone('Africa/Kampala')->format('d M Y') }}</div>
                     </div>
                 @empty
                     <p class="text-muted small mb-0">No recent activity.</p>
@@ -169,7 +169,7 @@
                     <div class="row">
                         <div class="col-6 mb-3">
                             <label class="form-label">Start Date</label>
-                            <input type="date" name="StartDate" class="form-control" value="{{ now()->format('Y-m-d') }}" required>
+                            <input type="date" name="StartDate" class="form-control" value="{{ now()->setTimezone('Africa/Kampala')->format('Y-m-d') }}" required>
                         </div>
                         <div class="col-6 mb-3">
                             <label class="form-label">End Date</label>

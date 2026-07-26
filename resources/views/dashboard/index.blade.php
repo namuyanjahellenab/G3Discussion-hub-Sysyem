@@ -88,7 +88,7 @@
             <div>
                 <div class="title">Account Restricted</div>
                 <div class="body">
-                    Your account is restricted until <strong>{{ $activeBlacklist->EndDate->format('d M Y') }}</strong>.
+                    Your account is restricted until <strong>{{ $activeBlacklist->EndDate->setTimezone('Africa/Kampala')->format('d M Y') }}</strong>.
                     You won't be able to post topics, replies, or chat messages until then.<br>
                     <strong>Reason:</strong> {{ $activeBlacklist->Reason }}<br>
                     <strong>Issued by:</strong> {{ $activeBlacklist->Type === 'Auto' ? 'System (automatic)' : 'Administrator' }}
@@ -103,7 +103,7 @@
             <h1>My Dashboard</h1>
         </div>
         <div class="date-badge">
-            <i class="fa-regular fa-calendar"></i> {{ now()->format('l, M j, Y') }}
+            <i class="fa-regular fa-calendar"></i> {{ now()->setTimezone('Africa/Kampala')->format('l, M j, Y') }}
         </div>
     </div>
 
@@ -158,8 +158,8 @@
                                 <div class="title">Warning #{{ $warning->WarningNo }}</div>
                                 <div class="reason">{{ $warning->Reason ?? 'No reason provided.' }}</div>
                                 <div class="meta">
-                                    Issued by Administrator on {{ $warning->CreatedAt->format('d M Y') }}
-                                    &middot; stays on record until {{ $warning->ExpiryDate->format('d M Y') }}
+                                    Issued by Administrator on {{ $warning->CreatedAt->setTimezone('Africa/Kampala')->format('d M Y') }}
+                                    &middot; stays on record until {{ $warning->ExpiryDate->setTimezone('Africa/Kampala')->format('d M Y') }}
                                 </div>
                             </div>
                         @endforeach
@@ -201,12 +201,12 @@
                 @if($ongoingQuiz)
                     <h2 style="font-size: 15px; font-weight: 700; margin: 0 0 4px 0;">Quiz Available Now</h2>
                     <div class="title">{{ $ongoingQuiz->Title }}</div>
-                    <div class="meta">Ends {{ $ongoingQuiz->StartTime->copy()->addMinutes($ongoingQuiz->Duration)->format('d M Y, h:i A') }}</div>
+                    <div class="meta">Ends {{ $ongoingQuiz->StartTime->copy()->addMinutes($ongoingQuiz->Duration)->setTimezone('Africa/Kampala')->format('d M Y, h:i A') }}</div>
                     <a href="{{ route('quiz.take', $ongoingQuiz->QuizID) }}" class="btn btn-primary">Take Quiz Now</a>
                 @elseif($upcomingQuiz)
                     <h2 style="font-size: 15px; font-weight: 700; margin: 0 0 4px 0;">Upcoming Quiz</h2>
                     <div class="title">{{ $upcomingQuiz->Title }}</div>
-                    <div class="meta">{{ $upcomingQuiz->StartTime->format('d M Y, h:i A') }} · {{ $upcomingQuiz->Duration }} min</div>
+                    <div class="meta">{{ $upcomingQuiz->StartTime->setTimezone('Africa/Kampala')->format('d M Y, h:i A') }} · {{ $upcomingQuiz->Duration }} min</div>
                     <a href="{{ url('/quizzes') }}" class="btn btn-primary">View Details</a>
                 @else
                     <h2 style="font-size: 15px; font-weight: 700; margin: 0 0 4px 0;">Upcoming Quiz</h2>

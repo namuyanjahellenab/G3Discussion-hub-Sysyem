@@ -28,7 +28,7 @@
     <div class="header">
         <h2>{{ $topic->Title ?? 'Discussion Export' }}</h2>
         <div class="meta">Group: {{ $topic->group?->GroupName ?? 'Discussion Hub' }}</div>
-        <div class="meta">Generated: {{ now()->format('Y-m-d H:i') }}</div>
+        <div class="meta">Generated: {{ now()->setTimezone('Africa/Kampala')->format('Y-m-d H:i') }}</div>
     </div>
 
     @foreach($posts as $post)
@@ -41,7 +41,7 @@
                 <span class="author-name">{{ $postAuthorName }}</span>
                 <span class="badge-op">ORIGINAL POST</span>
                 @if($post->CreatedAt)
-                    <span class="timestamp">{{ $post->CreatedAt->format('Y-m-d H:i') }}</span>
+                    <span class="timestamp">{{ $post->CreatedAt->setTimezone('Africa/Kampala')->format('Y-m-d H:i') }}</span>
                 @endif
             </div>
             <div class="content">{{ $post->Content }}</div>
@@ -57,7 +57,7 @@
                         <span class="avatar">{{ Str::initials($replyAuthorName) }}</span>
                         <span class="author-name">{{ $replyAuthorName }}</span>
                         @if($reply->CreatedAt)
-                            <span class="timestamp">{{ $reply->CreatedAt->format('Y-m-d H:i') }}</span>
+                            <span class="timestamp">{{ $reply->CreatedAt->setTimezone('Africa/Kampala')->format('Y-m-d H:i') }}</span>
                         @endif
                     </div>
                     <div class="content">{{ $reply->ReplyContent }}</div>
