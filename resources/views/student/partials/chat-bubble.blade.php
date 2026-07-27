@@ -19,7 +19,7 @@
                  members never receive a spam-flagged bubble at all (see
                  GroupChatController::index / GroupChatService::send). --}}
             <div class="chat-bubble__pending">
-                <i class="fa-solid fa-triangle-exclamation"></i> Under review — suspected spam. Only you can see this until an admin approves it.
+                <i class="fa-solid fa-triangle-exclamation"></i> Under review, suspected spam. Only you can see this until an admin approves it.
             </div>
         @endif
         @if($msg->Body)
