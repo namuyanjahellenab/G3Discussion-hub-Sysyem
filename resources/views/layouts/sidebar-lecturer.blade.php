@@ -74,9 +74,6 @@
 <li class="{{ request()->routeIs('groups.index') ? 'active' : '' }}">
     <a href="{{ route('groups.index') }}"><i class="fa-solid fa-people-group"></i> Groups</a>
 </li>
-<li class="{{ request()->routeIs('lecturer.students.index') ? 'active' : '' }}">
-    <a href="{{ route('lecturer.students.index') }}"><i class="fa-solid fa-user-graduate"></i> Students</a>
-</li>
         <li class="{{ request()->routeIs('settings.index') ? 'active' : '' }}">
             <a href="{{ route('settings.index') }}"><i class="fa-solid fa-gear"></i> Settings</a>
         </li>

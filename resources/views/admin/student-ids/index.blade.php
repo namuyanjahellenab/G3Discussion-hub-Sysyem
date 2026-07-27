@@ -75,7 +75,7 @@
                     <div class="mb-3">
                         <label class="form-label">Student ID Number</label>
                         <input type="text" name="StudentIDNumber" class="form-control" maxlength="50"
-                               placeholder="e.g. STU-2024-118" required>
+                               required>
                         @error('StudentIDNumber')
                             <div class="text-danger small mt-1">{{ $message }}</div>
                         @enderror
