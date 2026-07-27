@@ -19,7 +19,7 @@ class AdminWarningController extends Controller
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'UserID' => 'required|exists:user,UserID',
+            'UserID' => 'required|exists:User,UserID',
             'Reason' => 'required|string|max:500',
         ]);
 

@@ -33,7 +33,7 @@ class Notification extends Model
      * Every place notifications are read for display (bell poll, dashboard
      * list, offline sync) must apply this - a "New quiz scheduled"/"Quiz
      * updated" notification is only ever still relevant if the recipient is
-     * still, right now, in the 'groupstudent' table for that GroupID.
+     * still, right now, in the 'GroupStudent' table for that GroupID.
      * Checked live here (not just cleaned up once when a student leaves)
      * so it can't go stale again no matter which path removes them from the
      * group - GroupController::leave(), Api\GroupApiController::leave(), an
@@ -46,9 +46,9 @@ class Notification extends Model
               ->orWhereNull('GroupID')
               ->orWhereExists(function ($sub) {
                   $sub->select(DB::raw(1))
-                      ->from('groupstudent')
-                      ->whereColumn('groupstudent.GroupID', 'Notification.GroupID')
-                      ->whereColumn('groupstudent.UserID', 'Notification.UserID');
+                      ->from('GroupStudent')
+                      ->whereColumn('GroupStudent.GroupID', 'Notification.GroupID')
+                      ->whereColumn('GroupStudent.UserID', 'Notification.UserID');
               });
         });
     }
