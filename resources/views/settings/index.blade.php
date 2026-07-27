@@ -74,10 +74,6 @@
         <h1>Settings</h1>
     </div>
 
-    @if(session('status'))
-        <div class="alert alert-success" style="margin-bottom: 20px;">{{ session('status') }}</div>
-    @endif
-
     <div class="settings-layout">
         <div class="settings-main">
             <form method="POST" action="{{ route('settings.update') }}">

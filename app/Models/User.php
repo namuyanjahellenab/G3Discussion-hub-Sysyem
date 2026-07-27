@@ -34,6 +34,7 @@ class User extends Authenticatable
     'Email',
     'PasswordHash',
     'Role',
+    'PreviousRole',
     'Status',
     'RulesAccepted',
     'LastActive',

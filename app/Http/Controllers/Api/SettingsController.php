@@ -39,7 +39,7 @@ class SettingsController extends Controller
 
         $user->save();
 
-        return response()->json([
+        return response()->json(\App\Support\ApiResponseCasing::withPascalAliases([
             'message' => 'Settings updated.',
             'user' => [
                 'id' => $user->UserID,
@@ -47,7 +47,7 @@ class SettingsController extends Controller
                 'name' => $user->UserName,
                 'theme_color' => $user->ThemeColor,
             ],
-        ]);
+        ]));
     }
 
     /**

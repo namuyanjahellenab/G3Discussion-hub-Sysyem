@@ -63,6 +63,7 @@ class QuizEngineController extends Controller
 
         // Fetch questions (never send CorrectAnswer to the student)
         $questions = Question::where('QuizID', $quizID)
+            ->with('questionOptions')
             ->get()
             ->map(function ($q) {
                 return [
@@ -583,8 +584,18 @@ public function activeNow(Request $request)
 
     $now  = now();
 
+    // This popup used to fire for ANY currently-active quiz system-wide -
+    // no group check at all - so a student outside the quiz's group still
+    // got the full-screen "Quiz Starting Now!" popup, and clicking "Start
+    // Quiz Now" landed them on /quiz/{id}/take only to be rejected by
+    // isGroupMember() there. Scoping to the student's own 'groupstudent'
+    // rows up front means the popup itself now only ever offers a quiz
+    // they can actually take.
+    $groupIds = GroupStudent::where('UserID', $user->UserID)->pluck('GroupID');
+
     $quiz = \App\Models\Quiz::where('StartTime', '<=', $now)
         ->whereRaw("DATE_ADD(StartTime, INTERVAL Duration MINUTE) >= ?", [$now])
+        ->whereIn('GroupID', $groupIds)
         ->whereNotExists(function($q) use ($user) {
             $q->select(\DB::raw(1))
               ->from('QuizResult')

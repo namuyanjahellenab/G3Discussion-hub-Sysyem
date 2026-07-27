@@ -92,14 +92,24 @@
             <h1>Welcome back, {{ $displayName }}</h1>
             <p class="sub">Here's what's happening across your {{ $activeCoursesCount }} active {{ Str::plural('course', $activeCoursesCount) }} today.</p>
         </div>
-        <div class="date-badge">
-            <i class="fa-regular fa-calendar"></i> {{ now()->setTimezone('Africa/Kampala')->format('l, M j, Y') }}
+        <div class="d-flex align-items-center gap-2">
+            <div class="date-badge">
+                <i class="fa-regular fa-calendar"></i> {{ now()->setTimezone('Africa/Kampala')->format('l, M j, Y') }}
+            </div>
+            {{-- A plain lecturer who was never promoted has PreviousRole =
+                 null forever, so this never shows for them. A lecturer
+                 demoted by the main admin also has PreviousRole cleared to
+                 null at that point, so it disappears then too. --}}
+            @if(auth()->user()->PreviousRole !== null)
+                <form method="POST" action="{{ route('dashboard.switch-to-admin') }}" style="display:inline;">
+                    @csrf
+                    <button type="submit" class="btn btn-outline-secondary btn-sm">
+                        <i class="fa-solid fa-arrow-right"></i> Go to Admin Dashboard
+                    </button>
+                </form>
+            @endif
         </div>
     </div>
-
-    @if(session('status'))
-        <div class="alert alert-success" style="margin-bottom: 20px;">{{ session('status') }}</div>
-    @endif
 
     <div class="stats-grid">
         <div class="stat-card">

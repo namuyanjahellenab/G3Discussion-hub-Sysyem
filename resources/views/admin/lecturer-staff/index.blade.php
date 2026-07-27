@@ -12,14 +12,6 @@
         </button>
     </div>
 
-    @if(session('success'))
-        <div class="alert alert-success">{{ session('success') }}</div>
-    @endif
-
-    @if(session('error'))
-        <div class="alert alert-danger">{{ session('error') }}</div>
-    @endif
-
     <div class="card shadow-sm">
         <div class="card-body p-0">
             <table class="table table-hover mb-0">
@@ -88,18 +80,42 @@
                     <tr>
                         <td class="ps-4 fw-semibold">{{ $user->UserName }}</td>
                         <td>{{ $user->Email }}</td>
+                        @php
+                            // PreviousRole, not Role, is what marks someone "promoted" -
+                            // Role only reflects whichever side (Lecturer/Administrator)
+                            // they last toggled to via the "Go to Admin/Lecturer Dashboard"
+                            // buttons, which has nothing to do with whether they're still
+                            // promoted. Mirrors the same check in
+                            // AdminLecturerStaffController::promote()/demote().
+                            $isPromotedOrAdmin = $user->Role === 'Administrator' || $user->PreviousRole !== null;
+                        @endphp
                         <td>
-                            <span class="badge {{ $user->Role === 'Admin' ? 'bg-primary' : 'bg-secondary' }}">
-                                {{ $user->Role }}
-                            </span>
+                            @if($isPromotedOrAdmin)
+                                <span class="badge bg-primary">Administrator</span>
+                            @else
+                                <span class="badge bg-secondary">{{ $user->Role }}</span>
+                            @endif
                         </td>
                         <td>
-                            @if($user->Role === 'Admin')
-                                <form method="POST" action="{{ route('admin.lecturer-staff.demote', $user->UserID) }}"
-                                      onsubmit="return confirm('Demote {{ $user->UserName }} from Admin?');" style="display:inline;">
-                                    @csrf
-                                    <button type="submit" class="btn btn-sm btn-outline-warning">Demote</button>
-                                </form>
+                            @if($isPromotedOrAdmin)
+                                @php
+                                    $isSelf = $user->UserID === auth()->id();
+                                    // A promoted admin (PreviousRole set) has no authority over a
+                                    // main admin (PreviousRole never set) - mirrors the same check
+                                    // in AdminLecturerStaffController::demote().
+                                    $blockedByMainAdminRule = auth()->user()->PreviousRole !== null && $user->PreviousRole === null;
+                                @endphp
+                                @if($isSelf)
+                                    <span class="text-muted small">This is you</span>
+                                @elseif($blockedByMainAdminRule)
+                                    <span class="text-muted small">Protected</span>
+                                @else
+                                    <form method="POST" action="{{ route('admin.lecturer-staff.demote', $user->UserID) }}"
+                                          onsubmit="return confirm('Demote {{ $user->UserName }} from Admin?');" style="display:inline;">
+                                        @csrf
+                                        <button type="submit" class="btn btn-sm btn-outline-warning">Demote</button>
+                                    </form>
+                                @endif
                             @else
                                 <form method="POST" action="{{ route('admin.lecturer-staff.promote', $user->UserID) }}"
                                       onsubmit="return confirm('Promote {{ $user->UserName }} to Admin?');" style="display:inline;">

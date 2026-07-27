@@ -35,7 +35,7 @@ class GroupChatApiController extends Controller
         );
 
         $mainConversation = Conversation::firstOrCreate(
-            ['group_id' => $groupId, 'Type' => 'group'],
+            ['GroupID' => $groupId, 'Type' => 'group'],
             ['CreatedBy' => $userId]
         );
 
@@ -44,7 +44,7 @@ class GroupChatApiController extends Controller
             'UserID' => $userId,
         ], ['JoinedAt' => now()]);
 
-        $restrictedThreads = Conversation::where('group_id', $groupId)
+        $restrictedThreads = Conversation::where('GroupID', $groupId)
             ->where('Type', 'restricted')
             ->whereHas('members', fn ($q) => $q->where('UserID', $userId))
             ->get();
@@ -53,7 +53,7 @@ class GroupChatApiController extends Controller
 
         if ($conversationId) {
             $activeConversation = Conversation::where('ConversationID', $conversationId)
-                ->where('group_id', $groupId)
+                ->where('GroupID', $groupId)
                 ->firstOrFail();
 
             abort_unless(
@@ -88,7 +88,7 @@ class GroupChatApiController extends Controller
             ReadState::markRead($userId, 'Conversation', $activeConversation->ConversationID, $maxMessageId);
         }
 
-        return response()->json([
+        return response()->json(\App\Support\ApiResponseCasing::withPascalAliases([
             'main_conversation_id' => $mainConversation->ConversationID,
             'active_conversation_id' => $activeConversation->ConversationID,
             'is_restricted' => $activeConversation->Type === 'restricted',
@@ -103,15 +103,15 @@ class GroupChatApiController extends Controller
             ])->values(),
             'messages' => $messages->map(fn ($m) => [
                 'id' => $m->MessageID,
-                'user_id' => $m->user_id,
+                'user_id' => $m->UserID,
                 'author_name' => $m->user->UserName ?? 'Unknown',
-                'body' => $m->body,
+                'body' => $m->Body,
                 // Human-friendly for display, raw ISO instant alongside it
                 // for the desktop client's offline cache to re-derive an
                 // accurate relative time from later instead of a frozen one.
                 'created_at' => optional($m->CreatedAt)->diffForHumans(),
                 'created_at_iso' => $m->CreatedAt,
-                'is_spam' => (bool) $m->is_spam,
+                'is_spam' => (bool) $m->IsSpam,
                 // Was missing entirely - a message sent with an attachment
                 // (web supports this; see GroupChatController::store()) came
                 // through to the desktop with no way to know it had one,
@@ -124,10 +124,10 @@ class GroupChatApiController extends Controller
                 'parent_message_id' => $m->ParentMessageID,
                 'parent_message_author' => $m->parentMessage?->user?->UserName,
                 'parent_message_snippet' => $m->parentMessage
-                    ? \Illuminate\Support\Str::limit($m->parentMessage->body, 40)
+                    ? \Illuminate\Support\Str::limit($m->parentMessage->Body, 40)
                     : null,
             ]),
-        ]);
+        ]));
     }
 
     public function store(Request $request, int $groupId)
@@ -136,9 +136,9 @@ class GroupChatApiController extends Controller
             'body' => 'nullable|string|max:2000',
             'exclude' => 'array',
             'exclude.*' => 'exists:User,UserID',
-            'conversation_id' => 'nullable|exists:conversation,ConversationID',
+            'conversation_id' => 'nullable|exists:Conversation,ConversationID',
             'attachment' => ['nullable', 'file', 'mimes:pdf,doc,docx,ppt,pptx,png,jpg,jpeg,zip', 'max:20480'],
-            'parent_message_id' => 'nullable|exists:message,MessageID',
+            'parent_message_id' => 'nullable|exists:Message,MessageID',
         ]);
 
         if (blank($request->input('body')) && !$request->hasFile('attachment')) {
@@ -169,24 +169,24 @@ class GroupChatApiController extends Controller
         );
         $message->load('parentMessage.user');
 
-        return response()->json([
+        return response()->json(\App\Support\ApiResponseCasing::withPascalAliases([
             'id' => $message->MessageID,
-            'user_id' => $message->user_id,
+            'user_id' => $message->UserID,
             'author_name' => $message->user->UserName ?? $request->user()->UserName,
-            'body' => $message->body,
+            'body' => $message->Body,
             'created_at' => optional($message->CreatedAt)->diffForHumans(),
             'created_at_iso' => $message->CreatedAt,
             'conversation_id' => $message->ConversationID,
-            'is_spam' => (bool) $message->is_spam,
+            'is_spam' => (bool) $message->IsSpam,
             'attachment_url' => $message->Attachment ? Storage::url($message->Attachment) : null,
             'attachment_type' => $message->AttachmentType,
             'attachment_name' => $message->Attachment ? AttachmentUploader::displayName($message->Attachment) : null,
             'parent_message_id' => $message->ParentMessageID,
             'parent_message_author' => $message->parentMessage?->user?->UserName,
             'parent_message_snippet' => $message->parentMessage
-                ? \Illuminate\Support\Str::limit($message->parentMessage->body, 40)
+                ? \Illuminate\Support\Str::limit($message->parentMessage->Body, 40)
                 : null,
-        ], 201);
+        ]), 201);
     }
 
     // JSON counterpart to GroupChatController::update() - only the sender
@@ -194,21 +194,21 @@ class GroupChatApiController extends Controller
     // attachment can't be swapped out here either).
     public function update(Request $request, Message $message)
     {
-        abort_unless($message->user_id === $request->user()->UserID, 403, 'You can only edit your own messages.');
+        abort_unless($message->UserID === $request->user()->UserID, 403, 'You can only edit your own messages.');
 
         $request->validate([
             'body' => 'required|string|max:2000',
         ]);
 
-        $message->update(['body' => $request->input('body')]);
+        $message->update(['Body' => $request->input('body')]);
 
-        return response()->json(['success' => true, 'body' => $message->body]);
+        return response()->json(\App\Support\ApiResponseCasing::withPascalAliases(['success' => true, 'body' => $message->Body]));
     }
 
     // JSON counterpart to GroupChatController::destroy().
     public function destroy(Request $request, Message $message)
     {
-        abort_unless($message->user_id === $request->user()->UserID, 403, 'You can only delete your own messages.');
+        abort_unless($message->UserID === $request->user()->UserID, 403, 'You can only delete your own messages.');
 
         if ($message->Attachment) {
             Storage::disk('public')->delete($message->Attachment);

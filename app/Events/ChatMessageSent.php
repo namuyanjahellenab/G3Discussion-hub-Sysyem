@@ -38,9 +38,9 @@ class ChatMessageSent implements ShouldBroadcastNow
         return [
             'id' => $this->message->MessageID,
             'conversation_id' => $this->message->ConversationID,
-            'user_id' => $this->message->user_id,
+            'user_id' => $this->message->UserID,
             'author_name' => $this->message->user->UserName ?? 'Unknown',
-            'body' => $this->message->body,
+            'body' => $this->message->Body,
             // A plain public storage URL, not the session-authenticated
             // student.messages.attachment route - a live-broadcast event
             // reaches both the web JS listener AND the desktop client (which
@@ -64,10 +64,10 @@ class ChatMessageSent implements ShouldBroadcastNow
             // "2 minutes ago" baked into the cache would go stale/wrong the
             // next time it's rendered offline).
             'created_at_iso' => $this->message->CreatedAt,
-            'is_spam' => (bool) $this->message->is_spam,
+            'is_spam' => (bool) $this->message->IsSpam,
             'parent_message_author' => $this->message->parentMessage?->user?->UserName,
             'parent_message_snippet' => $this->message->parentMessage
-                ? \Illuminate\Support\Str::limit($this->message->parentMessage->body, 40)
+                ? \Illuminate\Support\Str::limit($this->message->parentMessage->Body, 40)
                 : null,
         ];
     }

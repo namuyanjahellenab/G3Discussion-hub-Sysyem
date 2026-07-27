@@ -12,18 +12,18 @@ class Message extends Model
    protected $table = 'Message';
 protected $primaryKey = 'MessageID';
 
-protected $fillable = ['TopicID', 'user_id', 'ConversationID', 'ParentMessageID', 'body', 'is_spam', 'IsFlagged', 'FlaggedReason', 'Attachment', 'AttachmentType'];
+protected $fillable = ['TopicID', 'UserID', 'ConversationID', 'ParentMessageID', 'Body', 'IsSpam', 'IsFlagged', 'FlaggedReason', 'Attachment', 'AttachmentType'];
 
-    protected $casts = ['is_spam' => 'boolean', 'IsFlagged' => 'boolean'];
+    protected $casts = ['IsSpam' => 'boolean', 'IsFlagged' => 'boolean'];
 
     protected static function booted()
     {
-        static::created(fn (Message $message) => User::recordActivity($message->user_id));
+        static::created(fn (Message $message) => User::recordActivity($message->UserID));
     }
 
     public function user()
     {
-        return $this->belongsTo(User::class, 'user_id', 'UserID');
+        return $this->belongsTo(User::class, 'UserID', 'UserID');
     }
 public function topic()
 {

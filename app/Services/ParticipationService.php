@@ -40,10 +40,10 @@ class ParticipationService
             ->whereHas('topic', fn ($q) => $q->where('GroupID', $groupId))
             ->count();
 
-        $chatMessageCount = Message::where('user_id', $userId)
-            ->where('is_spam', false)
+        $chatMessageCount = Message::where('UserID', $userId)
+            ->where('IsSpam', false)
             ->where('IsFlagged', false)
-            ->whereHas('conversation', fn ($q) => $q->where('group_id', $groupId))
+            ->whereHas('conversation', fn ($q) => $q->where('GroupID', $groupId))
             ->count();
 
         $postCount = $topicPostCount + $chatMessageCount;

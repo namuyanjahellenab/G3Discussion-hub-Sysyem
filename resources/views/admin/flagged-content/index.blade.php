@@ -110,9 +110,9 @@
                     <tbody>
                         @forelse($flaggedMessages as $message)
                             <tr>
-                                <td class="flagged-content-excerpt col-content">{{ \Illuminate\Support\Str::limit($message->body, 120) }}</td>
+                                <td class="flagged-content-excerpt col-content">{{ \Illuminate\Support\Str::limit($message->Body, 120) }}</td>
                                 <td class="col-author">{{ $message->user?->UserName ?? 'Unknown User' }}</td>
-                                <td class="col-reason">{{ $message->FlaggedReason ?: ($message->is_spam ? 'Automatic spam detection' : 'Not specified') }}</td>
+                                <td class="col-reason">{{ $message->FlaggedReason ?: ($message->IsSpam ? 'Automatic spam detection' : 'Not specified') }}</td>
                                 <td class="col-date">{{ $message->CreatedAt->setTimezone('Africa/Kampala')->format('d M Y') }}</td>
                                 <td class="flagged-content-action-col">
                                     <div class="flagged-action-icons">
@@ -122,9 +122,9 @@
                                         </form>
                                         <form method="POST" action="{{ route('admin.warning.store') }}">
                                             @csrf
-                                            <input type="hidden" name="UserID" value="{{ $message->user_id }}">
-                                            <input type="hidden" name="Reason" value="Flagged message: {{ \Illuminate\Support\Str::limit($message->body, 80) }}">
-                                            <button type="submit" class="btn-icon-action btn-icon-warning">Warn ({{ $warningCounts[$message->user_id] ?? 0 }}/{{ config('moderation.warning_threshold', 2) }})</button>
+                                            <input type="hidden" name="UserID" value="{{ $message->UserID }}">
+                                            <input type="hidden" name="Reason" value="Flagged message: {{ \Illuminate\Support\Str::limit($message->Body, 80) }}">
+                                            <button type="submit" class="btn-icon-action btn-icon-warning">Warn ({{ $warningCounts[$message->UserID] ?? 0 }}/{{ config('moderation.warning_threshold', 2) }})</button>
                                         </form>
                                         <form method="POST" action="{{ route('admin.flagged-content.messages.destroy', $message->MessageID) }}" onsubmit="return confirm('Delete this message permanently?');">
                                             @csrf

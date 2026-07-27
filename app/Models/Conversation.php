@@ -10,7 +10,7 @@ class Conversation extends Model
     const CREATED_AT = 'CreatedAt';
     const UPDATED_AT = 'UpdatedAt';
 
-    protected $fillable = ['Type', 'CreatedBy', 'group_id'];
+    protected $fillable = ['Type', 'CreatedBy', 'GroupID'];
 
     public function members()
     {
@@ -29,6 +29,6 @@ class Conversation extends Model
 
     public function group()
     {
-        return $this->belongsTo(Group::class, 'group_id', 'GroupID');
+        return $this->belongsTo(Group::class, 'GroupID', 'GroupID');
     }
 }

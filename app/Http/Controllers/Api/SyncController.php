@@ -71,6 +71,7 @@ class SyncController extends Controller
 
         $notifications = Notification::where('UserID', $user->UserID)
             ->where('CreatedAt', '>', $since)
+            ->excludingStaleGroupNotifications()
             ->orderBy('CreatedAt')
             ->get(['NotificationID', 'UserID', 'Message', 'Status', 'CreatedAt', 'Type']);
 

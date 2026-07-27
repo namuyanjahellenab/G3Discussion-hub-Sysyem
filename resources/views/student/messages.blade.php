@@ -87,7 +87,7 @@
                 @php($unreadDividerShown = false)
                 @forelse($messages as $msg)
                     {{-- Receiver-only, WhatsApp-style: never shown for the viewer's own messages. --}}
-                    @if(!$unreadDividerShown && (string) $msg->user_id !== (string) auth()->id() && $lastReadMessageId > 0 && $msg->MessageID > $lastReadMessageId)
+                    @if(!$unreadDividerShown && (string) $msg->UserID !== (string) auth()->id() && $lastReadMessageId > 0 && $msg->MessageID > $lastReadMessageId)
                         @php($unreadDividerShown = true)
                         <div class="unread-divider"><span>NEW MESSAGES</span></div>
                     @endif

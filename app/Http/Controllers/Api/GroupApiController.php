@@ -42,7 +42,7 @@ class GroupApiController extends Controller
                 ];
             });
 
-        return response()->json($groups);
+        return response()->json(\App\Support\ApiResponseCasing::withPascalAliases($groups));
     }
 
     // Mirrors GroupSelectionController::index() (the "Select a Discussion
@@ -66,7 +66,7 @@ class GroupApiController extends Controller
                 ];
             });
 
-        return response()->json($groups);
+        return response()->json(\App\Support\ApiResponseCasing::withPascalAliases($groups));
     }
 
     // Mirrors GroupController::index() (the web's "View Discussion Groups"
@@ -93,10 +93,10 @@ class GroupApiController extends Controller
             'is_member' => $group->userJoined,
         ];
 
-        return response()->json([
+        return response()->json(\App\Support\ApiResponseCasing::withPascalAliases([
             'trending_groups' => $trendingGroups->map($shape)->values(),
             'groups' => $groups->map($shape)->values(),
-        ]);
+        ]));
     }
 
     public function join(Request $request, Group $group)

@@ -49,7 +49,7 @@ class GroupTopicsApiController extends Controller
 
         $groupMembers = $group->activeMembers()->where('UserID', '!=', $userId)->values();
 
-        return response()->json([
+        return response()->json(\App\Support\ApiResponseCasing::withPascalAliases([
             'group' => ['id' => $group->GroupID, 'name' => $group->GroupName],
             'group_members' => $groupMembers->map(fn ($gs) => [
                 'id' => $gs->UserID,
@@ -77,7 +77,7 @@ class GroupTopicsApiController extends Controller
                     'last_activity' => $lastActivity->diffForHumans(),
                 ];
             })->values(),
-        ]);
+        ]));
     }
 
     // Mirrors DiscussionHubPageController::storeTopic() - same moderation

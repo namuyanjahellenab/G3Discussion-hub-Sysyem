@@ -20,6 +20,17 @@
             <a href="{{ route('admin.statistics.export') }}" class="btn btn-outline-secondary btn-sm">
                 <i class="fa-solid fa-arrow-down-to-line"></i> Export Data
             </a>
+            {{-- Only a lecturer promoted to Admin has a PreviousRole on file -
+                 a genuine Admin's PreviousRole is always null, so this link
+                 never shows on the main admin's own dashboard. --}}
+            @if(auth()->user()->PreviousRole)
+                <form method="POST" action="{{ route('dashboard.switch-to-lecturer') }}" style="display:inline;">
+                    @csrf
+                    <button type="submit" class="btn btn-outline-secondary btn-sm">
+                        <i class="fa-solid fa-arrow-left"></i> Go to Lecturer Dashboard
+                    </button>
+                </form>
+            @endif
         </div>
     </div>
 

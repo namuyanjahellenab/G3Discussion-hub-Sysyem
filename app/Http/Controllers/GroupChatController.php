@@ -30,7 +30,7 @@ class GroupChatController extends Controller
 
         // Ensure a main group-wide conversation exists
         $mainConversation = Conversation::firstOrCreate(
-            ['group_id' => $groupId, 'Type' => 'group'],
+            ['GroupID' => $groupId, 'Type' => 'group'],
             ['CreatedBy' => $userId]
         );
 
@@ -40,7 +40,7 @@ class GroupChatController extends Controller
         ], ['JoinedAt' => now()]);
 
         // Any restricted threads this user belongs to, in this group
-        $restrictedThreads = Conversation::where('group_id', $groupId)
+        $restrictedThreads = Conversation::where('GroupID', $groupId)
             ->where('Type', 'restricted')
             ->whereHas('members', fn($q) => $q->where('UserID', $userId))
             ->get();
@@ -51,7 +51,7 @@ class GroupChatController extends Controller
         // its conversationId into the URL.
         if ($conversationId) {
             $activeConversation = Conversation::where('ConversationID', $conversationId)
-                ->where('group_id', $groupId)
+                ->where('GroupID', $groupId)
                 ->firstOrFail();
 
             abort_unless(
@@ -73,7 +73,7 @@ class GroupChatController extends Controller
         // so it doesn't look like it silently vanished.
         $messages = Message::where('ConversationID', $activeConversation->ConversationID)
             ->where(function ($q) use ($userId) {
-                $q->where('is_spam', false)->orWhere('user_id', $userId);
+                $q->where('IsSpam', false)->orWhere('UserID', $userId);
             })
             ->orderBy('CreatedAt')
             ->with(['user', 'parentMessage.user'])
@@ -105,7 +105,7 @@ class GroupChatController extends Controller
         foreach ($allConversationIds as $convId) {
             $lastRead = $lastReadByConversation[$convId] ?? 0;
             $threadUnreadCounts[$convId] = Message::where('ConversationID', $convId)
-                ->where('is_spam', false)
+                ->where('IsSpam', false)
                 ->where('MessageID', '>', $lastRead)
                 ->count();
         }
@@ -121,9 +121,9 @@ class GroupChatController extends Controller
         // inside the chat page gives no clue which other group has new
         // messages waiting, only threads within the group already open.
         $otherGroupIds = $userGroups->pluck('GroupID')->reject(fn ($id) => (string) $id === (string) $groupId);
-        $otherMainConversations = Conversation::whereIn('group_id', $otherGroupIds)
+        $otherMainConversations = Conversation::whereIn('GroupID', $otherGroupIds)
             ->where('Type', 'group')
-            ->pluck('ConversationID', 'group_id');
+            ->pluck('ConversationID', 'GroupID');
 
         $otherLastRead = ReadState::where('UserID', $userId)
             ->where('EntityType', 'Conversation')
@@ -134,7 +134,7 @@ class GroupChatController extends Controller
         foreach ($otherMainConversations as $gid => $convId) {
             $lastRead = $otherLastRead[$convId] ?? 0;
             $groupUnreadCounts[$gid] = Message::where('ConversationID', $convId)
-                ->where('is_spam', false)
+                ->where('IsSpam', false)
                 ->where('MessageID', '>', $lastRead)
                 ->count();
         }
@@ -152,9 +152,9 @@ class GroupChatController extends Controller
             'body' => 'nullable|string|max:2000',
             'exclude' => 'array',
             'exclude.*' => 'exists:User,UserID',
-            'conversation_id' => 'nullable|exists:conversation,ConversationID',
+            'conversation_id' => 'nullable|exists:Conversation,ConversationID',
             'attachment' => ['nullable', 'file', 'mimes:pdf,doc,docx,ppt,pptx,png,jpg,jpeg,zip', 'max:20480'],
-            'parent_message_id' => 'nullable|exists:message,MessageID',
+            'parent_message_id' => 'nullable|exists:Message,MessageID',
         ]);
 
         if (blank($request->input('body')) && !$request->hasFile('attachment')) {
@@ -197,13 +197,13 @@ class GroupChatController extends Controller
         // Spam is saved (see GroupChatService::send) and never broadcast to
         // other members, but the sender still sees their own bubble -
         // chat-bubble.blade.php renders a "flagged for review" notice on it
-        // (via $msg->is_spam) instead of it looking like it silently
+        // (via $msg->IsSpam) instead of it looking like it silently
         // vanished. It stays invisible to everyone else until an admin
         // clears it (index() only shows another member their own spam).
         if ($wantsJson) {
             return response()->json([
                 'success' => true,
-                'pending' => (bool) $chatMessage->is_spam,
+                'pending' => (bool) $chatMessage->IsSpam,
                 'html' => view('student.partials.chat-bubble', [
                     'msg' => $chatMessage,
                     'canExclude' => $chatMessage->conversation->Type !== 'restricted',
@@ -222,13 +222,13 @@ class GroupChatController extends Controller
      */
     public function update(Request $request, Message $message)
     {
-        abort_unless($message->user_id === auth()->id(), 403, 'You can only edit your own messages.');
+        abort_unless($message->UserID === auth()->id(), 403, 'You can only edit your own messages.');
 
         $request->validate([
             'body' => 'required|string|max:2000',
         ]);
 
-        $message->update(['body' => $request->input('body')]);
+        $message->update(['Body' => $request->input('body')]);
         $message->load('user');
 
         if ($request->wantsJson() || $request->header('Accept') === 'application/json') {
@@ -246,7 +246,7 @@ class GroupChatController extends Controller
 
     public function destroy(Request $request, Message $message)
     {
-        abort_unless($message->user_id === auth()->id(), 403, 'You can only delete your own messages.');
+        abort_unless($message->UserID === auth()->id(), 403, 'You can only delete your own messages.');
 
         if ($message->Attachment) {
             Storage::disk('public')->delete($message->Attachment);
@@ -263,12 +263,12 @@ class GroupChatController extends Controller
 
     /**
      * Report a group chat message for moderator review - the manual
-     * counterpart to is_spam (the ML gateway's automatic detection). Mirrors
+     * counterpart to IsSpam (the ML gateway's automatic detection). Mirrors
      * DiscussionHubPageController::flagPost()/flagReply().
      */
     public function flag(Request $request, Message $message)
     {
-        abort_unless($message->user_id !== auth()->id(), 403, 'You cannot report your own message.');
+        abort_unless($message->UserID !== auth()->id(), 403, 'You cannot report your own message.');
 
         $request->validate(['Reason' => 'nullable|string|max:250']);
 
