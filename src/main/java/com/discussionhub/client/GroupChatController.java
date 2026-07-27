@@ -757,11 +757,12 @@ public class GroupChatController {
             m.optString("attachment_name", null),
             true,
             m.isNull("parent_message_author") ? null : m.optString("parent_message_author", null),
-            m.optString("parent_message_snippet", null));
+            m.optString("parent_message_snippet", null),
+            m.optBoolean("is_spam", false));
     }
 
     private Region bubble(int userId, String authorName, String body, String createdAt, boolean pending) {
-        return bubble(-1, userId, authorName, body, createdAt, pending, null, null, null, false, null, null);
+        return bubble(-1, userId, authorName, body, createdAt, pending, null, null, null, false, null, null, false);
     }
 
     /**
@@ -775,7 +776,7 @@ public class GroupChatController {
      */
     private Region bubble(int messageId, int userId, String authorName, String body, String createdAt, boolean pending,
                          String attachmentUrl, String attachmentType, String attachmentName,
-                         boolean canReply, String parentAuthor, String parentSnippet) {
+                         boolean canReply, String parentAuthor, String parentSnippet, boolean isSpam) {
         boolean isOwn = userId == SessionManager.userId;
 
         VBox bubble = new VBox(3);
@@ -790,6 +791,20 @@ public class GroupChatController {
         author.setStyle("-fx-font-size: 10.5; -fx-font-weight: bold; -fx-text-fill: "
             + (isOwn ? "#cfe0ea" : "#6B8094") + ";");
         bubble.getChildren().add(author);
+
+        if (isSpam) {
+            // Mirrors chat-bubble.blade.php's .chat-bubble__pending - the
+            // server (GroupChatApiController::index()) only ever sends
+            // is_spam=true back to the sender themselves; every other member
+            // never receives this message in their list at all until an
+            // admin clears it.
+            Label spamNotice = new Label("⚠ Under review — suspected spam. Only you can see this until an admin approves it.");
+            spamNotice.setWrapText(true);
+            spamNotice.setStyle("-fx-background-color: " + (isOwn ? "rgba(255,255,255,0.2)" : "#FDF3D8")
+                + "; -fx-text-fill: " + (isOwn ? "white" : "#8A6D1D")
+                + "; -fx-padding: 4 8; -fx-background-radius: 6; -fx-font-size: 11; -fx-font-weight: bold;");
+            bubble.getChildren().add(spamNotice);
+        }
 
         if (parentAuthor != null) {
             Label quote = new Label("↩ Replying to " + parentAuthor + ": " + (parentSnippet == null ? "" : parentSnippet));
