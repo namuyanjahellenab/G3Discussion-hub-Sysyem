@@ -427,7 +427,7 @@ if (!$isSpam && $request->filled('parent_post_id')) {
             // flagged post at all (see messages()/pollMessages() above).
             if ($isSpam) {
                 $html .= "<div style=\"display:flex; align-items:center; gap:6px; margin-bottom:8px; padding:6px 10px; background: var(--accent-amber-bg); color: var(--accent-amber); border-radius: 6px; font-size: 0.76rem; font-weight: 600;\">"
-                    . "<i class=\"fa-solid fa-triangle-exclamation\"></i> Under review — suspected spam. Only you can see this until an admin approves it."
+                    . "<i class=\"fa-solid fa-triangle-exclamation\"></i> Under review, suspected spam. Only you can see this until an admin approves it."
                     . "</div>";
             }
 
@@ -563,7 +563,7 @@ if (!$isSpam && $request->filled('parent_post_id')) {
             // user's own pending post.
             if ($post->IsFlagged) {
                 $html .= "<div style=\"display:flex; align-items:center; gap:6px; margin-bottom:8px; padding:6px 10px; background: var(--accent-amber-bg); color: var(--accent-amber); border-radius: 6px; font-size: 0.76rem; font-weight: 600;\">"
-                    . "<i class=\"fa-solid fa-triangle-exclamation\"></i> Under review — suspected spam. Only you can see this until an admin approves it."
+                    . "<i class=\"fa-solid fa-triangle-exclamation\"></i> Under review, suspected spam. Only you can see this until an admin approves it."
                     . "</div>";
             }
 
