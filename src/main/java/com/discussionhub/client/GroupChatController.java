@@ -798,7 +798,7 @@ public class GroupChatController {
             // is_spam=true back to the sender themselves; every other member
             // never receives this message in their list at all until an
             // admin clears it.
-            Label spamNotice = new Label("⚠ Under review — suspected spam. Only you can see this until an admin approves it.");
+            Label spamNotice = new Label("⚠ Under review, suspected spam. Only you can see this until an admin approves it.");
             spamNotice.setWrapText(true);
             spamNotice.setStyle("-fx-background-color: " + (isOwn ? "rgba(255,255,255,0.2)" : "#FDF3D8")
                 + "; -fx-text-fill: " + (isOwn ? "white" : "#8A6D1D")
