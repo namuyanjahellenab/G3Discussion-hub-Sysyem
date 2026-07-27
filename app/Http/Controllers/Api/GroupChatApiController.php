@@ -67,7 +67,15 @@ class GroupChatApiController extends Controller
             $activeConversation = $mainConversation;
         }
 
+        // Spam-flagged messages are held out of every OTHER member's view
+        // until an admin clears them (AdminFlaggedContentController::
+        // dismissMessage) - mirrors GroupChatController::index() (web),
+        // which this endpoint was missing entirely, leaking a sender's
+        // pending-review message to the whole group on desktop.
         $messages = Message::where('ConversationID', $activeConversation->ConversationID)
+            ->where(function ($q) use ($userId) {
+                $q->where('IsSpam', false)->orWhere('UserID', $userId);
+            })
             ->orderBy('CreatedAt')
             ->with(['user', 'parentMessage.user'])
             ->get();
