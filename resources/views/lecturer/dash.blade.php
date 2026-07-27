@@ -193,7 +193,7 @@
                                     <div class="started-by">Started by {{ $discussion->creator?->UserName ?? $discussion->creator?->name ?? 'a member' }}</div>
                                 </td>
                                 <td><span class="badge bg-secondary-subtle">{{ $discussion->group?->GroupName ?? '—' }}</span></td>
-                                <td>{{ $discussion->posts_count }}</td>
+                                <td>{{ $discussion->replies_count }}</td>
                                 <td><span class="badge {{ $meta['badge'] }}">{{ $meta['label'] }}</span></td>
                                 <td>
                                     <div class="row-actions">

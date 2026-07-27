@@ -279,8 +279,17 @@ protected function participationSnapshot($userId)
             ->count();
 
         $recentDiscussions = Topic::whereIn('GroupID', $groupIds)
+            // Excludes the placeholder topics TopicSeeder auto-creates per
+            // group (Title matching the group name, CreatedBy the seeded
+            // "System" user) - they're not real discussions and nobody can
+            // answer them meaningfully.
+            ->whereHas('creator', fn ($q) => $q->where('Email', '!=', 'system@example.com'))
             ->with(['creator', 'group'])
-            ->withCount('posts')
+            // Actual reply count (Reply rows nested under the topic's main
+            // post), not withCount('posts') - a topic almost always has
+            // exactly one Post (the opening question), so posts_count was
+            // always ~1 regardless of how many real replies existed.
+            ->withCount('replies')
             ->latest('CreatedAt')
             ->take(8)
             ->get();
