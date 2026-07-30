@@ -108,8 +108,6 @@
                         </HBox>
                         <HBox spacing="10" style="-fx-padding: 18 20;">
                             <Button text="Logout" onAction="#onLogout"/>
-                            <Button text="Log out of all devices" onAction="#onLogoutAllDevices"
-                                    style="-fx-text-fill: #D9483D; -fx-border-color: #D9483D;"/>
                         </HBox>
                     </VBox>
                 </VBox>

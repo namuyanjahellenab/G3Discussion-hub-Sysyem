@@ -1,45 +1,50 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
-<?import javafx.scene.control.*?>
-<?import javafx.scene.layout.*?>
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.ScrollPane?>
+<?import javafx.scene.control.TextField?>
+<?import javafx.scene.layout.FlowPane?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.VBox?>
+<?import javafx.scene.text.Font?>
 
 <!-- Mirrors resources/views/groups/index.blade.php ("View Discussion Groups",
      reached from Dashboard's "See all"): search, a Trending Groups section
      ranked by the Python ML gateway, and the full group list - each card
      carries a derived course code from the shared GroupBrowseService so this
      can't drift from the web the way the old onboarding-screen reuse did. -->
-<HBox xmlns:fx="http://javafx.com/fxml"
-      fx:controller="com.discussionhub.client.GroupBrowseController"
-      styleClass="app-background" stylesheets="@app-theme.css">
 
-    <fx:include fx:id="sidebar" source="sidebar.fxml"/>
+<HBox styleClass="app-background" stylesheets="@app-theme.css" xmlns="http://javafx.com/javafx/26" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.discussionhub.client.GroupBrowseController">
 
-    <ScrollPane fitToWidth="true" HBox.hgrow="ALWAYS" style="-fx-background-color: transparent;">
+    <fx:include fx:id="sidebar" source="sidebar.fxml" />
+
+    <ScrollPane fitToWidth="true" style="-fx-background-color: transparent;" HBox.hgrow="ALWAYS">
         <VBox spacing="20" style="-fx-padding: 28;">
 
             <HBox alignment="CENTER_LEFT" spacing="12">
-                <Button text="← Back" onAction="#onBack"
-                        style="-fx-background-color: transparent; -fx-border-color: -luna-mid; -fx-text-fill: -luna-mid;
-                               -fx-border-radius: 6; -fx-background-radius: 6; -fx-font-weight: bold; -fx-padding: 7 16; -fx-cursor: hand;"/>
+                <Button onAction="#onBack" style="-fx-background-color: transparent; -fx-border-color: -luna-mid; -fx-text-fill: -luna-mid;                                -fx-border-radius: 6; -fx-background-radius: 6; -fx-font-weight: bold; -fx-padding: 7 16; -fx-cursor: hand;" text="← Back" />
             </HBox>
 
-            <Label text="View Discussion Groups" styleClass="heading-text" style="-fx-font-size: 24;"/>
+            <Label style="-fx-font-size: 24;" styleClass="heading-text" text="View Discussion Groups" />
 
-            <HBox spacing="10" alignment="CENTER_LEFT">
-                <TextField fx:id="searchField" promptText="Search for courses, lecturers or topics..." onAction="#onSearch" HBox.hgrow="ALWAYS"/>
-                <Button text="Search  →" onAction="#onSearch" styleClass="btn-primary"/>
+            <HBox alignment="CENTER_LEFT" spacing="10">
+                <TextField fx:id="searchField" onAction="#onSearch" promptText="Search for courses, lecturers or topics..." HBox.hgrow="ALWAYS" />
+                <Button onAction="#onSearch" style="-fx-background-color: blue;" styleClass="btn-primary" text="dont search →">
+               <font>
+                  <Font name="Bauhaus 93" size="64.0" />
+               </font></Button>
             </HBox>
 
-            <Label fx:id="statusLabel" text="" visible="false" managed="false" styleClass="muted-text"/>
+            <Label fx:id="statusLabel" managed="false" styleClass="muted-text" text="" visible="false" />
 
-            <Label fx:id="trendingHeadingLabel" text="📈 Trending Groups" styleClass="heading-text" style="-fx-font-size: 15;"/>
+            <Label fx:id="trendingHeadingLabel" style="-fx-font-size: 15;" styleClass="heading-text" text="📈 Trending Groups" />
 
             <!-- One continuous grid so trending cards flow straight into the
                  rest, mirroring groups/index.blade.php - no gap between them. -->
-            <FlowPane fx:id="groupsFlowPane" hgap="16" vgap="16"/>
+            <FlowPane fx:id="groupsFlowPane" hgap="16" vgap="16" />
 
-            <Label text="You can join additional groups at any time from your dashboard. Some groups may require administrative approval."
-                   styleClass="muted-text" wrapText="true" style="-fx-font-style: italic;"/>
+            <Label style="-fx-font-style: italic;" styleClass="muted-text" text="You can join additional groups at any time from your dashboard. Some groups may require administrative approval." wrapText="true" />
         </VBox>
     </ScrollPane>
 

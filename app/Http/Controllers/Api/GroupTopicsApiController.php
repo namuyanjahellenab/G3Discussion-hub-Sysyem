@@ -80,11 +80,11 @@ class GroupTopicsApiController extends Controller
         ]));
     }
 
-    // Mirrors DiscussionHubPageController::storeTopic() - same moderation
-    // gate (blocks if not educational, flags but still posts if spam),
-    // same Topic + Post creation, same custom-audience exclusion support.
-    // Attachments aren't exposed here since the desktop dialog has no file
-    // picker for topic creation.
+    // Mirrors DiscussionHubPageController::storeTopic() - same Topic + Post
+    // creation, same custom-audience exclusion support. Starting a new topic
+    // is never spam/relevance-checked - only replying within one and group
+    // chat messages are. Attachments aren't exposed here since the desktop
+    // dialog has no file picker for topic creation.
     public function store(Request $request, Group $group)
     {
         $request->validate([
@@ -94,14 +94,6 @@ class GroupTopicsApiController extends Controller
             'exclude' => 'array',
             'exclude.*' => 'exists:User,UserID',
         ]);
-
-        $moderation = app(MlGatewayClient::class)->moderateContent($request->input('content'));
-
-        if (!$moderation['isEducational']) {
-            return response()->json([
-                'message' => 'This group is for course discussion — please keep posts relevant to your studies.',
-            ], 422);
-        }
 
         $topic = Topic::create([
             'Title' => $request->input('title'),
@@ -115,8 +107,6 @@ class GroupTopicsApiController extends Controller
             'TopicID' => $topic->TopicID,
             'UserID' => $request->user()->UserID,
             'Content' => $request->input('content'),
-            'IsFlagged' => $moderation['isSpam'],
-            'FlaggedReason' => $moderation['isSpam'] ? 'Auto-flagged by spam detection' : null,
         ]);
 
         if ($request->input('audience') === 'custom') {

@@ -94,6 +94,14 @@
         <li class="{{ request()->routeIs('admin.student-ids.index') ? 'active' : '' }}">
             <a href="{{ route('admin.student-ids.index') }}"><i class="fa-solid fa-id-card-clip"></i> Student IDs</a>
         </li>
+        <li>
+            <form method="POST" action="{{ route('logout') }}" id="sidebar-logout-form" style="display:none;">
+                @csrf
+            </form>
+            <a href="#" onclick="event.preventDefault(); document.getElementById('sidebar-logout-form').submit();">
+                <i class="fa-solid fa-right-from-bracket"></i> Logout
+            </a>
+        </li>
     </ul>
 </div>
 

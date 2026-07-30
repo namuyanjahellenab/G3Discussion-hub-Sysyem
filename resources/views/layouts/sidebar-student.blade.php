@@ -77,6 +77,14 @@
         <li class="{{ request()->routeIs('settings.index') ? 'active' : '' }}">
             <a href="{{ route('settings.index') }}"><i class="fa-solid fa-gear"></i> Settings</a>
         </li>
+        <li>
+            <form method="POST" action="{{ route('logout') }}" id="sidebar-logout-form" style="display:none;">
+                @csrf
+            </form>
+            <a href="#" onclick="event.preventDefault(); document.getElementById('sidebar-logout-form').submit();">
+                <i class="fa-solid fa-right-from-bracket"></i> Logout
+            </a>
+        </li>
     </ul>
 </div>
 

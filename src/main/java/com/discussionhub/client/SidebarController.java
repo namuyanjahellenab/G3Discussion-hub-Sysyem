@@ -61,6 +61,7 @@ public class SidebarController {
     @FXML private Button quizzesBtn;
     @FXML private Button recommendBtn;
     @FXML private Button settingsBtn;
+    @FXML private Button logoutBtn;
 
     private DatabaseManager dbManager;
     private DeltaSyncService syncService;
@@ -488,6 +489,38 @@ public class SidebarController {
         } catch (Exception e) {
             System.err.println("[Sidebar] Error opening settings: " + e.getMessage());
         }
+    }
+
+    // Available from every screen (the sidebar is shared everywhere), not
+    // just from Settings - mirrors the same sign-out steps as
+    // SettingsController.signOutLocally(): revoke the token server-side,
+    // forget any "Remember Me" session on this device, reset SessionManager,
+    // and swap to the login screen.
+    @FXML
+    protected void onLogout() {
+        navigate();
+        new Thread(() -> {
+            post("/api/logout");
+            Platform.runLater(() -> {
+                dbManager.clearSession();
+                SessionManager.token = "";
+                SessionManager.userId = 0;
+                SessionManager.userEmail = "";
+                SessionManager.fullName = "";
+                SessionManager.role = "";
+                SessionManager.currentTheme = "luna";
+                SessionManager.sidebarCollapsed = false;
+                try {
+                    FXMLLoader loader = new FXMLLoader(getClass().getResource("login-view.fxml"));
+                    Scene scene = new Scene(loader.load());
+                    LoginController controller = loader.getController();
+                    controller.setServices(dbManager, syncService);
+                    WindowUtil.applyScene(stage(), scene, "DiscussionHub — Campus Login");
+                } catch (Exception e) {
+                    System.err.println("[Sidebar] Error returning to login: " + e.getMessage());
+                }
+            });
+        }).start();
     }
 
     @FXML

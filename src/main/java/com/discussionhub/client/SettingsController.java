@@ -221,21 +221,6 @@ public class SettingsController {
         }).start();
     }
 
-    @FXML
-    protected void onLogoutAllDevices() {
-        javafx.scene.control.Alert confirm = new javafx.scene.control.Alert(
-            javafx.scene.control.Alert.AlertType.CONFIRMATION,
-            "This will log you out on every device where you're signed in. Continue?");
-        confirm.showAndWait().ifPresent(btn -> {
-            if (btn == javafx.scene.control.ButtonType.OK) {
-                new Thread(() -> {
-                    post("/api/logout-all-devices");
-                    Platform.runLater(this::signOutLocally);
-                }).start();
-            }
-        });
-    }
-
     private void post(String path) {
         try {
             URL url = URI.create(BASE_URL + path).toURL();
@@ -251,6 +236,10 @@ public class SettingsController {
 
     private void signOutLocally() {
         sidebarController.stopNotificationPolling();
+        // Otherwise a "Remember Me" login would just silently sign the user
+        // straight back in the next time the app opens, even after an
+        // explicit logout.
+        dbManager.clearSession();
         SessionManager.token = "";
         SessionManager.userId = 0;
         SessionManager.userEmail = "";

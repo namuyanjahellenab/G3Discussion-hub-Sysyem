@@ -31,7 +31,7 @@
 
         <HBox fx:id="brandRow" alignment="CENTER_LEFT" spacing="6" style="-fx-padding: 0 14 16 14; -fx-border-color: transparent transparent -surface-border transparent; -fx-border-width: 0 0 1 0;">
             <ImageView fx:id="brandIconImage" fitWidth="20" fitHeight="20" preserveRatio="true">
-                <Image url="@/icons/app-icon.png"/>
+                <Image url="@../../../icons/app-icon.png"/>
             </ImageView>
             <Label fx:id="brandTextLabel" text="DISCUSSION HUB" styleClass="heading-text" style="-fx-font-size: 12.5;" wrapText="true"/>
             <Region HBox.hgrow="ALWAYS"/>
@@ -70,6 +70,10 @@
         </Button>
 
         <Region VBox.vgrow="ALWAYS"/>
+
+        <Button fx:id="logoutBtn" text="⏻  Logout" onAction="#onLogout" maxWidth="Infinity" styleClass="sidebar-link">
+            <VBox.margin><Insets left="10" right="10" bottom="8"/></VBox.margin>
+        </Button>
     </VBox>
 
     <Button fx:id="toggleBtn" text="≡" onAction="#onToggleSidebar" StackPane.alignment="TOP_LEFT"

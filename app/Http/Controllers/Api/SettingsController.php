@@ -59,16 +59,4 @@ class SettingsController extends Controller
         $request->user()->currentAccessToken()->delete();
         return response()->json(['message' => 'Logged out.']);
     }
-
-    /**
-     * POST /api/logout-all-devices
-     * The Sanctum equivalent of the web's "Log out of all devices" - the web
-     * version clears session rows (session-cookie auth), this revokes every
-     * token issued to the user (token auth), same end result either way.
-     */
-    public function logoutAllDevices(Request $request)
-    {
-        $request->user()->tokens()->delete();
-        return response()->json(['message' => 'Logged out of all devices.']);
-    }
 }

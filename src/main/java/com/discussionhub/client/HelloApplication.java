@@ -1,6 +1,7 @@
 package com.discussionhub.client;
 
 import com.discussionhub.client.database.DatabaseManager;
+import com.discussionhub.client.database.SavedSession;
 import com.discussionhub.client.utils.DeltaSyncService;
 import javafx.application.Application;
 import javafx.fxml.FXMLLoader;
@@ -24,13 +25,32 @@ public class HelloApplication extends Application {
         // 2. Initialize DeltaSyncService
         syncService = new DeltaSyncService(dbManager);
 
-        // 3. Load your login interface layout
-        FXMLLoader fxmlLoader = new FXMLLoader(HelloApplication.class.getResource("login-view.fxml"));
-        Scene scene = new Scene(fxmlLoader.load());
+        // 3. A "Remember Me" login (see LoginController.onLogin()) skips the
+        // login screen entirely and restores straight into the Dashboard,
+        // the same WhatsApp-style behavior on both platforms - this also
+        // works while offline, since DashboardController already falls back
+        // to its cached response when the live call fails.
+        SavedSession saved = dbManager.loadSession();
+        Scene scene;
+        if (saved != null) {
+            SessionManager.token = saved.getToken();
+            SessionManager.userId = saved.getUserId();
+            SessionManager.userEmail = saved.getUserEmail();
+            SessionManager.fullName = saved.getFullName();
+            SessionManager.role = saved.getRole();
+            SessionManager.currentTheme = saved.getThemeColor() == null || saved.getThemeColor().isEmpty()
+                ? "luna" : saved.getThemeColor();
 
-        // 4. Pass your initialized engines to the login controller
-        LoginController loginController = fxmlLoader.getController();
-        loginController.setServices(dbManager, syncService);
+            FXMLLoader fxmlLoader = new FXMLLoader(HelloApplication.class.getResource("dashboard-view.fxml"));
+            scene = new Scene(fxmlLoader.load());
+            DashboardController dashboardController = fxmlLoader.getController();
+            dashboardController.setServices(dbManager, syncService);
+        } else {
+            FXMLLoader fxmlLoader = new FXMLLoader(HelloApplication.class.getResource("login-view.fxml"));
+            scene = new Scene(fxmlLoader.load());
+            LoginController loginController = fxmlLoader.getController();
+            loginController.setServices(dbManager, syncService);
+        }
 
         // 5. Display the stage window at the screen's full usable area, set
         // via explicit width/height/x/y - not the OS "maximized" flag,
@@ -42,7 +62,7 @@ public class HelloApplication extends Application {
         // jump. This also comfortably fits every screen's content, which
         // was the original problem with the old fixed 1000x700 start size.
         Rectangle2D screenBounds = Screen.getPrimary().getVisualBounds();
-        stage.setTitle("DiscussionHub — Campus Login");
+        stage.setTitle(saved != null ? "DiscussionHub — Dashboard" : "DiscussionHub — Campus Login");
         stage.setScene(scene);
         stage.setResizable(true);
         stage.setX(screenBounds.getMinX());

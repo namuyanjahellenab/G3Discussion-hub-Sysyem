@@ -138,10 +138,6 @@
                             @csrf
                             <button type="submit" class="btn btn-outline-secondary">Logout</button>
                         </form>
-                        <form method="POST" action="{{ route('settings.logout-all-devices') }}" class="d-inline" onsubmit="return confirm('This will log you out on every device where you\'re signed in. Continue?');">
-                            @csrf
-                            <button type="submit" class="btn btn-outline-danger">Log out of all devices</button>
-                        </form>
                     </div>
                 </div>
             </div>
@@ -160,7 +156,7 @@
 
             <div class="announcement-banner">
                 <div class="tag"><i class="fa-solid fa-shield-halved"></i> Security</div>
-                <div class="body">Keep your profile and password updated to protect your account. Use "Log out of all devices" if you ever sign in on a shared computer.</div>
+                <div class="body">Keep your profile and password updated to protect your account.</div>
             </div>
         </div>
     </div>

@@ -847,19 +847,6 @@ if (!$isSpam && $request->filled('parent_post_id')) {
         return back()->with('status', 'Settings updated.');
     }
 
-    public function logoutAllDevices(Request $request): RedirectResponse
-    {
-        $user = Auth::user();
-
-        DB::table('sessions')->where('user_id', $user->UserID)->delete();
-        $user->tokens()->delete();
-
-        Auth::logout();
-        $request->session()->invalidate();
-        $request->session()->regenerateToken();
-
-        return redirect()->route('login')->with('success', 'You have been logged out of all devices.');
-    }
     public function groupTopics(Request $request, Group $group)
 {
     $search = $request->input('search');
@@ -951,15 +938,9 @@ public function storeTopic(Request $request)
         'exclude.*' => 'exists:User,UserID',
     ]);
 
-    $moderation = app(MlGatewayClient::class)->moderateContent($request->input('Content'));
-
-    if (!$moderation['isEducational']) {
-        return back()
-            ->withErrors(['Content' => 'This group is for course discussion — please keep posts relevant to your studies.'])
-            ->withInput();
-    }
-
-    $isSpam = $moderation['isSpam'];
+    // Starting a new topic is never spam/relevance-checked - only replying
+    // within one (storeReply()) and group chat messages are.
+    $isSpam = false;
 
     $group = Group::find($request->input('GroupID'));
 

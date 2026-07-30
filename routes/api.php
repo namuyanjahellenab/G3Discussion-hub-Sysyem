@@ -128,7 +128,6 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/sync/push', [App\Http\Controllers\Api\SyncController::class, 'push']);
     Route::put('/settings', [App\Http\Controllers\Api\SettingsController::class, 'update']);
     Route::post('/logout', [App\Http\Controllers\Api\SettingsController::class, 'logout']);
-    Route::post('/logout-all-devices', [App\Http\Controllers\Api\SettingsController::class, 'logoutAllDevices']);
 
     // Desktop-client equivalents of the web sidebar's My Questions, Marks,
     // Recommend, and Quizzes pages, plus the Dashboard itself.

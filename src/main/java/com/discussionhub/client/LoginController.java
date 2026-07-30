@@ -43,6 +43,10 @@ public class LoginController {
     public void onLogin() {
         String email = emailField.getText();
         String password = passwordField.isVisible() ? passwordField.getText() : passwordVisible.getText();
+        // Read on the FX thread, same as email/password above - the
+        // background thread below must never touch a live UI control
+        // directly.
+        boolean rememberMe = rememberMeCheck.isSelected();
 
         if (email.isEmpty() || password.isEmpty()) {
             errorLabel.setText("Please fill all fields.");
@@ -83,6 +87,17 @@ public class LoginController {
                         SessionManager.fullName = name;
                         SessionManager.role = role;
                         SessionManager.currentTheme = themeColor.isEmpty() ? "luna" : themeColor;
+
+                        // Only remembered on this device if the box is checked -
+                        // otherwise clear any earlier remembered session so a
+                        // shared computer doesn't stay signed in as whoever
+                        // logged in last.
+                        if (rememberMe) {
+                            dbManager.saveSession(SessionManager.token, SessionManager.userId, SessionManager.userEmail,
+                                SessionManager.fullName, SessionManager.role, SessionManager.currentTheme);
+                        } else {
+                            dbManager.clearSession();
+                        }
 
                         dbManager.ensureDeviceState(SessionManager.userId);
 

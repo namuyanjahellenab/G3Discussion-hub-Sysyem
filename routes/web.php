@@ -163,10 +163,6 @@ Route::post('/messages', [DiscussionHubPageController::class, 'storeMessage'])
         ->middleware('verified')
         ->name('settings.update');
 
-    Route::post('/settings/logout-all-devices', [DiscussionHubPageController::class, 'logoutAllDevices'])
-        ->middleware('verified')
-        ->name('settings.logout-all-devices');
-
     Route::get('/announcements', [DashboardController::class, 'announcementsIndex'])
         ->middleware('verified')
         ->name('announcements.index');

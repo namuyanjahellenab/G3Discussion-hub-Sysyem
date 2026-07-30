@@ -2,6 +2,7 @@ package com.discussionhub.client.database;
 
 import com.discussionhub.client.model.SyncQueueItem;
 
+import java.io.File;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
@@ -12,8 +13,26 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class DatabaseManager {
-    private static final String DB_URL = "jdbc:sqlite:discussionhub.db";
+    // A relative path here meant the actual .db file's location depended on
+    // whatever folder the app happened to be launched from - dev mode
+    // (mvn javafx:run, run from the project folder) and the installed app
+    // (launched from wherever jpackage put it) each silently got their own
+    // separate, empty database, so a "Remember Me" session (or any other
+    // locally cached offline data) saved under one never showed up under the
+    // other. Anchoring to the OS's per-user app-data folder makes this one
+    // fixed location regardless of how the app is launched.
+    private static final String DB_URL = "jdbc:sqlite:" + resolveDbFilePath();
     private int currentDeviceId = -1;
+
+    private static String resolveDbFilePath() {
+        String base = System.getenv("LOCALAPPDATA");
+        if (base == null || base.isBlank()) {
+            base = System.getProperty("user.home");
+        }
+        File dir = new File(base, "DiscussionHub");
+        dir.mkdirs();
+        return new File(dir, "discussionhub.db").getAbsolutePath();
+    }
 
     public Connection connect() throws SQLException {
         return DriverManager.getConnection(DB_URL);
@@ -93,6 +112,22 @@ public class DatabaseManager {
             "CREATE TABLE IF NOT EXISTS GroupChatState (" +
                 "    GroupID INTEGER PRIMARY KEY," +
                 "    MainConversationID INTEGER NOT NULL" +
+                ");";
+
+        // Single-row table (Id is always 1) holding the "Remember Me" session,
+        // so the app can skip straight to the Dashboard on a cold start
+        // instead of always forcing the login screen - the WhatsApp-style
+        // behavior the SDD's offline requirement calls for. Only written when
+        // the user actually checks Remember Me at login; cleared on logout.
+        String createSavedSessionTable =
+            "CREATE TABLE IF NOT EXISTS SavedSession (" +
+                "    Id INTEGER PRIMARY KEY CHECK (Id = 1)," +
+                "    Token TEXT NOT NULL," +
+                "    UserID INTEGER NOT NULL," +
+                "    UserEmail TEXT," +
+                "    FullName TEXT," +
+                "    Role TEXT," +
+                "    ThemeColor TEXT" +
                 ");";
 
         String createReplyTable =
@@ -176,6 +211,7 @@ public class DatabaseManager {
             stmt.execute(createNotificationTable);
             stmt.execute(createMessageTable);
             stmt.execute(createGroupChatStateTable);
+            stmt.execute(createSavedSessionTable);
             stmt.execute(createApiCacheTable);
             stmt.execute(createReadStateTable);
 
@@ -863,6 +899,52 @@ public class DatabaseManager {
         } catch (SQLException e) {
             System.err.println("[DB] Error reading remembered main conversation id for group " + groupId + ": " + e.getMessage());
             return 0;
+        }
+    }
+
+    /** Persists a "Remember Me" login - only called when the user actually
+     *  checks that box at login. Id is always 1, so this always overwrites
+     *  whatever was saved before (one device only ever remembers one user). */
+    public void saveSession(String token, int userId, String userEmail, String fullName, String role, String themeColor) {
+        String sql = "INSERT OR REPLACE INTO SavedSession (Id, Token, UserID, UserEmail, FullName, Role, ThemeColor) " +
+            "VALUES (1, ?, ?, ?, ?, ?, ?);";
+        try (Connection conn = this.connect(); PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            pstmt.setString(1, token);
+            pstmt.setInt(2, userId);
+            pstmt.setString(3, userEmail);
+            pstmt.setString(4, fullName);
+            pstmt.setString(5, role);
+            pstmt.setString(6, themeColor);
+            pstmt.executeUpdate();
+        } catch (SQLException e) {
+            System.err.println("[DB] Error saving session: " + e.getMessage());
+        }
+    }
+
+    /** Returns null if no session was ever remembered on this device (or it
+     *  was cleared by a later logout/un-checking Remember Me). */
+    public SavedSession loadSession() {
+        String sql = "SELECT Token, UserID, UserEmail, FullName, Role, ThemeColor FROM SavedSession WHERE Id = 1;";
+        try (Connection conn = this.connect(); Statement stmt = conn.createStatement();
+             ResultSet rs = stmt.executeQuery(sql)) {
+            if (!rs.next()) return null;
+            return new SavedSession(rs.getString("Token"), rs.getInt("UserID"), rs.getString("UserEmail"),
+                rs.getString("FullName"), rs.getString("Role"), rs.getString("ThemeColor"));
+        } catch (SQLException e) {
+            System.err.println("[DB] Error loading saved session: " + e.getMessage());
+            return null;
+        }
+    }
+
+    /** Called on logout, and whenever a login happens with Remember Me
+     *  unchecked, so an earlier remembered session on this device doesn't
+     *  linger and silently sign the next person back in as someone else. */
+    public void clearSession() {
+        String sql = "DELETE FROM SavedSession WHERE Id = 1;";
+        try (Connection conn = this.connect(); Statement stmt = conn.createStatement()) {
+            stmt.execute(sql);
+        } catch (SQLException e) {
+            System.err.println("[DB] Error clearing saved session: " + e.getMessage());
         }
     }
 

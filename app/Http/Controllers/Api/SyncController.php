@@ -96,18 +96,12 @@ class SyncController extends Controller
         if ($entityType === 'Topic') {
             // A topic composed while offline: mirrors
             // GroupTopicsApiController::store() exactly (topic + its opening
-            // post are created together, same moderation check, same
-            // audience/exclude handling) rather than the bare Topic-only row
-            // this used to create, which silently dropped the topic's own
-            // content and any restricted-audience selection.
+            // post are created together, same audience/exclude handling)
+            // rather than the bare Topic-only row this used to create, which
+            // silently dropped the topic's own content and any
+            // restricted-audience selection. Starting a new topic is never
+            // spam/relevance-checked - only replying within one is.
             $content = $payload['Content'] ?? '';
-            $moderation = app(MlGatewayClient::class)->moderateContent($content);
-
-            if (!$moderation['isEducational']) {
-                return response()->json([
-                    'message' => 'This group is for course discussion — please keep posts relevant to your studies.',
-                ], 422);
-            }
 
             $topic = Topic::create([
                 'Title' => $payload['Title'] ?? null,
@@ -121,8 +115,6 @@ class SyncController extends Controller
                 'TopicID' => $topic->TopicID,
                 'UserID' => $payload['CreatedBy'] ?? $request->user()->UserID,
                 'Content' => $content,
-                'IsFlagged' => $moderation['isSpam'],
-                'FlaggedReason' => $moderation['isSpam'] ? 'Auto-flagged by spam detection' : null,
             ]);
 
             if (($payload['Audience'] ?? null) === 'custom') {
