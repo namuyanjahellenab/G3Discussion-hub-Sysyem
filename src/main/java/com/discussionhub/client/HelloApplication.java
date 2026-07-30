@@ -41,6 +41,15 @@ public class HelloApplication extends Application {
             SessionManager.currentTheme = saved.getThemeColor() == null || saved.getThemeColor().isEmpty()
                 ? "luna" : saved.getThemeColor();
 
+            // Every offline-created Topic/Reply/Message silently failed to
+            // ever reach SyncQueue without this - logToSyncQueue() refuses
+            // to log anything until currentDeviceId is set, and this call
+            // (previously only reachable via LoginController.onLogin()'s
+            // interactive login) is the only thing that sets it. This
+            // "Remember Me" auto-restore path skips that login entirely, so
+            // it must call it too, or the offline content just vanishes.
+            dbManager.ensureDeviceState(SessionManager.userId);
+
             FXMLLoader fxmlLoader = new FXMLLoader(HelloApplication.class.getResource("dashboard-view.fxml"));
             scene = new Scene(fxmlLoader.load());
             DashboardController dashboardController = fxmlLoader.getController();

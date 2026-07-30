@@ -170,10 +170,20 @@ public class TopicController {
         // offline earlier) and pulls fresh Topic/Post/Reply rows into the
         // local cache, so a later offline visit to this same topic has
         // something recent to fall back to instead of a stale/empty cache.
+        // Must finish BEFORE refresh()'s own GET below, not run in parallel
+        // with it on a separate thread - otherwise the GET (usually faster
+        // than the sync's POST) wins the race and renders the server's
+        // pre-sync state, making a reply/topic just queued this instant look
+        // like it silently vanished, with nothing to ever re-check it since
+        // the next auto-refresh is seconds away.
         if (com.discussionhub.client.utils.NetworkUtil.isNetworkAvailable()) {
-            new Thread(syncService::synchronizeLocalChanges).start();
+            new Thread(() -> {
+                syncService.synchronizeLocalChanges();
+                refresh();
+            }).start();
+        } else {
+            refresh();
         }
-        refresh();
         startAutoRefresh();
     }
 
