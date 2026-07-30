@@ -4,11 +4,42 @@
 # casual text. Replies also get a cosine-similarity check against their own
 # thread, so a reply can still be flagged as irrelevant even if it reads as
 # educational on its own.
+#
+# A pure ML classifier trained on a few hundred hand-written examples will
+# always miss spam phrased differently than anything it was trained on - that
+# gap can't be closed by adding a handful more training examples, it needs a
+# second, deterministic layer that isn't limited to phrasing the model has
+# already seen. _SPAM_KEYWORD_PATTERNS below is that layer: any match flags
+# the text as spam immediately, regardless of the ML model's confidence.
+
+import os
+import re
 
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 from sklearn.naive_bayes import MultinomialNB
 from sklearn.pipeline import Pipeline
+
+# Deliberately broad, high-signal spam vocabulary - each pattern here is
+# something that's essentially never used in genuine academic discussion, so
+# false positives should be rare. Case-insensitive; \b word boundaries so
+# "class" doesn't match on "cash" substrings etc.
+_SPAM_KEYWORD_PATTERNS = [
+    r"\bdm me\b", r"\bdm now\b", r"\bmessage me on (whatsapp|telegram|instagram)\b",
+    r"\bwhatsapp (me|us)\b", r"\bjoin (our|my) telegram\b",
+    r"\bclick (here|this link|the link)\b", r"\bvisit our site\b",
+    r"\bfree (prize|gift card|iphone|vpn)\b", r"\bclaim your (prize|reward|winnings)\b",
+    r"\bguaranteed (returns|profit|approval|payout)\b", r"\bno experience needed\b",
+    r"\bwork from home\b", r"\bearn \$?\d+", r"\bmake money (online|fast)\b",
+    r"\bpassive income\b", r"\binvestment opportunity\b", r"\bcrypto (trading|investment)\b",
+    r"\bforex trading\b", r"\bbinary options\b", r"\bloan(s)? approved\b",
+    r"\bno credit check\b", r"\bact now\b", r"\blimited time offer\b",
+    r"\boffer expires\b", r"\bbuy (now|followers|likes)\b", r"\bincrease your followers\b",
+    r"\bhot singles\b", r"\bverify your (details|password|account) (here|now)\b",
+    r"\baccount (has been|will be) suspended\b", r"\bunusual activity\b",
+    r"\bunclaimed funds\b", r"\bsubscription payment failed\b",
+]
+_spam_keyword_regex = re.compile("|".join(_SPAM_KEYWORD_PATTERNS), re.IGNORECASE)
 
 # Below this cosine similarity to the thread, a reply is considered off-topic.
 RELEVANCE_SIMILARITY_FLOOR = 0.05
@@ -31,118 +62,42 @@ SPAM_CONFIDENCE_THRESHOLD = 0.6
 # changing this number.
 NOT_EDUCATIONAL_CONFIDENCE_THRESHOLD = 0.6
 
-# (text, is_spam) pairs used to train the spam classifier.
-SPAM_TRAINING_DATA = [
-    # Classic promotional/scam language: discounts, prizes, "click here",
-    # urgency, and requests to move the conversation off-platform.
-    ("buy cheap laptops now, huge discount click here", 1),
-    ("earn $5000 a week working from home, no experience needed", 1),
-    ("claim your free prize now, limited time offer", 1),
-    ("cheap essays written for you, contact us on whatsapp for a quick deal", 1),
-    ("win a free iphone, click this link to claim your prize", 1),
-    ("hot deals on textbooks, visit our site for exclusive discount codes", 1),
-    ("congratulations you have been selected for a guaranteed loan approval", 1),
-    ("increase your instagram followers instantly, dm me for details", 1),
-    ("crypto investment opportunity, guaranteed returns, invest today", 1),
-    ("act now, offer expires today, limited stock available, buy now", 1),
-    ("click here to unlock your free gift card", 1),
-    ("make money online fast, join now, no risk involved", 1),
-    ("get rich quick with this one simple trick, click the link", 1),
-    ("your account has been selected, verify now to claim your reward", 1),
-    ("cheap replica watches for sale, message me on whatsapp", 1),
-    ("hot singles in your area want to meet you, click here", 1),
-    ("free vpn download, click this link now", 1),
-    ("sell your assignments here, fast delivery, cheap prices, dm now", 1),
-    ("limited time discount on all courses, buy now before it's gone", 1),
-    ("work from home and earn thousands weekly, sign up today", 1),
-    ("you have won a lottery prize, claim your winnings now", 1),
-    ("best forex trading signals, guaranteed profit, join our telegram", 1),
-    ("cheap loans approved instantly, no credit check required", 1),
-    ("buy followers and likes cheap, fast delivery, click here", 1),
-    ("exclusive offer just for you, buy one get one free today only", 1),
-    # Scam variants using different platforms and hooks (scholarships,
-    # trading bots, fake internships, package/account phishing) - covering
-    # more phrasing than "buy/discount/click" alone keeps the classifier from
-    # missing scams that use different filler words to make the same pitch.
-    ("grab this amazing discount on essay writing services, message us on telegram", 1),
-    ("you've been selected for a free scholarship, click this link to claim it now", 1),
-    ("double your money in a week with this crypto trading bot, invest today", 1),
-    ("cheap loans available instantly, no paperwork, apply through this link", 1),
-    ("get thousands of tiktok followers overnight, dm for pricing", 1),
-    ("flash sale on branded shoes, hit this link before stock runs out", 1),
-    ("work only 2 hours a day and earn in dollars, join our whatsapp group", 1),
-    ("premium software licenses at 90 percent off, contact us to purchase", 1),
-    ("your account will be suspended, verify your details here immediately", 1),
-    ("hi dear, i'm interested in getting to know you better, message me", 1),
-    ("paid internship guaranteed no interview needed, apply through this link", 1),
-    ("urgent, you have unclaimed funds waiting, click to verify your identity", 1),
-    ("get a free credit score boost instantly, sign up with your bank details", 1),
-    ("earn passive income trading binary options, guaranteed daily payout", 1),
-    ("cheap assignment help, we write it for you, fast turnaround, whatsapp us", 1),
-    ("your package could not be delivered, click here to reschedule", 1),
-    ("this stock is about to explode, buy in now before it is too late", 1),
-    ("your subscription payment failed, update your card info here now", 1),
-    ("we noticed unusual activity, confirm your password here to secure your account", 1),
-    # Everyday academic and social messages that are not spam.
-    ("how does merge sort work?", 0),
-    ("can someone explain normalization in databases", 0),
-    ("i'm getting a null pointer exception in my java code, any ideas?", 0),
-    ("what's the deadline for the group project submission", 0),
-    ("thanks for the explanation, that makes sense now", 0),
-    ("does anyone have notes from today's lecture on networking", 0),
-    ("i think the time complexity of this algorithm is O(n log n)", 0),
-    ("can we meet tomorrow to discuss the assignment", 0),
-    ("the lecturer said the exam covers chapters 1 through 5", 0),
-    ("i'm struggling with recursion, can someone help explain it", 0),
-    ("here's a link to the official python documentation for reference", 0),
-    ("great answer, i understand it much better now", 0),
-    ("what time does the quiz start today", 0),
-    ("i submitted my assignment late, will there be a penalty", 0),
-    ("let's form a study group for the database exam", 0),
-    ("anyone else finding the tcp/ip section confusing", 0),
-    ("i'll share my code so we can review it together", 0),
-    ("the library has extra copies of the textbook available", 0),
-    ("can you clarify what the professor meant by dynamic programming", 0),
-    ("lol anyone up for pizza tonight", 0),
-    ("what's everyone doing this weekend", 0),
-    ("happy birthday! hope you have a great day", 0),
-    ("good morning everyone, ready for the lecture", 0),
-    ("see you all in class tomorrow", 0),
-    ("congrats on finishing your project, well done", 0),
-    ("what's the best restaurant near campus", 0),
-    ("anyone free to grab lunch later", 0),
-    ("i can't find the assignment submission link", 0),
-    ("is the exam open book or closed book", 0),
-    ("what time zone is the online lecture in", 0),
-    ("i really enjoyed today's class discussion", 0),
-    ("where can i download the lecture slides", 0),
-    ("our team meeting is at 3pm tomorrow", 0),
-    ("i think i found a bug in the starter code", 0),
-    ("what's a good ide for python development", 0),
-    ("congrats to everyone who passed the midterm", 0),
-    ("is attendance mandatory for tomorrow's session", 0),
-    ("anyone want to grab coffee before class", 0),
-    ("what's the wifi password in the library", 0),
-    ("is there parking available near the lecture hall", 0),
-    ("can someone lend me a charger for my laptop", 0),
-    ("what's the weather like for the field trip", 0),
-    ("i missed the bus, will be a few minutes late", 0),
-    # Legitimate messages that mention sharing a link or an upcoming
-    # deadline - included so urgency and links alone are not treated as
-    # spam signals; the classifier needs real academic context to weigh
-    # against them.
-    ("here is the link, click it to access the assignment brief", 0),
-    ("act now if you want a spot in the limited practical lab slots", 0),
-    # Legitimate questions about price and budget for course materials -
-    # words like "cheap", "buy", and "discount" otherwise only appear on
-    # the spam side, which made genuine cost-related questions read as
-    # spam themselves.
+# Real, publicly collected spam/ham SMS messages (UCI's "SMS Spam Collection,"
+# 5,574 messages, ~747 spam) instead of hand-written examples - actual spam
+# covers far more vocabulary and phrasing than anyone could realistically
+# author by hand, which is exactly what let so much spam bypass the old
+# hand-written training set. Bundled as a plain TSV (label<TAB>text per line)
+# under python/data/ so this trains fully offline, same as before.
+_SMS_DATASET_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "sms_spam_collection.tsv")
+
+
+def _load_sms_spam_dataset(path: str) -> list[tuple[str, int]]:
+    pairs: list[tuple[str, int]] = []
+    with open(path, encoding="utf-8", errors="ignore") as f:
+        for line in f:
+            label, _, text = line.rstrip("\n").partition("\t")
+            if not text:
+                continue
+            pairs.append((text, 1 if label == "spam" else 0))
+    return pairs
+
+
+# The real dataset is genuine SMS traffic, not academic-forum posts, so a few
+# hand-picked ham anchors stay on top of it - without these, phrases like
+# "cheap calculator"/"budget laptop" (legitimate student cost questions) can
+# still get pulled toward "spam" purely because "cheap"/"budget"/"discount"
+# otherwise only appear on the spam side of a generic SMS dataset too.
+_FORUM_HAM_ANCHORS: list[tuple[str, int]] = [
     ("where can i buy a cheap scientific calculator for the physics test", 0),
     ("does anyone know a budget-friendly laptop good for coding assignments", 0),
     ("is there a discount for students at the campus bookstore", 0),
     ("can someone recommend an affordable edition of the textbook for this course", 0),
     ("what's a good budget laptop for computer science students", 0),
+    ("here is the link, click it to access the assignment brief", 0),
+    ("act now if you want a spot in the limited practical lab slots", 0),
 ]
+
+SPAM_TRAINING_DATA = _load_sms_spam_dataset(_SMS_DATASET_PATH) + _FORUM_HAM_ANCHORS
 
 # (text, is_educational) pairs used to train the generic relevance
 # classifier. Used whenever there's no specific thread to compare a reply
@@ -383,6 +338,10 @@ def _is_spam(text: str) -> bool:
     # score, and require SPAM_CONFIDENCE_THRESHOLD before calling it spam.
     if not text or not text.strip():
         return False
+    # Keyword layer first: catches obvious spam vocabulary the ML classifier
+    # was never trained on, without waiting on a confidence score at all.
+    if _spam_keyword_regex.search(text):
+        return True
     spam_probability = _spam_classifier.predict_proba([text])[0][1]
     return bool(spam_probability > SPAM_CONFIDENCE_THRESHOLD)
 
