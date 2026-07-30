@@ -96,7 +96,7 @@
                                     <div>
                                         <div style="font-weight: 600; color: var(--text-heading);">{{ $result['title'] }}</div>
                                         <div class="meta">
-                                            {{ \Carbon\Carbon::parse($result['submitted_at'])->diffForHumans() }}
+                                            <span class="live-timestamp" data-timestamp="{{ \Carbon\Carbon::parse($result['submitted_at_iso'])->timestamp }}">{{ \Carbon\Carbon::parse($result['submitted_at_iso'])->diffForHumans() }}</span>
                                             @if($result['auto_submitted'])
                                                 &bull; auto-submitted
                                             @endif
@@ -133,4 +133,30 @@
         </div>
     </div>
 </div>
+
+<script>
+    // Same live-timestamp mechanism used on the messages page - re-derives
+    // each quiz's "X ago" text from its raw data-timestamp every tick instead
+    // of leaving whatever diffForHumans() said at page-load frozen there.
+    function updateTimestamps() {
+        const now = Math.floor(Date.now() / 1000);
+        document.querySelectorAll('.live-timestamp').forEach(el => {
+            const timestamp = parseInt(el.getAttribute('data-timestamp'));
+            if (!timestamp) return;
+
+            const diff = now - timestamp;
+            if (diff < 60) {
+                el.textContent = 'Just now';
+            } else if (diff < 3600) {
+                el.textContent = `${Math.floor(diff / 60)}m ago`;
+            } else if (diff < 86400) {
+                el.textContent = `${Math.floor(diff / 3600)}h ago`;
+            } else {
+                el.textContent = `${Math.floor(diff / 86400)}d ago`;
+            }
+        });
+    }
+    updateTimestamps();
+    setInterval(updateTimestamps, 60000);
+</script>
 @endsection

@@ -50,11 +50,19 @@ class MarksService
                 'quiz_average' => $quizAverage,
                 'quizzes_taken' => $results->count(),
                 'quizzes' => $results->map(fn ($r) => [
+                    'result_id' => $r->ResultID,
                     'quiz_id' => $r->QuizID,
                     'title' => $r->quiz->Title ?? 'Deleted quiz',
                     'score' => $r->Score,
                     'submitted_at' => optional($r->SubmissionTime)->setTimezone('Africa/Kampala')->format('Y-m-d H:i'),
                     'submitted_ago' => optional($r->SubmissionTime)->diffForHumans(),
+                    // Raw instant, not a pre-rendered "X ago" string - the
+                    // desktop client re-derives the relative time from this
+                    // locally every few seconds so it keeps ticking forward
+                    // ("5 seconds ago" -> "10 minutes ago" -> ...) instead of
+                    // freezing at whatever it said the moment this response
+                    // was fetched.
+                    'submitted_at_iso' => $r->SubmissionTime,
                     'auto_submitted' => (bool) $r->IsAutoSubmit,
                 ])->values(),
             ];

@@ -2,6 +2,7 @@ package com.discussionhub.client;
 
 import com.discussionhub.client.database.DatabaseManager;
 import com.discussionhub.client.database.SavedSession;
+import com.discussionhub.client.quiz.QuizPopupService;
 import com.discussionhub.client.utils.DeltaSyncService;
 import javafx.application.Application;
 import javafx.fxml.FXMLLoader;
@@ -79,6 +80,16 @@ public class HelloApplication extends Application {
         stage.setWidth(screenBounds.getWidth());
         stage.setHeight(screenBounds.getHeight());
         stage.show();
+
+        // Same gap as ensureDeviceState() above - QuizPopupService (the
+        // forced quiz popup) was only ever started from LoginController's
+        // loadDashboard()/loadGroupSelection(), right after an interactive
+        // login. This "Remember Me" auto-restore path skips that entirely,
+        // so a returning student who never sees the login screen also never
+        // got the popup started, no active quiz could ever force-appear.
+        if (saved != null) {
+            QuizPopupService.start(stage, SessionManager.token, dbManager, syncService);
+        }
 
         // 6. Fire up your background sync scheduler
         startSyncScheduler();

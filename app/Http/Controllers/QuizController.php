@@ -55,7 +55,17 @@ public function create(Request $request)
         $request->validate([
     'QuizID'         => 'nullable|integer|exists:Quiz,QuizID',
     'Title'          => 'required|string|max:255',
-    'StartTime'      => 'required|date',
+    'StartTime'      => ['required', 'date', function ($attribute, $value, $fail) {
+        // Parsed in the same timezone as the actual storage conversion
+        // below (Carbon::parse($request->StartTime, 'Africa/Kampala')) -
+        // comparing against a plain "now"/"after:now" rule would silently
+        // compare against the wrong instant, since the raw input has no
+        // timezone of its own and the app's default timezone is UTC, not
+        // Africa/Kampala.
+        if (Carbon::parse($value, 'Africa/Kampala')->lte(Carbon::now('Africa/Kampala'))) {
+            $fail('The quiz start time must be later than the current time.');
+        }
+    }],
     'Duration'       => 'required|integer|min:1',
     'GroupID'        => 'required|integer|exists:Group,GroupID',
     'Questions'      => 'required|array|min:1',
